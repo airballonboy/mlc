@@ -1,0 +1,14 @@
+# Editor specific
+.cache/
+/.vs
+.idea/
+bin/
+
+# Build folders
+build/
+/out
+
+# Cmake jonk
+Makefile
+CMakeSettings.json
+compile_commands.json
