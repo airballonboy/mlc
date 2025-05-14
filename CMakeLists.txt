@@ -6,7 +6,7 @@ set(CMAKE_BUILD_TYPE Debug) #allow Debug Symbols for gdb debuger
 # DELETE EVERYTHING IN BUILD DIR BEFORE CHANGING
 option(PRODUCTION_BUILD "Make this a production build" OFF)
 
-project(mLangC)
+project(mlc)
 
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS
 	 "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
