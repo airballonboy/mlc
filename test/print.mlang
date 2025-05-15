@@ -1,0 +1,6 @@
+#include <math.mlang>
+#import std::io from <std.mlang>
+
+func main() {
+	std::io::print("hello, world\n");
+}
