@@ -1,0 +1,27 @@
+#include <math.mlang>
+#import std::io from <std.mlang>
+
+#alias std::io::print -> print
+
+/*
+#func macro_func(s)
+	print(s);
+#endfunc
+*/
+#type strint = [string, int]
+
+string names[] = {"ahmed", "bar", "foo"};
+[string,int] pair ] ["arabic" : 81];
+strint pair_array[] = {
+	["ahmed" : 76],
+	["bar" : 12],
+	["foo" : 12]
+};
+
+func main(string args[]) -> int {
+	if(args.count == 0)
+		macro_func("no args");
+	else 
+		print(args.merge());
+	return 0;
+}

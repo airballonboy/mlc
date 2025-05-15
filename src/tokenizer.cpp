@@ -10,7 +10,9 @@ std::vector<char> tokenBreakers = {
 	')','&','*',
 	'-','+','=',
 	';','/','^',
-	'%',':','.'
+	'%',':','.',
+	',','[',']',
+	'#','<','>'
 };
 std::vector<char> skipTokens = {
 	' ', '\n','	',
@@ -67,7 +69,7 @@ Tokens fileToTokens(File f) {
 		//-- Check if the token is space, tab or \n
 	
 
-		if (checkBreakToken(*ptr) && !checkBreakToken(*(ptr - 1)))
+		if (checkBreakToken(*ptr) /*&& !checkBreakToken(*(ptr - 1))*/)
 			saveToken((std::string)currentBuffer, currentLine, currentLoc);
 		if (!checkBreakToken(*ptr) && checkBreakToken(*(ptr - 1)))
 			saveToken((std::string)currentBuffer, currentLine, currentLoc);
