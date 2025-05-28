@@ -19,6 +19,25 @@ typedef struct {
 }Token;
 typedef std::vector<Token> Tokens;
 
+enum Type{
+	INT,
+	BOOL,
+	FLOAT,
+	CHAR,
+	STRING,
+};
+
+typedef struct{
+	std::string name;
+}Label;
+typedef struct{
+	Type   type;
+	Label  label;
+	void*  value;
+	size_t size;
+}Variable;
+
+
 
 }
 

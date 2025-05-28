@@ -4,9 +4,7 @@
 #alias std::io::print -> print
 
 /*
-#func macro_func(s)
-	print(s);
-#endfunc
+ this is multi line comment
 */
 #type strint = [string, int]
 
