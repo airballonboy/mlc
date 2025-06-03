@@ -64,7 +64,7 @@ std::vector<ml::Token> ml::tokenizeString(std::string code) {
 }
 ml::Token ml::stringToToken(std::string s) {
 	if(s == "return") 	return Token{TokenType::RETURN	, s};
-	if(s == "external")	return Token{TokenType::EXTRN	, s};
+	if(s == "extern")	return Token{TokenType::EXTRN	, s};
 	if(s == "import") 	return Token{TokenType::IMPORT	, s};
 	if(s == "from") 	return Token{TokenType::FROM	, s};
 	if(s == "include") 	return Token{TokenType::INCLUDE	, s};
