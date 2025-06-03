@@ -21,10 +21,6 @@ if(MSVC) # If using the VS compiler...
 	target_compile_definitions("${CMAKE_PROJECT_NAME}"
 							 PUBLIC _CRT_SECURE_NO_WARNINGS)
 
-	set_target_properties(
-		"${CMAKE_PROJECT_NAME}"
-		PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup"
-	)# no console
 	# this is for my version of msvc you can change the path if you need
 	set(CMAKE_AR 'C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.43.34808/bin/Hostx64/x64/lib.exe'
 			CACHE FILEPATH "Archiver tool")
