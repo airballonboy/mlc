@@ -14,20 +14,20 @@ enum class TokenType
 	STRING_T, CHAR_T, FLOAT_T,
 	SIZE_T,
 	//Keywords
-    IDENT, FUNC, EXTRN,
+	IDENT, FUNC, EXTRN,
 	INCLUDE, IMPORT, FROM,
+	IF, ELIF, ELSE,
+	RETURN,
 	//literals
-    INT_LIT, STRING_LIT,
+	INT_LIT, STRING_LIT,
 	//Signs
 	OPEN_PAREN, CLOSE_PAREN,
-    OPEN_CURLY, CLOSE_CURLY,
+	OPEN_CURLY, CLOSE_CURLY,
 	S_QOUTE, D_QOUTE, AND,
-    EQUAL, PLUS,
-    STAR, MINUS,
-    FSLASH, BSLASH,
-    IF, ELIF, ELSE,
-    RETURN,
-    SEMI, COLON, PERCENT,
+	EQUAL, PLUS,
+	STAR, MINUS,
+	FSLASH, BSLASH,
+	SEMI, COLON, PERCENT,
 	DOT, BITWISE, COMMA,
 	L_BRACKET, R_BRACKET,
 	HASH, L_THAN, G_THAN,
@@ -37,8 +37,8 @@ enum class TokenType
 
 struct Token
 {
-    TokenType type;
-    std::optional<std::string> value{};
+	TokenType type;
+	std::optional<std::string> value{};
 };
 
 std::vector<Token> tokenizeFile(std::string filePath);
