@@ -1,5 +1,6 @@
 #pragma once
 #include "tokenizer.hpp"
+#include <optional>
 #include <sstream>
 #include <string>
 #include <stdexcept>
@@ -98,9 +99,14 @@ inline std::string TokenType_to_string(ml::TokenType tt) {
 	return name;
 }
 
+inline std::string optional_to_string(std::optional<std::string> opt){
+	if (opt.has_value())
+		return opt.value();
+	return std::string("null");
+}
 
 inline std::string Token_to_string(ml::Token t){
 	// all weird stuff for cool colors :)
-	return f("\033[35mToken\033[0m(\033[36m{}\033[0m, \033[32m{}\033[0m)", TokenType_to_string(t.type), 1);
+	return f("\033[35mToken\033[0m(\033[36m{}\033[0m, \033[32m{}\033[0m)", TokenType_to_string(t.type), optional_to_string(t.value));
 }
 
