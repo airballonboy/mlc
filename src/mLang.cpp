@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cstdio>
 #include <string>
-#include <format>
 #include "tools/logger.h"
 #include "tools/format.h"
 
@@ -15,15 +14,13 @@ char* shift_args(int *argc, char ***argv) {
 	return result;
 }
 
- int hewo;
 int main(int argc, char* argv[])
 {
 	std::string programName = shift_args(&argc, &argv);
 	if (argc == 0) {
 		logger::error("PROGRAM: ", "incorrect usage");
 		logger::error("PROGRAM: ", "correct usage is");
-		logger::log("   ", logger::Blue, _f("{} input.mlang [-run [-a arg0 arg1 arg2 ...]]", programName));
-		std::cout << _f("{}\n", hewo);
+		logger::log("   ", logger::Blue, f("{} input.mlang [-run [-a arg0 arg1 arg2 ...]]", programName).c_str());
 		return 1;
 	}
 	std::string inputFile = shift_args(&argc, &argv);
