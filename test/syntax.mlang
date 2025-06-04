@@ -1,5 +1,6 @@
 #include <math.mlang>
 #import std::io from <std.mlang>
+#exern printf(string, ...)
 
 #alias std::io::print -> print
 
@@ -17,8 +18,8 @@ strint pair_array[] = {
 };
 
 func main(string args[]) -> int {
-	if(args.count == 0)
-		macro_func("no args");
+	if(args.count == 1)
+		printf("no args found other than the name of program: %s", args[0]);
 	else 
 		print(args.merge());
 	return 0;
