@@ -28,12 +28,9 @@ int main(int argc, char* argv[])
 	auto token = ml::tokenizeFile(inputFile);
 
 	int it = 0;
-	std::array<ml::Token, 400>tarr;
 	for (auto& t : token) {
-		tarr[it++] = t;
+		std::cout << f("{}: {}\n", it++, Token_to_string(t));
 	}
-
-	for (int i = 0;i < 100;i++);
 
 	return 0;
 }
