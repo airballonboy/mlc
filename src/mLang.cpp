@@ -13,6 +13,7 @@ char* shift_args(int *argc, char ***argv) {
 	(*argc) -= 1;
 	return result;
 }
+// should save token id in the token
 
 int main(int argc, char* argv[])
 {
