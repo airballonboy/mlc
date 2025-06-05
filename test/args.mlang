@@ -1,0 +1,5 @@
+#import std::io::print from <std.mlang>
+
+func main(string args[]) {
+	std::io::print(args.join());
+}

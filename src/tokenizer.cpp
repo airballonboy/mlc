@@ -32,6 +32,13 @@ std::vector<ml::Token> ml::tokenizeString(std::string code) {
 				i++;
 			}
 			tokens.push_back({TokenType::STRING_LIT, s});
+		}else if(!tokens.empty() && tokens[tokens.size() - 1].type == TokenType::L_THAN){
+			std::string s;
+			while(code[i] != '>') {
+				s.push_back(code[i]);
+				i++;
+			}
+			tokens.push_back({TokenType::STRING_LIT, s});
 		}else if (isdigit(c)){
 			std::string s;
 			s.push_back(c);
@@ -81,33 +88,33 @@ ml::Token ml::stringToToken(std::string s) {
 	return Token{TokenType::IDENT, s};
 }
 ml::Token ml::breakerToToken(char c) {
-	if(c == '\'') return Token{TokenType::S_QOUTE};
-	if(c == '\"') return Token{TokenType::D_QOUTE};
-	if(c == '\\') return Token{TokenType::BSLASH};
-	if(c == '/')  return Token{TokenType::FSLASH};
-	if(c == '{')  return Token{TokenType::OPEN_CURLY};
-	if(c == '}')  return Token{TokenType::CLOSE_CURLY};
-	if(c == '(')  return Token{TokenType::OPEN_PAREN};
-	if(c == ')')  return Token{TokenType::CLOSE_PAREN};
-	if(c == '&')  return Token{TokenType::AND};
-	if(c == '*')  return Token{TokenType::STAR};
-	if(c == '-')  return Token{TokenType::MINUS};
-	if(c == '+')  return Token{TokenType::PLUS};
-	if(c == '=')  return Token{TokenType::EQUAL};
-	if(c == ';')  return Token{TokenType::SEMI};
-	if(c == '/')  return Token{TokenType::FSLASH};
-	if(c == '^')  return Token{TokenType::BITWISE};
-	if(c == '%')  return Token{TokenType::PERCENT};
-	if(c == ':')  return Token{TokenType::COLON};
-	if(c == '.')  return Token{TokenType::DOT};
-	if(c == ',')  return Token{TokenType::COMMA};
-	if(c == '[')  return Token{TokenType::L_BRACKET};
-	if(c == ']')  return Token{TokenType::R_BRACKET};
-	if(c == '#')  return Token{TokenType::HASH};
-	if(c == '<')  return Token{TokenType::L_THAN};
-	if(c == '>')  return Token{TokenType::G_THAN};
-	if(c == '@')  return Token{TokenType::AT_SIGN};
-	if(c == '!')  return Token{TokenType::EXCLAMATION_MARK};
+	if(c == '\'') return Token{TokenType::S_QOUTE			, std::string(1, c)};
+	if(c == '\"') return Token{TokenType::D_QOUTE			, std::string(1, c)};
+	if(c == '\\') return Token{TokenType::BSLASH			, std::string(1, c)};
+	if(c == '/')  return Token{TokenType::FSLASH			, std::string(1, c)};
+	if(c == '{')  return Token{TokenType::OPEN_CURLY		, std::string(1, c)};
+	if(c == '}')  return Token{TokenType::CLOSE_CURLY		, std::string(1, c)};
+	if(c == '(')  return Token{TokenType::OPEN_PAREN		, std::string(1, c)};
+	if(c == ')')  return Token{TokenType::CLOSE_PAREN		, std::string(1, c)};
+	if(c == '&')  return Token{TokenType::AND				, std::string(1, c)};
+	if(c == '*')  return Token{TokenType::STAR				, std::string(1, c)};
+	if(c == '-')  return Token{TokenType::MINUS				, std::string(1, c)};
+	if(c == '+')  return Token{TokenType::PLUS				, std::string(1, c)};
+	if(c == '=')  return Token{TokenType::EQUAL				, std::string(1, c)};
+	if(c == ';')  return Token{TokenType::SEMI				, std::string(1, c)};
+	if(c == '/')  return Token{TokenType::FSLASH			, std::string(1, c)};
+	if(c == '^')  return Token{TokenType::BITWISE			, std::string(1, c)};
+	if(c == '%')  return Token{TokenType::PERCENT			, std::string(1, c)};
+	if(c == ':')  return Token{TokenType::COLON				, std::string(1, c)};
+	if(c == '.')  return Token{TokenType::DOT				, std::string(1, c)};
+	if(c == ',')  return Token{TokenType::COMMA				, std::string(1, c)};
+	if(c == '[')  return Token{TokenType::L_BRACKET			, std::string(1, c)};
+	if(c == ']')  return Token{TokenType::R_BRACKET			, std::string(1, c)};
+	if(c == '#')  return Token{TokenType::HASH				, std::string(1, c)};
+	if(c == '<')  return Token{TokenType::L_THAN			, std::string(1, c)};
+	if(c == '>')  return Token{TokenType::G_THAN			, std::string(1, c)};
+	if(c == '@')  return Token{TokenType::AT_SIGN			, std::string(1, c)};
+	if(c == '!')  return Token{TokenType::EXCLAMATION_MARK	, std::string(1, c)};
 
 	return {};
 }

@@ -94,7 +94,6 @@ inline std::string TokenType_to_string(ml::TokenType tt) {
 		case ml::TokenType::G_THAN: name = "G_THAN";break;
 		case ml::TokenType::AT_SIGN: name = "AT_SIGN";break;
 		case ml::TokenType::EXCLAMATION_MARK: name = "EXCLAMATION_MARK";break;
-		default: name = "not yet implemented";break;
 	}
 	return name;
 }
