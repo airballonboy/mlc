@@ -27,14 +27,15 @@ std::vector<ml::Token> ml::tokenizeString(std::string code) {
 		// Checks if the current char is a " and the previous one wasn't a STRING_LIT
 		if (!tokens.empty() && tokens[tokens.size()-1].type == TokenType::D_QOUTE && tokens[tokens.size()-2].type != TokenType::STRING_LIT){
 			std::string s;
-			while (code[i] != '\"') {
+			while (code[i] != '\"' && i < code.size()) {
 				s.push_back(code[i]);
 				i++;
 			}
 			tokens.push_back({TokenType::STRING_LIT, s});
+		// Checks if the current char is a < and continues until it finds >
 		}else if(!tokens.empty() && tokens[tokens.size() - 1].type == TokenType::L_THAN){
 			std::string s;
-			while(code[i] != '>') {
+			while(code[i] != '>' && i < code.size()) {
 				s.push_back(code[i]);
 				i++;
 			}
