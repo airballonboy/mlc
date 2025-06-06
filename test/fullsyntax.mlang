@@ -1,0 +1,30 @@
+#include <math.mlang>
+// raylib.mlang is specified with "" because it's in working directory
+#include "raylib.mlang"
+
+// std::io is a namespace in namespace
+#import std::io from <std.mlang>
+
+/*
+	multi line comment
+*/
+
+namespace game;
+func game::init() -> bool {
+	// function calls
+	init_window(300, 1000, "window name", true);
+	return true;
+}
+func game::close(){
+	return true;
+}
+
+// entry point
+func main(){
+	// unused return
+	game::init();
+
+	if (!game::close()){
+		std::io::println("game couldn't close")
+	}
+}

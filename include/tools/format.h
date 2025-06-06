@@ -68,6 +68,7 @@ inline std::string TokenType_to_string(ml::TokenType tt) {
 		case ml::TokenType::RETURN: 			name = "RETURN";break;
 		case ml::TokenType::INT_LIT: 			name = "INT_LIT";break;
 		case ml::TokenType::STRING_LIT: 		name = "STRING_LIT";break;
+		case ml::TokenType::COMMENT: 			name = "COMMENT";break;
 		case ml::TokenType::OPEN_PAREN: 		name = "OPEN_PAREN";break;
 		case ml::TokenType::CLOSE_PAREN: 		name = "CLOSE_PAREN";break;
 		case ml::TokenType::OPEN_CURLY: 		name = "OPEN_CURLY";break;

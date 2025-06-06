@@ -24,8 +24,28 @@ std::vector<ml::Token> ml::tokenizeString(std::string code) {
 	size_t i = 0;
 	while (i < code.size()){
 		auto& c = code[i];
+		// Checks for single line comments
+		if (i+1 < code.size() && code[i] == '/' && code[i+1] == '/'){
+			std::string s;
+			while (code[i] != '\n' && i < code.size()){
+				s.push_back(code[i]);
+				i++;
+			}
+			tokens.push_back({TokenType::COMMENT, s});
+		// Checks for multi line comments
+		}else if(i+3 < code.size() && code[i] == '/' && code[i+1] == '*'){
+			std::string s;
+			while (i+1 < code.size() && !(code[i] == '*' && code[i+1] == '/')){
+				s.push_back(code[i]);
+				i++;
+			}
+			s.push_back(code[i]);
+			i++;
+			s.push_back(code[i]);
+			i++;
+			tokens.push_back({TokenType::COMMENT, s});
 		// Checks if the current char is a " and the previous one wasn't a STRING_LIT
-		if (!tokens.empty() && tokens[tokens.size()-1].type == TokenType::D_QOUTE && tokens[tokens.size()-2].type != TokenType::STRING_LIT){
+		}else if (!tokens.empty() && tokens[tokens.size()-1].type == TokenType::D_QOUTE && tokens[tokens.size()-2].type != TokenType::STRING_LIT){
 			std::string s;
 			while (code[i] != '\"' && i < code.size()) {
 				s.push_back(code[i]);
