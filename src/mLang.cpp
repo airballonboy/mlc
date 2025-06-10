@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 	int it = 0;
 	for (auto& t : token) {
 		// NOTE: will be used for errors
-		//std::cout << f("{}:{}:{} -> {}\n", inputFile, 1, it > 2 ? it-2 : it+2 , "error in error");
+			//std::cout << f("{}:{}:{} -> {}\n", inputFile, 1, it > 2 ? it-2 : it+2 , "error in error");
 		logger::success(f("{:03}:", it++).c_str(), f("{}", Token_to_string(t)).c_str());
 	}
 
