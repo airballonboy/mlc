@@ -1,8 +1,7 @@
 #ifndef MASTERLOGGER
 #define MASTERLOGGER
 
-#include <iostream>
-
+#include <cstdio>
 
 namespace logger {
 
@@ -20,34 +19,33 @@ enum color{
 
 inline void log(const color color, const char* text)
 {
-	std::cout << "\033["<< color << "m" << text << "\033[0m\n";
+	printf("\033[%dm%s\033[0m\n", color, text);
 }
 inline void log(const char* prefix, const color color, const char* text)
 {
-	std::cout << "\033[36m" << prefix 
-		<< "\033["<< color << "m" << text << "\033[0m\n";
+	printf("\033[36m%s\033[%dm%s\033[0m\n", prefix, color, text);
 }
 
 inline void success(const char* text)
 {
-	std::cout << "\033[32m" << text << "\033[0m\n";
+	printf("\033[32m%s\033[0m\n", text);
 }
 inline void success(const char* prefix, const char* successMassage)
 {
-	std::cout << "\033[36m" << prefix << "\033[32m" << successMassage << "\033[0m\n";
+	printf("\033[36m%s\033[32m%s\033[0m\n", prefix, successMassage);
 }
 
 
 inline void error(const char* error)
 {
-	std::cout << "\033[31m" << error << "\033[0m\n";
+	printf("\033[31m%s\033[0m\n", error);
 }
 inline void error(const char* prefix, const char* errorMassage)
 {
-	std::cout << "\033[36m" << prefix << "\033[31m" << errorMassage << "\033[0m\n";
+	printf("\033[36m%s\033[31m%s\033[0m\n", prefix, errorMassage);
 }
 
 
 }
 
-#endif
+#endif //MASTERLOGGER
