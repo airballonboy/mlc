@@ -37,6 +37,7 @@ enum class TokenType
 
 struct Token
 {
+	size_t id;
 	TokenType type;
 	std::optional<std::string> value{};
 };
