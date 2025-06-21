@@ -1,6 +1,9 @@
 #include <math.mlang>
 #import std::io from <std.mlang>
-#exern printf(string, ...)
+#import CType from <c_std.mlang>
+
+#extrn InitWindow(int, int, CType::c_char)
+#extrn c_printf(string, ...) [from[name = "printf", lib = "libc.so", search_path = "/home/user/dev/lib"]] 
 
 #alias std::io::print -> print
 
@@ -10,17 +13,22 @@
 #type strint = [string, int]
 
 string names[] = {"ahmed", "bar", "foo"};
-[string,int] pair ] ["arabic" : 81];
+[string, int] pair = ["arabic" : 81];
 strint pair_array[] = {
 	["ahmed" : 76],
-	["bar" : 12],
-	["foo" : 12]
+	["bar"   : 12],
+	["foo"   : 12]
 };
+
+var lamba = [&](int a = 0, int b = 0) -> int {
+	return a + b;
+}
 
 func main(string args[]) -> int {
 	if(args.count == 1)
-		printf("no args found other than the name of program: %s", args[0]);
+		c_printf("no args found other than the name of program: %s", args[0]);
 	else 
 		print(args.merge());
+	std::io::printf("{}", lambda(12, 122));
 	return 0;
 }

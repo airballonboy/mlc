@@ -12,10 +12,11 @@
 namespace game;
 func game::init() -> bool {
 	// function calls
-	init_window(300, 1000, "window name", true);
+	rl::init_window(300, 1000, "window name");
 	return true;
 }
 func game::close(){
+	rl::close_window();
 	return true;
 }
 
