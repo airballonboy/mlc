@@ -126,6 +126,7 @@ inline std::string TokenType_to_string(ml::TokenType tt) {
 		case ml::TokenType::G_THAN: 			name = "G_THAN";break;
 		case ml::TokenType::AT_SIGN: 			name = "AT_SIGN";break;
 		case ml::TokenType::EXCLAMATION_MARK:	name = "EXCLAMATION_MARK";break;
+		case ml::TokenType::END_OF_FILE:		name = "END_OF_FILE";break;
 	}
 	return name;
 }
@@ -138,6 +139,7 @@ inline std::string optional_to_string(std::optional<std::string> opt){
 
 inline std::string Token_to_string(ml::Token t){
 	// all weird stuff for cool colors :)
-	return f("\033[35mToken\033[0m(\033[36m{}\033[0m, \033[32m{}\033[0m)", TokenType_to_string(t.type), optional_to_string(t.value));
+	return f("\033[35mToken\033[0m(\033[36m{}\033[0m, \033[32m{}\033[0m) at({}:{})", TokenType_to_string(t.type), optional_to_string(t.value),
+		  		t.loc.line, t.loc.col);
 }
 

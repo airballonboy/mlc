@@ -31,21 +31,27 @@ enum class TokenType
 	DOT, BITWISE, COMMA,
 	L_BRACKET, R_BRACKET,
 	HASH, L_THAN, G_THAN,
-	AT_SIGN, EXCLAMATION_MARK,	
+	AT_SIGN, EXCLAMATION_MARK,
+	END_OF_FILE,
 };
 
-
+struct Loc{
+	size_t line = 1;
+	size_t col  = 1;
+	std::string file;
+};
 struct Token
 {
-	size_t id;
-	TokenType type;
+	size_t id = 0;
+	Loc loc = {};
+	TokenType type = {};
 	std::optional<std::string> value{};
 };
 
 std::vector<Token> tokenizeFile(std::string filePath);
-std::vector<Token> tokenizeString(std::string code);
-Token stringToToken(std::string s);
-Token breakerToToken(char c);
+std::vector<Token> tokenizeString(std::string code, std::string filePath);
+Token stringToToken(std::string s, Loc currentLoc);
+Token breakerToToken(char c, Loc currentLoc);
 
 bool isbreaker(char c);
 

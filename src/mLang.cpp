@@ -28,6 +28,7 @@ int main(int argc, char* argv[])
 
 	auto token = ml::tokenizeFile(inputFile);
 
+	//logger::success(f("{}", token.size()).c_str());
 	int it = 0;
 	for (auto& t : token) {
 		// NOTE: will be used for errors
