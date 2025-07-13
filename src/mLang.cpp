@@ -1,10 +1,13 @@
-#include "tokenizer.hpp"
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdio>
 #include <string>
+#include "parser.h"
+#include "tools/file.h"
 #include "tools/logger.h"
 #include "tools/format.h"
+#include "lexar.h"
 
 char* shift_args(int *argc, char ***argv) {
 	assert("no more args" && *argc > 0);
@@ -24,17 +27,14 @@ int main(int argc, char* argv[])
 		logger::log("   ", logger::Blue, f("{} input.mlang [-run [-a arg0 arg1 arg2 ...]]", programName).c_str());
 		return 1;
 	}
-	std::string inputFile = shift_args(&argc, &argv);
 
-	auto token = ml::tokenizeFile(inputFile);
+    std::string inputFile = shift_args(&argc, &argv);
 
-	//logger::success(f("{}", token.size()).c_str());
-	int it = 0;
-	for (auto& t : token) {
-		// NOTE: will be used for errors
-			//std::cout << f("{}:{}:{} -> {}\n", inputFile, 1, it > 2 ? it-2 : it+2 , "error in error");
-		logger::success(f("{:03}:", t.id).c_str(), f("{}", Token_to_string(t)).c_str());
-	}
+	auto lexar = Lexar(readFileToString(inputFile), inputFile);
+
+    Parser parser(&lexar);
+
+    parser.parse();
 
 	return 0;
 }

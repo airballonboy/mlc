@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Debug) #allow Debug Symbols for gdb debuger
@@ -9,39 +9,43 @@ option(PRODUCTION_BUILD "Make this a production build" OFF)
 project(mlc)
 
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS
-	 "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
 add_executable("${CMAKE_PROJECT_NAME}" ${MY_SOURCES})
 
-set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 20)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+#set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 23)
 
 if(MSVC) # If using the VS compiler...
 
-	target_compile_definitions("${CMAKE_PROJECT_NAME}"
-							 PUBLIC _CRT_SECURE_NO_WARNINGS)
+    target_compile_definitions("${CMAKE_PROJECT_NAME}"
+                             PUBLIC _CRT_SECURE_NO_WARNINGS)
 
-	# this is for my version of msvc you can change the path if you need
-	set(CMAKE_AR 'C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.43.34808/bin/Hostx64/x64/lib.exe'
-			CACHE FILEPATH "Archiver tool")
+    # this is for my version of msvc you can change the path if you need
+    set(CMAKE_AR 'C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.43.34808/bin/Hostx64/x64/lib.exe'
+            CACHE FILEPATH "Archiver tool")
 
-	# Makes the libs static
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
-	set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS} -static -s")
-	set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static -s")
+    # Makes the libs static
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
+    set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS} -static -s")
+    set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static -s")
 
 else()
-	# Makes the libs static
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static-libgcc")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++")
-	set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS} -static -s")
-	set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static -s")
+    # Makes the libs static
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static-libgcc")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++")
+    set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS} -static -s")
+    set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static -s")
 
 endif()
 
+
 target_include_directories("${CMAKE_PROJECT_NAME}"
-						   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+                           PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/"
 )
 
 
