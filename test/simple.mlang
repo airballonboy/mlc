@@ -1,5 +1,5 @@
-int i = 121;
 
-func main() -> int{
+func main() -> int {
+	int i = 121;
 	return i;
 }
