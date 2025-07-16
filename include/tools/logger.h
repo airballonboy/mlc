@@ -5,6 +5,7 @@
 
 namespace logger {
 
+
 enum color{
     NoColor = 0,
     Black   = 30,
@@ -48,4 +49,10 @@ inline void error(const char* prefix, const char* errorMassage)
 
 }
 
+#include "tools/format.h"
+#define TODO(x) \
+    do { \
+        logger::log("TODO: ", logger::Blue, f("\n   {}:{} \033[{}m{}\033[0m", __FILE_NAME__, __LINE__, logger::Red, x).c_str()); \
+        exit(1); \
+    }while(0)
 #endif //MASTERLOGGER

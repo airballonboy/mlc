@@ -165,7 +165,7 @@ void Lexar::skipSpaces(){
 
 
 void Lexar::getNext(){
-    if (m_tokens[m_currentTokenIndex].type == TokenType::EndOfFile) {
+    if (currentToken->type == TokenType::EndOfFile) {
         std::println("EndOfFile REACHED");
         return;
     }
@@ -239,7 +239,7 @@ void Lexar::getAndExpectNext(std::vector<TokenType> tts){
 }
 
 Token* Lexar::peek(){
-    if (m_tokens[m_currentTokenIndex].type == TokenType::EndOfFile) {
+    if (currentToken->type == TokenType::EndOfFile) {
         std::println("EndOfFile REACHED");
         return &m_tokens[m_currentTokenIndex];
     }

@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "tools/logger.h"
 #include "types.h"
 #include <print>
 #include <vector>
@@ -57,10 +58,9 @@ std::vector<statment> Parser::parseBody(){
 
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
+    TODO("parse Body");
     while (m_currentLexar->peek()->type != TokenType::CCurly && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-        m_currentLexar->getAndExpectNext({TokenType::TypeID, TokenType::ID, TokenType::Return});
-        m_currentLexar->getAndExpectNext({TokenType::ColonColon, TokenType::Eq, TokenType::IntLit});
-        m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+        m_currentLexar->getNext();        
     }
 
     m_currentLexar->getAndExpectNext(TokenType::CCurly);
