@@ -25,13 +25,13 @@
 *       std::vector<std::any> args;
 *   };
 *   
-*   std::vector<Instruction> program;
+*   std::vector<Instruction> program;       
 */
 
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
 }
-void Parser::parse() {
+Program* Parser::parse() {
     auto tkn = &m_currentLexar->currentToken;
 
     while ((*tkn)->type != TokenType::EndOfFile) {
@@ -49,7 +49,7 @@ void Parser::parse() {
                         m_currentLexar->expectNext(TokenType::Comma);
                 }
 
-                if (m_currentLexar->peek()->type == TokenType::EndOfFile) return;
+                if (m_currentLexar->peek()->type == TokenType::EndOfFile) return &m_program;
 
                 m_currentLexar->getAndExpectNext(TokenType::CParen);
                 m_currentLexar->expectNext({TokenType::Arrow, TokenType::OCurly});
@@ -74,6 +74,7 @@ void Parser::parse() {
             }break;
         }
     }
+    return &m_program;
 
 /* TODO: 
 *  make this into "codegen/ir"  
@@ -111,7 +112,7 @@ std::vector<statment> Parser::parseBody(){
                     return_value = (*tkn)->int_value;
                 else if ((*tkn)->type == TokenType::ID)
                     TODO("check if is variable and get it's value");
-                // TODO: program.push_back({Op::RETURN, {return_value}});
+                m_program.push_back({Op::RETURN, {(int)Type::Int32_t, return_value}});
             }break;
             case TokenType::TypeID: {
                 TODO("Add Variables");

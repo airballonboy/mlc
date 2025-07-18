@@ -5,6 +5,7 @@
 #include <string>
 #include "parser.h"
 #include "tools/file.h"
+#include "codegen/ir.h"
 #include "tools/logger.h"
 #include "tools/format.h"
 #include "lexar.h"
@@ -34,7 +35,10 @@ int main(int argc, char* argv[])
 
     Parser parser(&lexar);
 
-    parser.parse();
+    auto prog = parser.parse();
+
+    ir compiler(prog);
+    compiler.compileProgram();
 
 	return 0;
 }

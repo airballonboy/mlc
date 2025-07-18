@@ -1,6 +1,7 @@
 #pragma once 
 #include <string>
 #include <vector>
+#include <any>
 #include <unordered_map>
 
 enum class TokenType {
@@ -42,8 +43,8 @@ enum class TokenType {
     Goto, Return, Import,
     Func, From, 
 };
-enum class Type{
-    Int8_t, Int16_t, 
+enum class Type : int{
+    Int8_t = 0, Int16_t, 
     Int32_t, Int64_t, 
     String_t, Char_t,
     Float_t, Size_t,
@@ -215,3 +216,22 @@ typedef struct {
     int         int_value;
 }Token;
 
+enum class Op {
+    LOAD_CONST,
+    STORE_VAR,
+    LOAD_VAR,
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    // RETURN(return_type, return_value)
+    RETURN,
+    CALL,
+};
+
+struct Instruction {
+    Op op;
+    std::vector<std::any> args;
+};
+
+typedef std::vector<Instruction> Program;       
