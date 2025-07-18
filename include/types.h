@@ -1,4 +1,5 @@
 #pragma once 
+#include <functional>
 #include <string>
 #include <vector>
 #include <any>
@@ -43,12 +44,25 @@ enum class TokenType {
     Goto, Return, Import,
     Func, From, 
 };
-enum class Type : int{
+enum class Type : int {
     Int8_t = 0, Int16_t, 
     Int32_t, Int64_t, 
     String_t, Char_t,
     Float_t, Size_t,
 };
+enum class Op {
+    LOAD_CONST,
+    STORE_VAR,
+    LOAD_VAR,
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    // RETURN(return_type, return_value)
+    RETURN,
+    CALL,
+};
+
 
 const std::unordered_map<std::string, Type> TypeIds = {
     {"int16", Type::Int16_t},
@@ -190,18 +204,6 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     {"from"  , TokenType::From},
 };
 
-typedef struct {
-    
-}statment;
-
-typedef struct {
-    std::string name;
-    //typeid returnType;
-    //std::vector<var> args;
-    std::string id;
-    std::vector<statment> body;
-}func;
-
 
 typedef struct LocStruct{
     size_t line   = 1;
@@ -216,22 +218,35 @@ typedef struct {
     int         int_value;
 }Token;
 
-enum class Op {
-    LOAD_CONST,
-    STORE_VAR,
-    LOAD_VAR,
-    ADD,
-    SUB,
-    MUL,
-    DIV,
-    // RETURN(return_type, return_value)
-    RETURN,
-    CALL,
-};
-
 struct Instruction {
     Op op;
     std::vector<std::any> args;
 };
+struct Variable {
+    Type     type;
+    std::any value;
+};
 
-typedef std::vector<Instruction> Program;       
+typedef std::vector<Variable> VariableStorage;
+
+struct Func {
+    Type return_type;
+
+    int arguments_count;
+    std::vector<Variable> arguments;
+
+    std::string name;
+    
+    VariableStorage local_variables;
+    std::vector<Instruction> body;
+};
+
+typedef std::vector<Func> FunctionStorage;
+
+struct Program {
+    FunctionStorage func_storage;
+    VariableStorage var_storage;
+};
+
+
+

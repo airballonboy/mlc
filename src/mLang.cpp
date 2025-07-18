@@ -2,7 +2,9 @@
 #include <array>
 #include <cassert>
 #include <cstdio>
+#include <print>
 #include <string>
+#include <vector>
 #include "parser.h"
 #include "tools/file.h"
 #include "codegen/ir.h"
@@ -30,6 +32,13 @@ int main(int argc, char* argv[])
 	}
 
     std::string inputFile = shift_args(&argc, &argv);
+    std::vector<char *> args;
+    while (argc > 0) {
+        args.push_back(shift_args(&argc, &argv));
+    }
+    for (auto& arg : args) {
+        std::println("{}", arg);
+    }
 
 	auto lexar = Lexar(readFileToString(inputFile), inputFile);
 
