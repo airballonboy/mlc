@@ -1,8 +1,33 @@
 #include "parser.h"
 #include "tools/logger.h"
 #include "types.h"
+#include <any>
 #include <print>
 #include <vector>
+
+/* TODO:
+*  make this a real thing
+*   enum class Op {
+*       LOAD_CONST,
+*       STORE_VAR,
+*       LOAD_VAR,
+*       ADD,
+*       SUB,
+*       MUL,
+*       DIV,
+*       // RETURN(return_type, return_value)
+*       RETURN,
+*       CALL,
+*   };
+*   
+*   struct Instruction {
+*       Op op;
+*       std::vector<std::any> args;
+*   };
+*   
+*   std::vector<Instruction> program;
+*/
+
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
 }
@@ -19,7 +44,7 @@ void Parser::parse() {
                 while (m_currentLexar->peek()->type != TokenType::CParen && m_currentLexar->peek()->type != TokenType::EndOfFile) {
                     m_currentLexar->getAndExpectNext(TokenType::TypeID);
                     m_currentLexar->getAndExpectNext(TokenType::ID);
-                    // Process Local Variables
+                    // Process parameter(Local Variables)
                     if(m_currentLexar->peek()->type != TokenType::CParen)
                         m_currentLexar->expectNext(TokenType::Comma);
                 }
@@ -34,14 +59,12 @@ void Parser::parse() {
                     m_currentLexar->getAndExpectNext(TokenType::Arrow);
                     m_currentLexar->getAndExpectNext(TokenType::TypeID);
                 }
-
                 parseBody();
                 m_currentLexar->getNext();
                 
             }break;//TokenType::Func
             case TokenType::ID: {
-
-                std::println("unimplemented type of {}", printableToken.at((*tkn)->type));
+                TODO(f("unimplemented type of {}", printableToken.at((*tkn)->type)));
                 m_currentLexar->getNext();
             }break;
             default: {
@@ -52,15 +75,49 @@ void Parser::parse() {
         }
     }
 
+/* TODO: 
+*  make this into "codegen/ir"  
+*   for (auto& inst : program) {
+*       switch (inst.op) {
+*           case Op::RETURN: {
+*               auto arg = std::any_cast<int>(inst.args[0]);
+*               std::println("ret({})", arg);
+*           }break;
+*       }
+*   }
+*/
 }
+// should be instuctions not statments
 std::vector<statment> Parser::parseBody(){
     std::vector<statment> body;
+    auto tkn = &m_currentLexar->currentToken;
 
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
-    TODO("parse Body");
     while (m_currentLexar->peek()->type != TokenType::CCurly && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-        m_currentLexar->getNext();        
+        m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID, TokenType::OCurly, TokenType::Return});
+        switch ((*tkn)->type) {
+            case TokenType::ID: {
+                if (m_currentLexar->peek()->type == TokenType::OParen) {
+                    TODO("Check Functions");
+                }else if (m_currentLexar->peek()->type == TokenType::Eq) {
+                    TODO("Check Assignment");
+                }
+            }break;
+            case TokenType::Return: {
+                m_currentLexar->getAndExpectNext({TokenType::IntLit, TokenType::ID});
+                int return_value;
+                if ((*tkn)->type == TokenType::IntLit)
+                    return_value = (*tkn)->int_value;
+                else if ((*tkn)->type == TokenType::ID)
+                    TODO("check if is variable and get it's value");
+                // TODO: program.push_back({Op::RETURN, {return_value}});
+            }break;
+            case TokenType::TypeID: {
+                TODO("Add Variables");
+            }break;
+        }
+        while ((*tkn)->type != TokenType::SemiColon) m_currentLexar->getNext();
     }
 
     m_currentLexar->getAndExpectNext(TokenType::CCurly);
