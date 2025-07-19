@@ -10,4 +10,5 @@ public:
     virtual void compileFunction(Func func) {}
 protected:
     Program* m_program;
+    std::string output;
 };

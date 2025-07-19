@@ -8,5 +8,4 @@ public:
 
     void compileProgram()  override;
     void compileFunction(Func func) override;
-    std::string output;
 };

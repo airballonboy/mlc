@@ -9,10 +9,11 @@
 
 void ir::compileProgram() {
     if (m_program == nullptr) return;
+    output.append(f("\n"));
     for (auto& func : m_program->func_storage) {
         compileFunction(func);
     }
-    std::println("{}", output);
+    std::print("{}", output);
 }
 void ir::compileFunction(Func func) {
     output.append(f("{}:\n", func.name));

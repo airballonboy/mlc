@@ -248,5 +248,5 @@ struct Program {
     VariableStorage var_storage;
 };
 
-
+inline std::string input_no_extention;
 

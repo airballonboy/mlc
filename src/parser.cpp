@@ -5,28 +5,6 @@
 #include <print>
 #include <vector>
 
-/* TODO:
-*  make this a real thing
-*   enum class Op {
-*       LOAD_CONST,
-*       STORE_VAR,
-*       LOAD_VAR,
-*       ADD,
-*       SUB,
-*       MUL,
-*       DIV,
-*       // RETURN(return_type, return_value)
-*       RETURN,
-*       CALL,
-*   };
-*   
-*   struct Instruction {
-*       Op op;
-*       std::vector<std::any> args;
-*   };
-*   
-*   std::vector<Instruction> program;       
-*/
 
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;

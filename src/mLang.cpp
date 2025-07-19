@@ -2,10 +2,12 @@
 #include <array>
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 #include <print>
 #include <string>
 #include <vector>
 #include "parser.h"
+#include "types.h"
 #include "tools/file.h"
 #include "codegen/ir.h"
 #include "tools/logger.h"
@@ -32,6 +34,7 @@ int main(int argc, char* argv[])
 	}
 
     std::string inputFile = shift_args(&argc, &argv);
+    if (strstr(inputFile.c_str(), ".mlang")) input_no_extention = inputFile.substr(0, inputFile.size() - 6);
     std::vector<char *> args;
     while (argc > 0) {
         args.push_back(shift_args(&argc, &argv));

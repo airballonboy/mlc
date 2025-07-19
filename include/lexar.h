@@ -27,6 +27,7 @@ private:
     std::string        m_source;
     size_t             m_currentCharIndex = 0;
     std::string        m_filePath;
+    std::string        m_filePathNoExtension;
     size_t             m_currentTokenIndex = 0;
     Loc                m_currentLoc;
 
