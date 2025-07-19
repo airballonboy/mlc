@@ -6,6 +6,7 @@
 #include <print>
 #include <string>
 #include <vector>
+#include "codegen/gnu_asm_x86_64.h"
 #include "parser.h"
 #include "types.h"
 #include "tools/file.h"
@@ -35,6 +36,7 @@ int main(int argc, char* argv[])
 
     std::string inputFile = shift_args(&argc, &argv);
     if (strstr(inputFile.c_str(), ".mlang")) input_no_extention = inputFile.substr(0, inputFile.size() - 6);
+
     std::vector<char *> args;
     while (argc > 0) {
         args.push_back(shift_args(&argc, &argv));
@@ -49,8 +51,14 @@ int main(int argc, char* argv[])
 
     auto prog = parser.parse();
 
-    ir compiler(prog);
+    //ir   compiler(prog);
+    gnu_asm compiler(prog);
     compiler.compileProgram();
+
+    system(f("as {}.as -o {}.o"  , input_no_extention, input_no_extention).c_str());
+    printf(f("as {}.as -o {}.o\n", input_no_extention, input_no_extention).c_str());
+    system(f("gcc {}.o -o {}"    , input_no_extention, input_no_extention).c_str());
+    printf(f("gcc {}.o -o {}\n"  , input_no_extention, input_no_extention).c_str());
 
 	return 0;
 }
