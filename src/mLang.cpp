@@ -27,10 +27,19 @@ char* shift_args(int *argc, char ***argv) {
 	(*argc) -= 1;
 	return result;
 }
+
+template<typename... _Args>
+void cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
+    print("Running: ");
+    println(__fmt, std::forward<_Args>(__args)...);
+    system(std::format(__fmt, std::forward<_Args>(__args)...).c_str());
+}
+
 // should save token id in the token
 
 int main(int argc, char* argv[])
 {
+    bool run = false;
 	std::string programName = shift_args(&argc, &argv);
 	if (argc == 0) {
 		logger::error("PROGRAM: ", "incorrect usage");
@@ -69,6 +78,8 @@ int main(int argc, char* argv[])
                 println(stderr, "-o requires output path after it");
                 exit(1);
             }
+        }else if (args[i] == "-run") {
+            run = true;
         }
     }
 
@@ -84,8 +95,10 @@ int main(int argc, char* argv[])
     compiler.compileProgram();
 
 
-    println( "gcc -x assembler {}/{}.as -o {}", build_path, input_no_extention, output_path);
-    system(f("gcc -x assembler {}/{}.as -o {}", build_path, input_no_extention, output_path).c_str());
+    cmd("gcc -x assembler {}/{}.as -o {}", build_path, input_no_extention, output_path);
+    if (run) {
+        cmd("{}", output_path);
+    }
 
 	return 0;
 }
