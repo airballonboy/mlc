@@ -9,6 +9,22 @@
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
 }
+Variable Parser::parseVariable(){
+    Variable var;
+    m_currentLexar->getAndExpectNext(TokenType::TypeID);
+    var.type = TypeIds.at(m_currentLexar->currentToken->string_value);
+    m_currentLexar->getAndExpectNext(TokenType::ID);
+    var.name = m_currentLexar->currentToken->string_value;    
+    // TODO: support arrays
+    if (m_currentLexar->peek()->type == TokenType::OBracket) {
+        m_currentLexar->getAndExpectNext(TokenType::OBracket);
+        if (m_currentLexar->peek()->type == TokenType::IntLit)
+            m_currentLexar->getAndExpectNext(TokenType::IntLit);
+        m_currentLexar->getAndExpectNext(TokenType::CBracket);
+        TODO("support for arrays");   
+    }
+    return var;
+}
 Program* Parser::parse() {
     auto tkn = &m_currentLexar->currentToken;
 
@@ -42,8 +58,8 @@ Func Parser::parseFunction(){
     func.name = m_currentLexar->currentToken->string_value;
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-        m_currentLexar->getAndExpectNext(TokenType::TypeID);
-        m_currentLexar->getAndExpectNext(TokenType::ID);
+        Variable var = parseVariable();
+
         // Process parameter(Local Variables)
         if(m_currentLexar->peek()->type != TokenType::CParen)
             m_currentLexar->expectNext(TokenType::Comma);

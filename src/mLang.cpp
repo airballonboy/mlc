@@ -5,7 +5,10 @@
 #include <cstring>
 #include <print>
 #include <string>
+#include <string_view>
 #include <vector>
+#include <filesystem>
+#include "codegen/gnu_asm_x86_64.h"
 #include "parser.h"
 #include "types.h"
 #include "tools/file.h"
@@ -13,6 +16,9 @@
 #include "tools/logger.h"
 #include "tools/format.h"
 #include "lexar.h"
+
+using std::println;
+using std::print;
 
 char* shift_args(int *argc, char ***argv) {
 	assert("no more args" && *argc > 0);
@@ -32,15 +38,38 @@ int main(int argc, char* argv[])
 		logger::log("   ", logger::Blue, f("{} input.mlang [-run [-a arg0 arg1 arg2 ...]]", programName).c_str());
 		return 1;
 	}
-
     std::string inputFile = shift_args(&argc, &argv);
-    if (strstr(inputFile.c_str(), ".mlang")) input_no_extention = inputFile.substr(0, inputFile.size() - 6);
-    std::vector<char *> args;
+
+    std::filesystem::path inputFilePath(inputFile);
+    input_no_extention = inputFilePath.stem().string();
+    input_path = inputFilePath.parent_path().string();
+    build_path = input_path+"/.build";
+    std::string output_path = build_path+"/output";
+
+    if (!std::filesystem::exists(build_path)) {
+        if (std::filesystem::create_directory(build_path)) {
+            println("Directory created: {}", build_path);
+        } else {
+            println(stderr, "Failed to create directory: {}", build_path);
+        }
+    } else {
+        println("Directory already exists: {}", build_path);
+    }
+
+    std::vector<std::string_view> args;
     while (argc > 0) {
         args.push_back(shift_args(&argc, &argv));
     }
-    for (auto& arg : args) {
-        std::println("{}", arg);
+
+    for (int i = 0; i < args.size(); i++) {
+        if (args[i] == "-o") {
+            if (i+1 < args.size())
+                output_path = args[++i];
+            else {
+                println(stderr, "-o requires output path after it");
+                exit(1);
+            }
+        }
     }
 
 	auto lexar = Lexar(readFileToString(inputFile), inputFile);
@@ -49,8 +78,14 @@ int main(int argc, char* argv[])
 
     auto prog = parser.parse();
 
-    ir compiler(prog);
+    //ir compiler_ir(prog);
+    //compiler_ir.compileProgram();
+    gnu_asm compiler(prog);
     compiler.compileProgram();
+
+
+    println( "gcc -x assembler {}/{}.as -o {}", build_path, input_no_extention, output_path);
+    system(f("gcc -x assembler {}/{}.as -o {}", build_path, input_no_extention, output_path).c_str());
 
 	return 0;
 }
