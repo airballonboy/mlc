@@ -2,6 +2,7 @@
 #include <array>
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <print>
 #include <string>
@@ -29,10 +30,16 @@ char* shift_args(int *argc, char ***argv) {
 }
 
 template<typename... _Args>
-void cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
+int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
     print("Running: ");
     println(__fmt, std::forward<_Args>(__args)...);
-    system(std::format(__fmt, std::forward<_Args>(__args)...).c_str());
+    int result = std::system(std::format(__fmt, std::forward<_Args>(__args)...).c_str());
+    #ifdef _WIN32
+    return result;  // On Windows, std::system returns exit code directly
+    #else
+    return WEXITSTATUS(result);  // POSIX-style exit status extraction
+    #endif
+
 }
 
 // should save token id in the token
@@ -96,9 +103,8 @@ int main(int argc, char* argv[])
 
 
     cmd("gcc -x assembler {}/{}.as -o {}", build_path, input_no_extention, output_path);
-    if (run) {
-        cmd("{}", output_path);
-    }
 
-	return 0;
+    
+    if (run)
+        return cmd("{}", output_path);
 }
