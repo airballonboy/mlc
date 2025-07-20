@@ -49,6 +49,7 @@ enum class Type : int {
     Int32_t, Int64_t, 
     String_t, Char_t,
     Float_t, Size_t,
+    Bool_t,
 };
 enum class Op {
     LOAD_CONST,
@@ -64,12 +65,16 @@ enum class Op {
 };
 
 
-const std::unordered_map<std::string, Type> TypeIds = {
-    {"int16", Type::Int16_t},
-    {"int"  , Type::Int32_t},
-    {"int32", Type::Int32_t},
-    {"int64", Type::Int64_t},
-    {"long" , Type::Int64_t},
+inline std::unordered_map<std::string, Type> TypeIds = {
+    {"int16" , Type::Int16_t},
+    {"int"   , Type::Int32_t},
+    {"int32" , Type::Int32_t},
+    {"int64" , Type::Int64_t},
+    {"long"  , Type::Int64_t},
+    {"string", Type::String_t},
+    {"float" , Type::Float_t},
+    {"usize" , Type::Size_t},
+    {"bool"  , Type::Bool_t}
 };
 
 static const std::unordered_map<TokenType, std::string> printableToken = {
@@ -223,8 +228,9 @@ struct Instruction {
     std::vector<std::any> args;
 };
 struct Variable {
-    Type     type;
-    std::any value;
+    Type        type;
+    std::string name;
+    std::any    value;
 };
 
 typedef std::vector<Variable> VariableStorage;
@@ -249,4 +255,6 @@ struct Program {
 };
 
 inline std::string input_no_extention;
+inline std::string input_path;
+inline std::string build_path;
 

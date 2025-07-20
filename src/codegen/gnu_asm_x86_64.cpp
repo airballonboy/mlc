@@ -14,7 +14,7 @@ void gnu_asm::compileProgram() {
     for (auto& func : m_program->func_storage) {
         compileFunction(func);
     }
-    std::ofstream outfile(f("{}.as", input_no_extention));
+    std::ofstream outfile(f("{}/{}.as", build_path, input_no_extention));
     outfile << output;
     outfile.close();
     //std::print("{}", output);
