@@ -6,11 +6,11 @@
 class Parser {
 public:
     Parser(Lexar* lexar);
-    void parse();
-    std::vector<statment> parseBody();
+    Program* parse();
+    Func parseFunction();
 
 private:
     Lexar* m_currentLexar;
-    std::vector<func> funcsi;
+    Program m_program;
 
 };

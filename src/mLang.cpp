@@ -2,9 +2,14 @@
 #include <array>
 #include <cassert>
 #include <cstdio>
+#include <cstring>
+#include <print>
 #include <string>
+#include <vector>
 #include "parser.h"
+#include "types.h"
 #include "tools/file.h"
+#include "codegen/ir.h"
 #include "tools/logger.h"
 #include "tools/format.h"
 #include "lexar.h"
@@ -29,12 +34,23 @@ int main(int argc, char* argv[])
 	}
 
     std::string inputFile = shift_args(&argc, &argv);
+    if (strstr(inputFile.c_str(), ".mlang")) input_no_extention = inputFile.substr(0, inputFile.size() - 6);
+    std::vector<char *> args;
+    while (argc > 0) {
+        args.push_back(shift_args(&argc, &argv));
+    }
+    for (auto& arg : args) {
+        std::println("{}", arg);
+    }
 
 	auto lexar = Lexar(readFileToString(inputFile), inputFile);
 
     Parser parser(&lexar);
 
-    parser.parse();
+    auto prog = parser.parse();
+
+    ir compiler(prog);
+    compiler.compileProgram();
 
 	return 0;
 }

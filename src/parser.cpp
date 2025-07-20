@@ -5,67 +5,25 @@
 #include <print>
 #include <vector>
 
-/* TODO:
-*  make this a real thing
-*   enum class Op {
-*       LOAD_CONST,
-*       STORE_VAR,
-*       LOAD_VAR,
-*       ADD,
-*       SUB,
-*       MUL,
-*       DIV,
-*       // RETURN(return_type, return_value)
-*       RETURN,
-*       CALL,
-*   };
-*   
-*   struct Instruction {
-*       Op op;
-*       std::vector<std::any> args;
-*   };
-*   
-*   std::vector<Instruction> program;
-*/
 
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
 }
-void Parser::parse() {
+Program* Parser::parse() {
     auto tkn = &m_currentLexar->currentToken;
 
     while ((*tkn)->type != TokenType::EndOfFile) {
         switch((*tkn)->type) {
             case TokenType::Func:{
-                func fn;
-                m_currentLexar->getAndExpectNext(TokenType::ID);
-                fn.id = (*tkn)->string_value;
-                m_currentLexar->getAndExpectNext(TokenType::OParen);
-                while (m_currentLexar->peek()->type != TokenType::CParen && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-                    m_currentLexar->getAndExpectNext(TokenType::TypeID);
-                    m_currentLexar->getAndExpectNext(TokenType::ID);
-                    // Process parameter(Local Variables)
-                    if(m_currentLexar->peek()->type != TokenType::CParen)
-                        m_currentLexar->expectNext(TokenType::Comma);
-                }
-
-                if (m_currentLexar->peek()->type == TokenType::EndOfFile) return;
-
-                m_currentLexar->getAndExpectNext(TokenType::CParen);
-                m_currentLexar->expectNext({TokenType::Arrow, TokenType::OCurly});
-
-                // Returns
-                if (m_currentLexar->peek()->type == TokenType::Arrow) {
-                    m_currentLexar->getAndExpectNext(TokenType::Arrow);
-                    m_currentLexar->getAndExpectNext(TokenType::TypeID);
-                }
-                parseBody();
+                m_program.func_storage.push_back(parseFunction());
                 m_currentLexar->getNext();
                 
             }break;//TokenType::Func
-            case TokenType::ID: {
-                TODO(f("unimplemented type of {}", printableToken.at((*tkn)->type)));
+            case TokenType::Hash: {
+                while (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
+                    m_currentLexar->getNext();
                 m_currentLexar->getNext();
+                std::println("# passed but not implemented");
             }break;
             default: {
                 std::println("unimplemented type of {}", printableToken.at((*tkn)->type));
@@ -74,22 +32,34 @@ void Parser::parse() {
             }break;
         }
     }
+    return &m_program;
 
-/* TODO: 
-*  make this into "codegen/ir"  
-*   for (auto& inst : program) {
-*       switch (inst.op) {
-*           case Op::RETURN: {
-*               auto arg = std::any_cast<int>(inst.args[0]);
-*               std::println("ret({})", arg);
-*           }break;
-*       }
-*   }
-*/
 }
 // should be instuctions not statments
-std::vector<statment> Parser::parseBody(){
-    std::vector<statment> body;
+Func Parser::parseFunction(){
+    Func func;
+    m_currentLexar->getAndExpectNext(TokenType::ID);
+    func.name = m_currentLexar->currentToken->string_value;
+    m_currentLexar->getAndExpectNext(TokenType::OParen);
+    while (m_currentLexar->peek()->type != TokenType::CParen && m_currentLexar->peek()->type != TokenType::EndOfFile) {
+        m_currentLexar->getAndExpectNext(TokenType::TypeID);
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+        // Process parameter(Local Variables)
+        if(m_currentLexar->peek()->type != TokenType::CParen)
+            m_currentLexar->expectNext(TokenType::Comma);
+    }
+
+    m_currentLexar->getAndExpectNext(TokenType::CParen);
+    m_currentLexar->expectNext({TokenType::Arrow, TokenType::OCurly});
+
+    // Returns
+    if (m_currentLexar->peek()->type == TokenType::Arrow) {
+        m_currentLexar->getAndExpectNext(TokenType::Arrow);
+        m_currentLexar->getAndExpectNext(TokenType::TypeID);
+        func.return_type = TypeIds.at(m_currentLexar->currentToken->string_value);
+    }
+                
+
     auto tkn = &m_currentLexar->currentToken;
 
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
@@ -100,6 +70,14 @@ std::vector<statment> Parser::parseBody(){
             case TokenType::ID: {
                 if (m_currentLexar->peek()->type == TokenType::OParen) {
                     TODO("Check Functions");
+                }else if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+                    TODO("Check Module or Class");
+                    m_currentLexar->getAndExpectNext(TokenType::ColonColon);
+                    while((m_currentLexar->peek() + 1)->type == TokenType::ColonColon){
+                        TODO("Check Module or Class");
+                        m_currentLexar->getAndExpectNext(TokenType::ID);
+                        m_currentLexar->getAndExpectNext(TokenType::ColonColon);
+                    }
                 }else if (m_currentLexar->peek()->type == TokenType::Eq) {
                     TODO("Check Assignment");
                 }
@@ -111,17 +89,18 @@ std::vector<statment> Parser::parseBody(){
                     return_value = (*tkn)->int_value;
                 else if ((*tkn)->type == TokenType::ID)
                     TODO("check if is variable and get it's value");
-                // TODO: program.push_back({Op::RETURN, {return_value}});
+                func.body.push_back({Op::RETURN, {(int)Type::Int32_t, return_value}});
+                m_currentLexar->getAndExpectNext(TokenType::SemiColon);
             }break;
             case TokenType::TypeID: {
                 TODO("Add Variables");
             }break;
         }
-        while ((*tkn)->type != TokenType::SemiColon) m_currentLexar->getNext();
+        //while ((*tkn)->type != TokenType::SemiColon) m_currentLexar->getNext();
     }
 
     m_currentLexar->getAndExpectNext(TokenType::CCurly);
 
-    return body;
+    return func;
 
 }
