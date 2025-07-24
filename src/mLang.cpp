@@ -21,6 +21,21 @@
 using std::println;
 using std::print;
 
+
+#ifndef GCC
+#ifdef _WIN32
+#define GCC "gcc.exe -static-libgcc"
+#else 
+#define GCC "gcc"
+#endif
+#endif
+#ifndef EXECUTABLE_EXTENSION
+#ifdef _WIN32
+#define EXECUTABLE_EXTENSION ".exe" 
+#else 
+#define EXECUTABLE_EXTENSION "" 
+#endif
+#endif
 char* shift_args(int *argc, char ***argv) {
 	assert("no more args" && *argc > 0);
 	char *result = (**argv);
@@ -102,9 +117,9 @@ int main(int argc, char* argv[])
     compiler.compileProgram();
 
 
-    cmd("gcc -x assembler {}/{}.as -o {}", build_path, input_no_extention, output_path);
+    cmd("{} -static -x assembler {}/{}.as -o {} -lc", GCC, build_path, input_no_extention, output_path);
 
     
     if (run)
-        return cmd("{}", output_path);
+        return cmd("{}{}", output_path, EXECUTABLE_EXTENSION);
 }
