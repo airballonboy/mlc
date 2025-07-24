@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include "types.h"
 
+//important for std::string
+#define appendf(...) append(std::format(__VA_ARGS__))
 
 // don't worry too much it's chat gpt implementation of std::format
 struct FormatSpec {

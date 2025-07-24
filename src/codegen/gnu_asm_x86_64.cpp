@@ -20,26 +20,26 @@ void gnu_asm::compileProgram() {
     //std::print("{}", output);
 }
 void gnu_asm::compileFunction(Func func) {
-    output.append(f(".global {}\n", func.name));
-    output.append(f("{}:\n", func.name));
-    output.append("    pushq %rbp\n");
-    output.append("    movq %rsp, %rbp\n");
+    output.appendf(".global {}\n", func.name);
+    output.appendf("{}:\n", func.name);
+    output.appendf("    pushq %rbp\n");
+    output.appendf("    movq %rsp, %rbp\n");
 
 
     for (auto& inst : func.body) {
         switch (inst.op) {
             case Op::RETURN: {
-                output.append("    movq %rbp, %rsp\n");
-                output.append("    popq %rbp\n");
+                output.appendf("    movq %rbp, %rsp\n");
+                output.appendf("    popq %rbp\n");
                 if (std::any_cast<int>(inst.args[0]) == (int)Type::Int32_t) {
                     // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
                     int32_t arg = std::any_cast<int32_t>(inst.args[1]);
-                    output.append(f("    movq ${}, %rax\n", arg));
-                    output.append(f("    ret\n"));
+                    output.appendf("    movq ${}, %rax\n", arg);
+                    output.appendf("    ret\n");
                 }
             }break;
             case Op::LOAD_CONST: {
-                output.append(f("   load({})\n", std::any_cast<int32_t>(inst.args[0])));
+                output.appendf("   load({})\n", std::any_cast<int32_t>(inst.args[0]));
             }break;
         }
     }
