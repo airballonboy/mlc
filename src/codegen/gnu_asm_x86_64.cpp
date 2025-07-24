@@ -31,11 +31,19 @@ void gnu_asm::compileFunction(Func func) {
             case Op::RETURN: {
                 output.appendf("    movq %rbp, %rsp\n");
                 output.appendf("    popq %rbp\n");
-                if (std::any_cast<int>(inst.args[0]) == (int)Type::Int32_t) {
-                    // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
-                    int32_t arg = std::any_cast<int32_t>(inst.args[1]);
-                    output.appendf("    movq ${}, %rax\n", arg);
-                    output.appendf("    ret\n");
+                switch (std::any_cast<int>(inst.args[0])) {
+                    case (int)Type::Int32_t: {
+                        // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
+                        int32_t arg = std::any_cast<int32_t>(inst.args[1]);
+                        output.appendf("    movq ${}, %rax\n", arg);
+                        output.appendf("    ret\n");
+                    }break;
+                    case (int)Type::Void_t: {
+                        //returns zero in main function
+                        if (func.name == "main")
+                            output.appendf("    movq $0, %rax\n");
+                        output.appendf("    ret\n");
+                    }break;
                 }
             }break;
             case Op::LOAD_CONST: {

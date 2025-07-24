@@ -169,7 +169,7 @@ void Lexar::getNext(){
         std::println("EndOfFile REACHED");
         return;
     }
-    currentToken = &m_tokens.at(++m_currentTokenIndex);
+    currentToken++;// = &m_tokens.at(++m_currentTokenIndex);
 }
 void Lexar::expectNext(TokenType tt){
     if (peek()->type == tt) {
@@ -243,7 +243,7 @@ Token* Lexar::peek(){
         std::println("EndOfFile REACHED");
         return &m_tokens[m_currentTokenIndex];
     }
-    return &m_tokens.at(m_currentTokenIndex+1);
+    return currentToken+1;
 }
 
 

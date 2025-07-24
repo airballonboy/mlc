@@ -45,7 +45,8 @@ enum class TokenType {
     Func, From, 
 };
 enum class Type : int {
-    Int8_t = 0, Int16_t, 
+    Void_t = 0, 
+    Int8_t, Int16_t, 
     Int32_t, Int64_t, 
     String_t, Char_t,
     Float_t, Size_t,
@@ -66,6 +67,7 @@ enum class Op {
 
 
 inline std::unordered_map<std::string, Type> TypeIds = {
+    {"void"  , Type::Void_t},
     {"int16" , Type::Int16_t},
     {"int"   , Type::Int32_t},
     {"int32" , Type::Int32_t},
@@ -236,15 +238,15 @@ struct Variable {
 typedef std::vector<Variable> VariableStorage;
 
 struct Func {
-    Type return_type;
+    Type return_type = Type::Void_t;
 
-    int arguments_count;
-    std::vector<Variable> arguments;
+    int arguments_count = 0;
+    VariableStorage arguments{};
 
-    std::string name;
+    std::string name{};
     
-    VariableStorage local_variables;
-    std::vector<Instruction> body;
+    VariableStorage local_variables{};
+    std::vector<Instruction> body{};
 };
 
 typedef std::vector<Func> FunctionStorage;

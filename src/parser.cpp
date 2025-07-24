@@ -99,13 +99,17 @@ Func Parser::parseFunction(){
                 }
             }break;
             case TokenType::Return: {
-                m_currentLexar->getAndExpectNext({TokenType::IntLit, TokenType::ID});
+                m_currentLexar->getAndExpectNext({TokenType::IntLit, TokenType::ID, TokenType::SemiColon});
                 int return_value;
-                if ((*tkn)->type == TokenType::IntLit)
+                if ((*tkn)->type == TokenType::SemiColon) {
+                    if (func.return_type != Type::Void_t) TODO("error on no return");
+                    return_value = 0;
+                    m_currentLexar->currentToken--;
+                }else if ((*tkn)->type == TokenType::IntLit)
                     return_value = (*tkn)->int_value;
                 else if ((*tkn)->type == TokenType::ID)
                     TODO("check if is variable and get it's value");
-                func.body.push_back({Op::RETURN, {(int)Type::Int32_t, return_value}});
+                func.body.push_back({Op::RETURN, {(int)func.return_type, return_value}});
                 m_currentLexar->getAndExpectNext(TokenType::SemiColon);
             }break;
             case TokenType::TypeID: {
