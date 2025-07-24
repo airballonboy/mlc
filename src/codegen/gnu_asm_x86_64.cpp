@@ -32,9 +32,10 @@ void gnu_asm::compileFunction(Func func) {
                 output.append("    movq %rbp, %rsp\n");
                 output.append("    popq %rbp\n");
                 if (std::any_cast<int>(inst.args[0]) == (int)Type::Int32_t) {
+                    // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
                     int32_t arg = std::any_cast<int32_t>(inst.args[1]);
                     output.append(f("    movq ${}, %rax\n", arg));
-                    output.append("    ret\n");
+                    output.append(f("    ret\n"));
                 }
             }break;
             case Op::LOAD_CONST: {
