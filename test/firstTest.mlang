@@ -1,3 +1,9 @@
+func test() -> int {
+    print();
+    return 0;    
+}
 func main() -> int {
-    return 0;
+    test();
+    print();
+    return 12;
 }

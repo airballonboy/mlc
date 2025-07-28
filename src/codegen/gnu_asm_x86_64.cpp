@@ -14,7 +14,16 @@ void gnu_asm::compileProgram() {
     for (auto& func : m_program->func_storage) {
         compileFunction(func);
     }
-    std::ofstream outfile(f("{}/{}.as", build_path, input_no_extention));
+    std::ofstream outfile(f("{}/{}.s", build_path, input_no_extention));
+
+    // TODO: implement actual print
+    output.appendf(".global print\n")
+          .appendf("print:\n")
+          .appendf("    movq $hello_str, %rdi\n")  
+          .appendf("    call puts\n")        
+          .appendf("    ret\n")
+          .appendf("hello_str: .string \"Hello from mlang!\\n\" \n");
+
     outfile << output;
     outfile.close();
     //std::print("{}", output);
@@ -47,7 +56,11 @@ void gnu_asm::compileFunction(Func func) {
                 }
             }break;
             case Op::LOAD_CONST: {
-                output.appendf("   load({})\n", std::any_cast<int32_t>(inst.args[0]));
+                output.appendf("    load({})\n", std::any_cast<int32_t>(inst.args[0]));
+            }break;
+            case Op::CALL: {
+                std::string func_name = std::any_cast<std::string>(inst.args[0]);
+                output.appendf("    call {}\n", func_name);
             }break;
         }
     }

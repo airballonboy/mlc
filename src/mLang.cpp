@@ -1,5 +1,3 @@
-#include <algorithm>
-#include <array>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -117,7 +115,7 @@ int main(int argc, char* argv[])
     compiler.compileProgram();
 
 
-    cmd("{} -static -x assembler {}/{}.as -o {} -lc", GCC, build_path, input_no_extention, output_path);
+    cmd("{} -static -x assembler {}/{}.s -o {} -lc", GCC, build_path, input_no_extention, output_path);
 
     
     if (run)

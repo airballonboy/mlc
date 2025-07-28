@@ -251,7 +251,17 @@ struct Func {
 
 typedef std::vector<Func> FunctionStorage;
 
+struct Module {
+    std::string name{};
+    std::unordered_map<std::string, Module> module_storage;
+    FunctionStorage     func_storage;
+    VariableStorage     var_storage;
+};
+//typedef std::vector<Module> ModuleStorage;
+typedef std::unordered_map<std::string, Module> ModuleStorage;
+
 struct Program {
+    ModuleStorage   module_storage;
     FunctionStorage func_storage;
     VariableStorage var_storage;
 };

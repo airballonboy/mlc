@@ -14,4 +14,5 @@ private:
     Lexar* m_currentLexar;
     Program m_program;
 
+    bool module_exist_in_storage(std::string mod_name, ModuleStorage mod_storage);
 };
