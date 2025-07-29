@@ -11,22 +11,18 @@
 void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
     output.append(".section .text\n");
-    for (auto& func : m_program->func_storage) {
+    for (const auto& func : m_program->func_storage) {
         compileFunction(func);
     }
+    for (const auto& var : m_program->var_storage) {
+        if (var.type == Type::String_t)
+            output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
+    }
+
+
     std::ofstream outfile(f("{}/{}.s", build_path, input_no_extention));
-
-    // TODO: implement actual print
-    output.appendf(".global print\n")
-          .appendf("print:\n")
-          .appendf("    movq $hello_str, %rdi\n")  
-          .appendf("    call puts\n")        
-          .appendf("    ret\n")
-          .appendf("hello_str: .string \"Hello from mlang!\\n\" \n");
-
     outfile << output;
     outfile.close();
-    //std::print("{}", output);
 }
 void gnu_asm::compileFunction(Func func) {
     output.appendf(".global {}\n", func.name);
@@ -60,6 +56,10 @@ void gnu_asm::compileFunction(Func func) {
             }break;
             case Op::CALL: {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
+                VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
+                for (size_t i = 0; i < args.size(); i++) {
+                    output.appendf("    movq ${}, %rdi\n", args[i].name);
+                }
                 output.appendf("    call {}\n", func_name);
             }break;
         }

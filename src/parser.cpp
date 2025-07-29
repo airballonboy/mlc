@@ -7,7 +7,7 @@
 
 #define ERROR(loc, massage) std::println("{}:{}:{} {}", (loc).inputPath, (loc).line, (loc).offset, massage);
 
-
+int stringLiteralCount = 0;
 
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
@@ -89,12 +89,22 @@ Func Parser::parseFunction(){
             case TokenType::ID: {
                 if (m_currentLexar->peek()->type == TokenType::OParen) {
                     auto func_name = (*tkn)->string_value;
+                    VariableStorage args{};
                     m_currentLexar->getAndExpectNext(TokenType::OParen);
                     while (m_currentLexar->peek()->type != TokenType::CParen) {
-                        TODO("parse function arguments");
+                        m_currentLexar->getAndExpectNext({TokenType::DQoute, TokenType::IntLit, TokenType::ID});
+                        if((*tkn)->type == TokenType::DQoute) m_currentLexar->getAndExpectNext(TokenType::StringLit);
+                        if((*tkn)->type == TokenType::StringLit) {
+                            // TODO: make string literals stored in local variable not public
+                            args.push_back({Type::String_t, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value});
+                            m_program.var_storage.push_back({Type::String_t, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
+                            m_currentLexar->getAndExpectNext(TokenType::DQoute);
+                        }
+                        if (m_currentLexar->peek()->type != TokenType::CParen)
+                            m_currentLexar->getAndExpectNext(TokenType::Comma);
                     }
                     m_currentLexar->getAndExpectNext(TokenType::CParen);
-                    func.body.push_back({Op::CALL, {func_name}});
+                    func.body.push_back({Op::CALL, {func_name, args}});
                     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
                 }else if (m_currentLexar->peek()->type == TokenType::ColonColon) {
                     auto current_module_storage = m_program.module_storage;

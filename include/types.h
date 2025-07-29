@@ -62,6 +62,7 @@ enum class Op {
     DIV,
     // RETURN(return_type, return_value)
     RETURN,
+    // CALL(func_name, args)
     CALL,
 };
 

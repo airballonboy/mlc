@@ -1,9 +1,4 @@
-func test() -> int {
-    print();
-    return 0;    
-}
 func main() -> int {
-    test();
-    print();
-    return 12;
+    printf("hello world\n");
+    return 0;
 }
