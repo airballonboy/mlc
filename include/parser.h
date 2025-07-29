@@ -9,6 +9,7 @@ public:
     Program* parse();
     Func parseFunction();
     Variable parseVariable();
+    Variable parseArgument();
 
 private:
     Lexar* m_currentLexar;

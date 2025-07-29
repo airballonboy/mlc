@@ -93,15 +93,10 @@ Func Parser::parseFunction(){
                     m_currentLexar->getAndExpectNext(TokenType::OParen);
                     while (m_currentLexar->peek()->type != TokenType::CParen) {
                         m_currentLexar->getAndExpectNext({TokenType::DQoute, TokenType::IntLit, TokenType::ID});
-                        if((*tkn)->type == TokenType::DQoute) m_currentLexar->getAndExpectNext(TokenType::StringLit);
-                        if((*tkn)->type == TokenType::StringLit) {
-                            // TODO: make string literals stored in local variable not public
-                            args.push_back({Type::String_t, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value});
-                            m_program.var_storage.push_back({Type::String_t, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
-                            m_currentLexar->getAndExpectNext(TokenType::DQoute);
-                        }
-                        if (m_currentLexar->peek()->type != TokenType::CParen)
+                        args.push_back(parseArgument());
+                        if (m_currentLexar->peek()->type != TokenType::CParen) {
                             m_currentLexar->getAndExpectNext(TokenType::Comma);
+                        }
                     }
                     m_currentLexar->getAndExpectNext(TokenType::CParen);
                     func.body.push_back({Op::CALL, {func_name, args}});
@@ -162,4 +157,20 @@ bool Parser::module_exist_in_storage(std::string mod_name, ModuleStorage mod_sto
     //    if (mod.name == mod_name) return true;
     //}
     return false;
+}
+Variable Parser::parseArgument() {
+    auto tkn = &m_currentLexar->currentToken;
+    Variable arg;
+    if((*tkn)->type == TokenType::DQoute) m_currentLexar->getAndExpectNext(TokenType::StringLit);
+    if((*tkn)->type == TokenType::StringLit) {
+        // TODO: make string literals stored in local variable not public
+        arg = {Type::String_t, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value};
+        m_program.var_storage.push_back({Type::String_t, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
+        m_currentLexar->getAndExpectNext(TokenType::DQoute);
+    }
+    if ((*tkn)->type == TokenType::IntLit) {
+        arg = {Type::Int32_t, "Int_Lit", (*tkn)->int_value};
+    }
+
+    return arg;
 }

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <print>
 #include <string>
+#include <string_view>
 
 void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
@@ -57,8 +58,12 @@ void gnu_asm::compileFunction(Func func) {
             case Op::CALL: {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
-                for (size_t i = 0; i < args.size(); i++) {
-                    output.appendf("    movq ${}, %rdi\n", args[i].name);
+                std::string_view arg_register[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+                for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
+                    if (args[i].type == Type::String_t)
+                        output.appendf("    movq ${}, %{}\n", args[i].name, arg_register[i]);
+                    if (args[i].type == Type::Int32_t)
+                        output.appendf("    movq ${}, %{}\n", std::any_cast<int>(args[i].value), arg_register[i]);
                 }
                 output.appendf("    call {}\n", func_name);
             }break;

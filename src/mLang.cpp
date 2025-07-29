@@ -20,6 +20,12 @@ using std::println;
 using std::print;
 
 
+enum class Platform {
+    ir,
+    gnu_asm_86_64,
+};
+
+
 #ifndef GCC
 #ifdef _WIN32
 #define GCC "gcc.exe -static-libgcc"
@@ -60,6 +66,7 @@ int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
 int main(int argc, char* argv[])
 {
     bool run = false;
+    Platform platform;
 	std::string programName = shift_args(&argc, &argv);
 	if (argc == 0) {
 		logger::error("PROGRAM: ", "incorrect usage");
@@ -98,6 +105,15 @@ int main(int argc, char* argv[])
                 println(stderr, "-o requires output path after it");
                 exit(1);
             }
+        }else if (args[i] == "-t") {
+            if (i+1 < args.size()) {
+                std::string_view plat_name = args[++i];
+                if(plat_name == "gnu_x86_64") { platform = Platform::gnu_asm_86_64; continue; }
+                if(plat_name == "ir")         { platform = Platform::ir;            continue; }
+            }else {
+                println(stderr, "-t requires platform name after it");
+                exit(1);
+            }
         }else if (args[i] == "-run") {
             run = true;
         }
@@ -109,13 +125,20 @@ int main(int argc, char* argv[])
 
     auto prog = parser.parse();
 
-    //ir compiler_ir(prog);
-    //compiler_ir.compileProgram();
-    gnu_asm compiler(prog);
-    compiler.compileProgram();
+    switch (platform) {
+        case Platform::ir: {
+            ir compiler_ir(prog);
+            compiler_ir.compileProgram();
+        }break;
+        default:
+        case Platform::gnu_asm_86_64: {
+            gnu_asm compiler(prog);
+            compiler.compileProgram();
+            cmd("{} -static -x assembler {}/{}.s -o {} -lc", GCC, build_path, input_no_extention, output_path);
+        }break;
+    }
 
 
-    cmd("{} -static -x assembler {}/{}.s -o {} -lc", GCC, build_path, input_no_extention, output_path);
 
     
     if (run)
