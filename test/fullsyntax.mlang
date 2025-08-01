@@ -9,10 +9,12 @@
 	multi line comment
 */
 
-namespace game;
+int width = 300;
+
+module game;
 func game::init() -> bool {
 	// function calls
-	rl::init_window(300, 1000, "window name");
+	rl::init_window(width, 1000, "window name");
 	return true;
 }
 func game::close(){
@@ -21,11 +23,13 @@ func game::close(){
 }
 
 // entry point
-func main(){
+func main() -> int{
+    const bool closed = false;
 	// unused return
 	game::init();
 
 	if (!game::close()){
 		std::io::println("game couldn't close");
 	}
+    return 0;
 }
