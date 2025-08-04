@@ -1,4 +1,6 @@
 func main() -> int {
-    printf("hello world\n");
+    int i;
+    i = 23;
+    printf("hello world %hd\n", i);
     return 0;
 }

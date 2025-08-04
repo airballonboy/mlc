@@ -1,6 +1,7 @@
 #pragma once 
 #include <functional>
 #include <string>
+#include <typeindex>
 #include <vector>
 #include <any>
 #include <unordered_map>
@@ -32,6 +33,7 @@ enum class TokenType {
     Hash, BSlash,
     SQoute, DQoute,
     Dot, Arrow,
+    UScore,
     // Types
     //Int8_t, Int16_t, 
     //Int32_t, Int64_t, 
@@ -51,9 +53,11 @@ enum class Type : int {
     String_t, Char_t,
     Float_t, Size_t,
     Bool_t,
+    String_lit, Int_lit
 };
 enum class Op {
     LOAD_CONST,
+    // STORE_VAR(variable)
     STORE_VAR,
     LOAD_VAR,
     ADD,
@@ -78,6 +82,17 @@ inline std::unordered_map<std::string, Type> TypeIds = {
     {"float" , Type::Float_t},
     {"usize" , Type::Size_t},
     {"bool"  , Type::Bool_t}
+};
+
+
+inline std::unordered_map<Type, std::function<std::string(std::any)>> TypeToString = {
+    {Type::Int8_t    , [](const std::any& val){ return std::to_string(std::any_cast<int8_t> (val)); }},
+    {Type::Int16_t   , [](const std::any& val){ return std::to_string(std::any_cast<int16_t>(val)); }},
+    {Type::Int_lit   , [](const std::any& val){ return std::to_string(std::any_cast<int32_t>(val)); }},
+    {Type::Int32_t   , [](const std::any& val){ return std::to_string(std::any_cast<int32_t>(val)); }},
+    {Type::Int64_t   , [](const std::any& val){ return std::to_string(std::any_cast<int64_t>(val)); }},
+    {Type::String_t  , [](const std::any& val){ return std::any_cast<std::string>(val);             }},
+    {Type::String_lit, [](const std::any& val){ return std::any_cast<std::string>(val);             }},
 };
 
 static const std::unordered_map<TokenType, std::string> printableToken = {
@@ -151,6 +166,7 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
 };
 
 static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
+    {"_" ,  TokenType::UScore},
     {"\'" , TokenType::SQoute},
     {"\"" , TokenType::DQoute},
     {"."  , TokenType::Dot},
@@ -234,6 +250,7 @@ struct Variable {
     Type        type;
     std::string name;
     std::any    value;
+    size_t      offset;
 };
 
 typedef std::vector<Variable> VariableStorage;

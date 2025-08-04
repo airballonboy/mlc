@@ -2,7 +2,9 @@
 #include "tools/logger.h"
 #include "types.h"
 #include <any>
+#include <functional>
 #include <print>
+#include <string_view>
 #include <vector>
 
 #define ERROR(loc, massage) std::println("{}:{}:{} {}", (loc).inputPath, (loc).line, (loc).offset, massage);
@@ -57,11 +59,13 @@ Program* Parser::parse() {
 // should be instuctions not statments
 Func Parser::parseFunction(){
     auto tkn = &m_currentLexar->currentToken;
+    size_t current_locals_count = 0;
     Func func;
+    m_currentFunc = &func;
     m_currentLexar->getAndExpectNext(TokenType::ID);
     func.name = m_currentLexar->currentToken->string_value;
     m_currentLexar->getAndExpectNext(TokenType::OParen);
-    while (m_currentLexar->peek()->type != TokenType::CParen && m_currentLexar->peek()->type != TokenType::EndOfFile) {
+    while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
         Variable var = parseVariable();
 
         // Process parameter(Local Variables)
@@ -83,7 +87,7 @@ Func Parser::parseFunction(){
 
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
-    while (m_currentLexar->peek()->type != TokenType::CCurly && m_currentLexar->peek()->type != TokenType::EndOfFile) {
+    while (m_currentLexar->peek()->type != TokenType::CCurly && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
         m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID, TokenType::OCurly, TokenType::Return});
         switch ((*tkn)->type) {
             case TokenType::ID: {
@@ -112,7 +116,11 @@ Func Parser::parseFunction(){
                         m_currentLexar->getAndExpectNext(TokenType::ColonColon);
                     }
                 }else if (m_currentLexar->peek()->type == TokenType::Eq) {
-                    TODO("Check Assignment");
+                    m_currentLexar->getAndExpectNext(TokenType::Eq);
+                    m_currentLexar->getAndExpectNext({TokenType::DQoute, TokenType::IntLit, TokenType::ID});
+                    auto var = parseArgument();
+                    func.body.push_back({Op::STORE_VAR, {var}});
+                    m_currentLexar->getAndExpectNext(TokenType::SemiColon);
                 }
             }break;
             case TokenType::Return: {
@@ -141,7 +149,18 @@ Func Parser::parseFunction(){
                 m_currentLexar->getAndExpectNext(TokenType::SemiColon);
             }break;
             case TokenType::TypeID: {
-                TODO("Add Variables");
+                std::string id;
+                Type t = TypeIds.at((*tkn)->string_value);
+                m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::UScore});
+                if ((*tkn)->type == TokenType::ID)
+                    id = (*tkn)->string_value;
+                else 
+                    continue;
+                m_currentLexar->getAndExpectNext({TokenType::Eq, TokenType::SemiColon});
+
+                Variable v = {t, id, variable_default_value(t), current_locals_count++*8};
+                func.body.push_back({Op::STORE_VAR, {v}});
+                func.local_variables.push_back(v);
             }break;
         }
         //while ((*tkn)->type != TokenType::SemiColon) m_currentLexar->getNext();
@@ -152,11 +171,18 @@ Func Parser::parseFunction(){
     return func;
 
 }
-bool Parser::module_exist_in_storage(std::string mod_name, ModuleStorage mod_storage) {
-    //for (const auto& mod : mod_storage) {
-    //    if (mod.name == mod_name) return true;
-    //}
+// OUTDATED:
+bool Parser::variable_exist_in_storage(std::string_view var_name, const VariableStorage& var_storage) {
+    for (const auto& var : var_storage) {
+        if (var.name == var_name) return true;
+    }
     return false;
+}
+Variable& get_var_from_name(std::string_view name, VariableStorage& var_storage) {
+    for (auto& var : var_storage) {
+        if (var.name == name) return var;
+    }
+    TODO("var doesn't exist");
 }
 Variable Parser::parseArgument() {
     auto tkn = &m_currentLexar->currentToken;
@@ -164,13 +190,61 @@ Variable Parser::parseArgument() {
     if((*tkn)->type == TokenType::DQoute) m_currentLexar->getAndExpectNext(TokenType::StringLit);
     if((*tkn)->type == TokenType::StringLit) {
         // TODO: make string literals stored in local variable not public
-        arg = {Type::String_t, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value};
-        m_program.var_storage.push_back({Type::String_t, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
+        arg = {Type::String_lit, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value};
+        m_program.var_storage.push_back({Type::String_lit, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
         m_currentLexar->getAndExpectNext(TokenType::DQoute);
     }
     if ((*tkn)->type == TokenType::IntLit) {
-        arg = {Type::Int32_t, "Int_Lit", (*tkn)->int_value};
+        arg = {Type::Int_lit, "Int_Lit", (*tkn)->int_value};
+    }
+    if ((*tkn)->type == TokenType::ID) {
+        if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage))
+            TODO("check Global variables");
+        else {
+            if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
+                arg = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
+            }
+        }
     }
 
     return arg;
+}
+std::any Parser::variable_default_value(Type t) {
+    switch (t) {
+        case Type::Size_t:
+        case Type::Int8_t:
+        case Type::Int16_t:
+        case Type::Int32_t:
+        case Type::Int64_t:
+        case Type::Float_t:  return 0    ; break;
+
+        case Type::String_t: return ""   ; break;
+        case Type::Char_t:   return ""   ; break;
+        case Type::Bool_t:   return false; break;
+        case Type::Void_t:   return 0    ; break;
+
+        default: 
+            TODO(f("type {} doesn't have default", (int)t));
+    }
+    return 0;
+}
+// UNNEEDED
+size_t Parser::variable_size_bytes(Type t) {
+    switch (t) {
+        case Type::Bool_t:   return 1; break;
+        case Type::Char_t:   return 1; break;
+        case Type::Int8_t:   return 1; break;
+        case Type::Int16_t:  return 2; break;
+        case Type::Int32_t:  return 4; break;
+        case Type::Int64_t:  return 8; break;
+        case Type::Size_t:   return 8; break;
+        case Type::Float_t:  return 4; break;
+
+        case Type::String_t: return 0; break;
+        case Type::Void_t:   return 0; break;
+
+        default: 
+            TODO(f("type {} doesn't have default", (int)t));
+    }
+    return 0;
 }

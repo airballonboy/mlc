@@ -1,4 +1,5 @@
 #include "codegen/gnu_asm_x86_64.h"
+#include "tools/logger.h"
 #include "types.h"
 #include "tools/format.h"
 #include <any>
@@ -16,7 +17,7 @@ void gnu_asm::compileProgram() {
         compileFunction(func);
     }
     for (const auto& var : m_program->var_storage) {
-        if (var.type == Type::String_t)
+        if (var.type == Type::String_lit)
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
     }
 
@@ -55,15 +56,23 @@ void gnu_asm::compileFunction(Func func) {
             case Op::LOAD_CONST: {
                 output.appendf("    load({})\n", std::any_cast<int32_t>(inst.args[0]));
             }break;
+            case Op::STORE_VAR: {
+                Variable var  = std::any_cast<Variable>(inst.args[0]);
+                output.appendf("    movq ${}, -{}(%rbp)\n", TypeToString.at(var.type)(var.value), var.offset);
+            }break;
             case Op::CALL: {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
                 std::string_view arg_register[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
                 for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
-                    if (args[i].type == Type::String_t)
+                    if (args[i].type == Type::String_lit)
                         output.appendf("    movq ${}, %{}\n", args[i].name, arg_register[i]);
-                    if (args[i].type == Type::Int32_t)
+                    else if (args[i].type == Type::Int_lit)
                         output.appendf("    movq ${}, %{}\n", std::any_cast<int>(args[i].value), arg_register[i]);
+                    else 
+                        output.appendf("    movq -{}(%rbp), %{}\n", args[i].offset, arg_register[i]);
+
+
                 }
                 output.appendf("    call {}\n", func_name);
             }break;

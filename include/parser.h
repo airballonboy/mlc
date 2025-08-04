@@ -2,6 +2,7 @@
 
 #include "lexar.h"
 #include "types.h"
+#include <any>
 #include <vector>
 class Parser {
 public:
@@ -14,6 +15,9 @@ public:
 private:
     Lexar* m_currentLexar;
     Program m_program;
+    Func*   m_currentFunc;
 
-    bool module_exist_in_storage(std::string mod_name, ModuleStorage mod_storage);
+    bool variable_exist_in_storage(std::string_view varName, const VariableStorage&);
+    std::any variable_default_value(Type t);
+    size_t   variable_size_bytes(Type t);
 };
