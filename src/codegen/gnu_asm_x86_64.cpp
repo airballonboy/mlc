@@ -32,20 +32,14 @@ void gnu_asm::compileFunction(Func func) {
     output.appendf("    pushq %rbp\n");
     output.appendf("    movq %rsp, %rbp\n");
 
-
+    int op = 0;
     for (auto& inst : func.body) {
+        output.appendf(".op_{}:\n", op++);
         switch (inst.op) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
                 Variable arg = std::any_cast<Variable>(inst.args[0]);
-                if (arg.type == Type::String_lit)
-                    output.appendf("    movq ${}, %rax\n", arg.name);
-                else if (arg.type == Type::Int_lit)
-                    output.appendf("    movq ${}, %rax\n", std::any_cast<int>(arg.value));
-                else if (arg.type == Type::Void_t)
-                    output.appendf("    movq $0, %rax\n");
-                else 
-                    output.appendf("    movq -{}(%rbp), %rax\n", arg.offset);
+                move_var_to_reg(arg, "%rax");
                 //returns zero in main function
                 output.appendf("    movq %rbp, %rsp\n");
                 output.appendf("    popq %rbp\n");
@@ -55,21 +49,16 @@ void gnu_asm::compileFunction(Func func) {
                 output.appendf("    load({})\n", std::any_cast<int32_t>(inst.args[0]));
             }break;
             case Op::STORE_VAR: {
-                Variable var  = std::any_cast<Variable>(inst.args[0]);
-                output.appendf("    movq ${}, -{}(%rbp)\n", TypeToString.at(var.type)(var.value), var.offset);
+                Variable var1 = std::any_cast<Variable>(inst.args[0]);
+                Variable var2 = std::any_cast<Variable>(inst.args[1]);
+                move_var_to_var(var1, var2);
             }break;
             case Op::CALL: {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
-                std::string_view arg_register[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+                std::string_view arg_register[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
                 for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
-                    if (args[i].type == Type::String_lit)
-                        output.appendf("    movq ${}, %{}\n", args[i].name, arg_register[i]);
-                    else if (args[i].type == Type::Int_lit)
-                        output.appendf("    movq ${}, %{}\n", std::any_cast<int>(args[i].value), arg_register[i]);
-                    else 
-                        output.appendf("    movq -{}(%rbp), %{}\n", args[i].offset, arg_register[i]);
-
+                    move_var_to_reg(args[i], arg_register[i]);
 
                 }
                 output.appendf("    call {}\n", func_name);
@@ -77,3 +66,49 @@ void gnu_asm::compileFunction(Func func) {
         }
     }
 }
+
+
+void gnu_asm::move_var_to_reg(Variable arg, std::string_view reg) {
+    if (arg.type == Type::String_lit)
+        output.appendf("    movq ${}, {}\n", arg.name, reg);
+    else if (arg.type == Type::Int_lit)
+        output.appendf("    movq ${}, {}\n", std::any_cast<int>(arg.value), reg);
+    else if (arg.type == Type::Void_t)
+        output.appendf("    movq $0, {}\n", reg);
+    else 
+        output.appendf("    movq -{}(%rbp), {}\n", arg.offset, reg);
+}
+void gnu_asm::move_reg_to_var(std::string_view reg, Variable arg) {
+    if (arg.type == Type::String_lit)
+        output.appendf("    movq {}, ${}\n", reg, arg.name);
+    else if (arg.type == Type::Int_lit)
+        output.appendf("    movq {}, ${}\n", reg, std::any_cast<int>(arg.value));
+    else if (arg.type == Type::Void_t)
+        TODO("error trying to move register to void");
+    else 
+        output.appendf("    movq {}, -{}(%rbp)\n", reg, arg.offset);
+}
+void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
+    if (arg2.type == Type::String_lit)
+        TODO("can't move var to lit");
+        //move_var_to_reg(arg1, f("${}",arg2.name));
+    else if (arg2.type == Type::Int_lit)
+        TODO("can't move var to lit");
+        //move_var_to_reg(arg1, f("${}", std::any_cast<int>(arg2.value)));
+    else if (arg2.type == Type::Void_t)
+        TODO("can't move var to void");
+        //move_var_to_reg(arg1, "$0");
+    else {
+        if (arg1.type == Type::String_lit)
+            move_reg_to_var(f("${}", arg1.name), arg2);
+        else if (arg1.type == Type::Int_lit)
+            move_reg_to_var(f("${}", std::any_cast<int>(arg1.value)), arg2);
+        else if (arg1.type == Type::Void_t)
+            move_reg_to_var("$0", arg2);
+        else {
+            move_var_to_reg(arg1, "%rax");
+            move_reg_to_var("%rax", arg2);
+        }
+    }
+}
+

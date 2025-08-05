@@ -7,6 +7,9 @@ public:
 
     gnu_asm(Program* prog) : BaseCodegenerator(prog) {}
 
-    void compileProgram()  override;
+    void move_var_to_reg(Variable arg, std::string_view reg);
+    void move_reg_to_var(std::string_view reg, Variable arg2);
+    void move_var_to_var(Variable arg1, Variable arg2);
+    void compileProgram() override;
     void compileFunction(Func func) override;
 };

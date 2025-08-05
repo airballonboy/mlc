@@ -116,10 +116,11 @@ Func Parser::parseFunction(){
                         m_currentLexar->getAndExpectNext(TokenType::ColonColon);
                     }
                 }else if (m_currentLexar->peek()->type == TokenType::Eq) {
+                    auto var1 = get_var_from_name((*tkn)->string_value, func.local_variables);
                     m_currentLexar->getAndExpectNext(TokenType::Eq);
                     m_currentLexar->getAndExpectNext({TokenType::DQoute, TokenType::IntLit, TokenType::ID});
-                    auto var = parseArgument();
-                    func.body.push_back({Op::STORE_VAR, {var}});
+                    auto var2 = parseArgument();
+                    func.body.push_back({Op::STORE_VAR, {var2, var1}});
                     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
                 }
             }break;
@@ -162,7 +163,13 @@ Func Parser::parseFunction(){
                 m_currentLexar->getAndExpectNext({TokenType::Eq, TokenType::SemiColon});
 
                 Variable v = {t, id, variable_default_value(t), current_locals_count++*8};
-                func.body.push_back({Op::STORE_VAR, {v}});
+                Type def_t;
+                if (t == Type::String_t)
+                    def_t = Type::String_lit;
+                else 
+                    def_t = Type::Int_lit;
+                Variable def = {def_t, "def_value", variable_default_value(t)};
+                func.body.push_back({Op::STORE_VAR, {def, v}});
                 func.local_variables.push_back(v);
             }break;
         }

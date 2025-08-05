@@ -57,7 +57,8 @@ enum class Type : int {
 };
 enum class Op {
     LOAD_CONST,
-    // STORE_VAR(variable)
+    // stores variable1 into variable2
+    // STORE_VAR(variable1, variable2)
     STORE_VAR,
     LOAD_VAR,
     ADD,

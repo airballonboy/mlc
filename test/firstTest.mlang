@@ -1,6 +1,13 @@
 func main() -> int {
-    int i;
-    i = 23;
-    printf("hello world %hd\n", i);
+    int num;
+    int x;
+    num = 122;
+    int xx;
+    int xy;
+    int xz;
+    x = 12;
+    xx = x;
+    x = 14;
+    printf("test %d = %d\n", xx, num);
     return 0;
 }
