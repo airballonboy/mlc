@@ -66,7 +66,7 @@ int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
 int main(int argc, char* argv[])
 {
     bool run = false;
-    Platform platform;
+    Platform platform = Platform::gnu_asm_86_64;
 	std::string programName = shift_args(&argc, &argv);
 	if (argc == 0) {
 		logger::error("PROGRAM: ", "incorrect usage");

@@ -50,9 +50,18 @@ inline void error(const char* prefix, const char* errorMassage)
 }
 
 #include "tools/format.h"
+#ifdef _WIN32
+#define TODO(x) \
+    do { \
+        logger::log("TODO: ", logger::Blue, f("\n   {}:{} \033[{}m{}\033[0m", "filePath"/*__FILE_NAME__*/, __LINE__, logger::Red, x).c_str()); \
+        exit(1); \
+    }while(0)
+#else 
 #define TODO(x) \
     do { \
         logger::log("TODO: ", logger::Blue, f("\n   {}:{} \033[{}m{}\033[0m", __FILE_NAME__, __LINE__, logger::Red, x).c_str()); \
         exit(1); \
     }while(0)
+#endif
+
 #endif //MASTERLOGGER

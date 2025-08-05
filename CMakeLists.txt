@@ -14,7 +14,7 @@ file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS
 
 add_executable("${CMAKE_PROJECT_NAME}" ${MY_SOURCES})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23")
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 #set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 23)
@@ -23,6 +23,8 @@ if(MSVC) # If using the VS compiler...
 
     target_compile_definitions("${CMAKE_PROJECT_NAME}"
                              PUBLIC _CRT_SECURE_NO_WARNINGS)
+
+    target_compile_features("${CMAKE_PROJECT_NAME}" PRIVATE cxx_std_23)
 
     # this is for my version of msvc you can change the path if you need
     set(CMAKE_AR 'C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.43.34808/bin/Hostx64/x64/lib.exe'
