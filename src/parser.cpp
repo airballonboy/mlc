@@ -125,10 +125,10 @@ Func Parser::parseFunction(){
             }break;
             case TokenType::Return: {
                 m_currentLexar->getAndExpectNext({TokenType::IntLit, TokenType::ID, TokenType::SemiColon});
-                int return_value;
+                Variable return_value;
                 if ((*tkn)->type == TokenType::SemiColon) {
                     if (func.return_type != Type::Void_t) TODO("error on no return");
-                    return_value = 0;
+                    return_value = {Type::Int_lit, "IntLit", 0};
                     m_currentLexar->currentToken--;
                 }else if ((*tkn)->type == TokenType::IntLit) {
                     // TODO: type checker
@@ -139,13 +139,16 @@ Func Parser::parseFunction(){
                         func.return_type == Type::Int32_t || 
                         func.return_type == Type::Int64_t 
                     )
-                        return_value = (*tkn)->int_value;
+                        return_value = {Type::Int_lit, "IntLit", (*tkn)->int_value};
                     else if(func.return_type == Type::Void_t) {
                         ERROR((*tkn)->loc, "void can't return");
                     }
-                }else if ((*tkn)->type == TokenType::ID)
-                    TODO("check if is variable and get it's value");
-                func.body.push_back({Op::RETURN, {(int)func.return_type, return_value}});
+                }else if ((*tkn)->type == TokenType::ID) {
+                    if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
+                        return_value = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
+                    }
+                }
+                func.body.push_back({Op::RETURN, {return_value}});
                 m_currentLexar->getAndExpectNext(TokenType::SemiColon);
             }break;
             case TokenType::TypeID: {
@@ -178,7 +181,7 @@ bool Parser::variable_exist_in_storage(std::string_view var_name, const Variable
     }
     return false;
 }
-Variable& get_var_from_name(std::string_view name, VariableStorage& var_storage) {
+Variable& Parser::get_var_from_name(std::string_view name, VariableStorage& var_storage) {
     for (auto& var : var_storage) {
         if (var.name == name) return var;
     }

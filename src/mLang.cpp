@@ -124,7 +124,6 @@ int main(int argc, char* argv[])
     Parser parser(&lexar);
 
     auto prog = parser.parse();
-    println("parse complete");
 
     switch (platform) {
         case Platform::ir: {

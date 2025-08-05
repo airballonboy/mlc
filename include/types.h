@@ -64,7 +64,7 @@ enum class Op {
     SUB,
     MUL,
     DIV,
-    // RETURN(return_type, return_value)
+    // RETURN(variable)
     RETURN,
     // CALL(func_name, args)
     CALL,

@@ -36,22 +36,20 @@ void gnu_asm::compileFunction(Func func) {
     for (auto& inst : func.body) {
         switch (inst.op) {
             case Op::RETURN: {
+                // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
+                Variable arg = std::any_cast<Variable>(inst.args[0]);
+                if (arg.type == Type::String_lit)
+                    output.appendf("    movq ${}, %rax\n", arg.name);
+                else if (arg.type == Type::Int_lit)
+                    output.appendf("    movq ${}, %rax\n", std::any_cast<int>(arg.value));
+                else if (arg.type == Type::Void_t)
+                    output.appendf("    movq $0, %rax\n");
+                else 
+                    output.appendf("    movq -{}(%rbp), %rax\n", arg.offset);
+                //returns zero in main function
                 output.appendf("    movq %rbp, %rsp\n");
                 output.appendf("    popq %rbp\n");
-                switch (std::any_cast<int>(inst.args[0])) {
-                    case (int)Type::Int32_t: {
-                        // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
-                        int32_t arg = std::any_cast<int32_t>(inst.args[1]);
-                        output.appendf("    movq ${}, %rax\n", arg);
-                        output.appendf("    ret\n");
-                    }break;
-                    case (int)Type::Void_t: {
-                        //returns zero in main function
-                        if (func.name == "main")
-                            output.appendf("    movq $0, %rax\n");
-                        output.appendf("    ret\n");
-                    }break;
-                }
+                output.appendf("    ret\n");
             }break;
             case Op::LOAD_CONST: {
                 output.appendf("    load({})\n", std::any_cast<int32_t>(inst.args[0]));
