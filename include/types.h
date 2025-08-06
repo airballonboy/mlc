@@ -60,6 +60,9 @@ enum class Op {
     // stores variable1 into variable2
     // STORE_VAR(variable1, variable2)
     STORE_VAR,
+    // stores the return of the last function called
+    // STORE_RET(variable)
+    STORE_RET,
     LOAD_VAR,
     ADD,
     SUB,
@@ -265,6 +268,8 @@ struct Func {
     std::string name{};
     
     VariableStorage local_variables{};
+    size_t stack_size = 0;
+
     std::vector<Instruction> body{};
 };
 

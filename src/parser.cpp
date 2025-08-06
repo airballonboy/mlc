@@ -56,10 +56,11 @@ Program* Parser::parse() {
     return &m_program;
 
 }
+size_t current_locals_count = 1;
 // should be instuctions not statments
 Func Parser::parseFunction(){
     auto tkn = &m_currentLexar->currentToken;
-    size_t current_locals_count = 0;
+    current_locals_count = 1;
     Func func;
     m_currentFunc = &func;
     m_currentLexar->getAndExpectNext(TokenType::ID);
@@ -92,18 +93,7 @@ Func Parser::parseFunction(){
         switch ((*tkn)->type) {
             case TokenType::ID: {
                 if (m_currentLexar->peek()->type == TokenType::OParen) {
-                    auto func_name = (*tkn)->string_value;
-                    VariableStorage args{};
-                    m_currentLexar->getAndExpectNext(TokenType::OParen);
-                    while (m_currentLexar->peek()->type != TokenType::CParen) {
-                        m_currentLexar->getAndExpectNext({TokenType::DQoute, TokenType::IntLit, TokenType::ID});
-                        args.push_back(parseArgument());
-                        if (m_currentLexar->peek()->type != TokenType::CParen) {
-                            m_currentLexar->getAndExpectNext(TokenType::Comma);
-                        }
-                    }
-                    m_currentLexar->getAndExpectNext(TokenType::CParen);
-                    func.body.push_back({Op::CALL, {func_name, args}});
+                    parseFuncCall();
                     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
                 }else if (m_currentLexar->peek()->type == TokenType::ColonColon) {
                     auto current_module_storage = m_program.module_storage;
@@ -119,6 +109,13 @@ Func Parser::parseFunction(){
                     auto var1 = get_var_from_name((*tkn)->string_value, func.local_variables);
                     m_currentLexar->getAndExpectNext(TokenType::Eq);
                     m_currentLexar->getAndExpectNext({TokenType::DQoute, TokenType::IntLit, TokenType::ID});
+                    // Storing a function return
+                    if (m_currentLexar->peek()->type == TokenType::OParen) {
+                        parseFuncCall();
+                        func.body.push_back({Op::STORE_RET, {var1}});
+                        m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+                        break;
+                    }
                     auto var2 = parseArgument();
                     func.body.push_back({Op::STORE_VAR, {var2, var1}});
                     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
@@ -177,10 +174,28 @@ Func Parser::parseFunction(){
     }
 
     m_currentLexar->getAndExpectNext(TokenType::CCurly);
+    func.stack_size = current_locals_count*8;
 
     return func;
 
 }
+
+
+void Parser::parseFuncCall(){
+    auto func_name = m_currentLexar->currentToken->string_value;
+    VariableStorage args{};
+    m_currentLexar->getAndExpectNext(TokenType::OParen);
+    while (m_currentLexar->peek()->type != TokenType::CParen) {
+        m_currentLexar->getAndExpectNext({TokenType::DQoute, TokenType::IntLit, TokenType::ID});
+        args.push_back(parseArgument());
+        if (m_currentLexar->peek()->type != TokenType::CParen) {
+            m_currentLexar->getAndExpectNext(TokenType::Comma);
+        }
+    }
+    m_currentLexar->getAndExpectNext(TokenType::CParen);
+    m_currentFunc->body.push_back({Op::CALL, {func_name, args}});
+}
+
 // OUTDATED:
 bool Parser::variable_exist_in_storage(std::string_view var_name, const VariableStorage& var_storage) {
     for (const auto& var : var_storage) {
@@ -208,6 +223,11 @@ Variable Parser::parseArgument() {
         arg = {Type::Int_lit, "Int_Lit", (*tkn)->int_value};
     }
     if ((*tkn)->type == TokenType::ID) {
+        if (m_currentLexar->peek()->type == TokenType::OParen) {
+            parseFuncCall();
+            arg.offset = current_locals_count++*8;
+            m_currentFunc->body.push_back({Op::STORE_RET, {arg}});
+        }
         if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage))
             TODO("check Global variables");
         else {

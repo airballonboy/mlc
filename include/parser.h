@@ -11,6 +11,7 @@ public:
     Func parseFunction();
     Variable parseVariable();
     Variable parseArgument();
+    void     parseFuncCall();
 
 private:
     Lexar* m_currentLexar;

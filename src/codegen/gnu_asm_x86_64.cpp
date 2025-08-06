@@ -10,6 +10,8 @@
 #include <string>
 #include <string_view>
 
+int op = 0;
+
 void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
     output.append(".section .text\n");
@@ -31,8 +33,9 @@ void gnu_asm::compileFunction(Func func) {
     output.appendf("{}:\n", func.name);
     output.appendf("    pushq %rbp\n");
     output.appendf("    movq %rsp, %rbp\n");
+    func.stack_size += func.stack_size % 16;
+    output.appendf("    subq ${}, %rsp\n", func.stack_size);
 
-    int op = 0;
     for (auto& inst : func.body) {
         output.appendf(".op_{}:\n", op++);
         switch (inst.op) {
@@ -53,6 +56,10 @@ void gnu_asm::compileFunction(Func func) {
                 Variable var2 = std::any_cast<Variable>(inst.args[1]);
                 move_var_to_var(var1, var2);
             }break;
+            case Op::STORE_RET: {
+                Variable var = std::any_cast<Variable>(inst.args[0]);
+                move_reg_to_var("%rax", var);
+            }break;
             case Op::CALL: {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
@@ -61,7 +68,10 @@ void gnu_asm::compileFunction(Func func) {
                     move_var_to_reg(args[i], arg_register[i]);
 
                 }
+
+                //output.appendf("    subq $8, %rsp\n", func_name);
                 output.appendf("    call {}\n", func_name);
+                //output.appendf("    addq $8, %rsp\n", func_name);
             }break;
         }
     }

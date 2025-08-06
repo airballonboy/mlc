@@ -1,13 +1,15 @@
+func twelve() -> int {
+    return 12;
+}
 func main() -> int {
-    int num;
     int x;
-    num = 122;
     int xx;
     int xy;
     int xz;
+    xz = twelve();
     x = 12;
     xx = x;
     x = 14;
-    printf("test %d = %d\n", xx, num);
+    printf("test %d = %d\n", xx, twelve());
     return 0;
 }
