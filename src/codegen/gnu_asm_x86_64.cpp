@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
+#include <iterator>
 #include <print>
 #include <string>
 #include <string_view>
@@ -29,6 +30,9 @@ void gnu_asm::compileProgram() {
     outfile.close();
 }
 void gnu_asm::compileFunction(Func func) {
+    // if the function doesn't return you make it return 0
+    bool returned = false;
+
     output.appendf(".global {}\n", func.name);
     output.appendf("{}:\n", func.name);
     output.appendf("    pushq %rbp\n");
@@ -43,10 +47,10 @@ void gnu_asm::compileFunction(Func func) {
                 // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
                 Variable arg = std::any_cast<Variable>(inst.args[0]);
                 move_var_to_reg(arg, "%rax");
-                //returns zero in main function
                 output.appendf("    movq %rbp, %rsp\n");
                 output.appendf("    popq %rbp\n");
                 output.appendf("    ret\n");
+                returned = true;
             }break;
             case Op::LOAD_CONST: {
                 output.appendf("    load({})\n", std::any_cast<int32_t>(inst.args[0]));
@@ -64,16 +68,23 @@ void gnu_asm::compileFunction(Func func) {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
                 std::string_view arg_register[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+
+                if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
+
                 for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
                     move_var_to_reg(args[i], arg_register[i]);
 
                 }
 
-                //output.appendf("    subq $8, %rsp\n", func_name);
                 output.appendf("    call {}\n", func_name);
-                //output.appendf("    addq $8, %rsp\n", func_name);
             }break;
         }
+    }
+    if (!returned) {
+        move_var_to_reg({Type::Int_lit, "Int_lit", 0}, "%rax");
+        output.appendf("    movq %rbp, %rsp\n");
+        output.appendf("    popq %rbp\n");
+        output.appendf("    ret\n");
     }
 }
 
