@@ -1,3 +1,5 @@
+#include <./test/include.mlang>
+
 func twelve() -> int {
     return 12;
 }
@@ -11,5 +13,8 @@ func main() -> int {
     xx = x;
     x = 14;
     printf("test %d = %d\n", xx, twelve());
+    int t;
+    t = ten();
+    printf("included ten = %d\n", ten());
     return 0;
 }

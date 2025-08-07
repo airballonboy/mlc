@@ -1,0 +1,4 @@
+
+func ten() -> int {
+    return 10;
+}

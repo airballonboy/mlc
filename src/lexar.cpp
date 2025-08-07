@@ -163,12 +163,29 @@ void Lexar::skipSpaces(){
     }
 }
 
+void Lexar::pushtokensaftercurrent(Lexar* l){
+    if (l->m_tokens.back().type == TokenType::EndOfFile)
+        l->m_tokens.pop_back();
+    this->pushTokensAt(m_currentTokenIndex+1, l);    
+}
+void Lexar::pushTokensAt(size_t index, Lexar* l) {
+    if (index > this->m_tokens.size()) TODO("ERROR: trying to push a vector of tokens at invalid index");
+    std::vector<Token> ts;
+    for (int i = 0; i < index; i++) ts.push_back(m_tokens[i]); 
+    for (auto& t : l->m_tokens) ts.push_back(t); 
+    for (;index < m_tokens.size(); index++) ts.push_back(m_tokens[index]); 
+    m_tokens = ts;
+}
+std::vector<Token> Lexar::getTokens() {
+    return m_tokens;
+}
 
 void Lexar::getNext(){
     if (currentToken->type == TokenType::EndOfFile) {
         std::println("EndOfFile REACHED");
         return;
     }
+    m_currentTokenIndex++;
     currentToken++;// = &m_tokens.at(++m_currentTokenIndex);
 }
 void Lexar::expectNext(TokenType tt){

@@ -44,7 +44,7 @@ enum class TokenType {
     Extern, Case, If,
     Else, While, Switch,
     Goto, Return, Import,
-    Func, From, 
+    Func, From, Include,
 };
 enum class Type : int {
     Void_t = 0, 
@@ -167,6 +167,7 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     {TokenType::Import     ,"keyword `import`"},
     {TokenType::Func       ,"keyword `func`"},
     {TokenType::From       ,"keyword `from`"},
+    {TokenType::Include    ,"keyword `include`"},
 };
 
 static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
@@ -219,17 +220,18 @@ static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
 };
 
 static const std::unordered_map<std::string, TokenType> KEYWORDS = {
-    {"extern", TokenType::Extern},
-    {"case"  , TokenType::Case},
-    {"if"    , TokenType::If},
-    {"else"  , TokenType::Else},
-    {"while" , TokenType::While},
-    {"switch", TokenType::Switch},
-    {"goto"  , TokenType::Goto},
-    {"return", TokenType::Return},
-    {"import", TokenType::Import},
-    {"func"  , TokenType::Func},
-    {"from"  , TokenType::From},
+    {"extern" , TokenType::Extern},
+    {"case"   , TokenType::Case},
+    {"if"     , TokenType::If},
+    {"else"   , TokenType::Else},
+    {"while"  , TokenType::While},
+    {"switch" , TokenType::Switch},
+    {"goto"   , TokenType::Goto},
+    {"return" , TokenType::Return},
+    {"import" , TokenType::Import},
+    {"func"   , TokenType::Func},
+    {"from"   , TokenType::From},
+    {"include", TokenType::Include},
 };
 
 

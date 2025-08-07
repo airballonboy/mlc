@@ -19,6 +19,9 @@ public:
     void        expectCurrent(std::vector<TokenType> tt);
     std::string tokenToString(Token t);
     Token*      peek();
+    void        pushtokensaftercurrent(Lexar* l);
+    void        pushTokensAt(size_t index, Lexar* l);
+    std::vector<Token> getTokens();
 
     Token* currentToken;
     

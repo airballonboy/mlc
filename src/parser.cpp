@@ -1,4 +1,6 @@
 #include "parser.h"
+#include "lexar.h"
+#include "tools/file.h"
 #include "tools/logger.h"
 #include "types.h"
 #include <any>
@@ -41,13 +43,30 @@ Program* Parser::parse() {
                 
             }break;//TokenType::Func
             case TokenType::Hash: {
-                while (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
+                m_currentLexar->getAndExpectNext({TokenType::Import, TokenType::Include});
+                if ((*tkn)->type == TokenType::Include) {
+                    if (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
+                        m_currentLexar->getAndExpectNext(TokenType::Less);
+                    std::string file_name{};
+                    while (m_currentLexar->peek()->loc.line == (*tkn)->loc.line && m_currentLexar->peek()->type != TokenType::Greater) {
+                        m_currentLexar->getNext();
+                        file_name += (*tkn)->string_value;
+                        //std::println("{:10} => {}", (*tkn)->string_value, printableToken.at((*tkn)->type));
+                    }
+                    std::println("{}", file_name);
+                    Lexar l(readFileToString(file_name), file_name);
+
                     m_currentLexar->getNext();
-                m_currentLexar->getNext();
-                std::println("# passed but not implemented");
+
+                    m_currentLexar->pushtokensaftercurrent(&l);
+
+                    m_currentLexar->getNext();
+
+                }
+                //std::println("# passed but not implemented");
             }break;
             default: {
-                std::println("unimplemented type of {}", printableToken.at((*tkn)->type));
+                std::println("unimplemented type of {} at {}:{}:{}", printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
                 m_currentLexar->getNext();
 
             }break;
@@ -183,6 +202,10 @@ Func Parser::parseFunction(){
 
 void Parser::parseFuncCall(){
     auto func_name = m_currentLexar->currentToken->string_value;
+
+    //TODO: uncomment because it now can't finc c std fuctions
+    //if (!function_exist_in_storage(func_name, m_program.func_storage)) {std::println("{}", func_name);TODO("func doesn't exist");}
+
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
@@ -196,6 +219,22 @@ void Parser::parseFuncCall(){
     m_currentFunc->body.push_back({Op::CALL, {func_name, args}});
 }
 
+bool Parser::function_exist_in_storage(std::string_view func_name, const FunctionStorage& func_storage) {
+    for (auto& func : func_storage) {
+        if (func.name == func_name) return true;
+    }
+    return false;
+}
+Func& Parser::get_func_from_name(std::string_view name, FunctionStorage& func_storage) {
+
+    if (!function_exist_in_storage(name, func_storage)) {std::println("{}", name); TODO("func doesn't exist");}
+
+    for (auto& func : func_storage) {
+        if (func.name == name) return func;
+    }
+    std::println("{}", name);
+    TODO("func doesn't exist");
+}
 // OUTDATED:
 bool Parser::variable_exist_in_storage(std::string_view var_name, const VariableStorage& var_storage) {
     for (const auto& var : var_storage) {
@@ -224,8 +263,11 @@ Variable Parser::parseArgument() {
     }
     if ((*tkn)->type == TokenType::ID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
+            auto& func = get_func_from_name((*tkn)->string_value, m_program.func_storage);
             parseFuncCall();
             arg.offset = current_locals_count++*8;
+            arg.type = func.return_type;
+            std::println("{}", int(arg.type));
             m_currentFunc->body.push_back({Op::STORE_RET, {arg}});
         }
         if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage))
