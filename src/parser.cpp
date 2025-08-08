@@ -12,16 +12,19 @@
 #define ERROR(loc, massage) std::println("{}:{}:{} {}", (loc).inputPath, (loc).line, (loc).offset, massage);
 
 int stringLiteralCount = 0;
+size_t current_locals_count = 1;
 
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
 }
 Variable Parser::parseVariable(){
     Variable var;
-    m_currentLexar->getAndExpectNext(TokenType::TypeID);
+    if (m_currentLexar->currentToken->type != TokenType::TypeID)
+        m_currentLexar->getAndExpectNext(TokenType::TypeID);
     var.type = TypeIds.at(m_currentLexar->currentToken->string_value);
     m_currentLexar->getAndExpectNext(TokenType::ID);
     var.name = m_currentLexar->currentToken->string_value;    
+    var.offset = current_locals_count++*8;
     // TODO: support arrays
     if (m_currentLexar->peek()->type == TokenType::OBracket) {
         m_currentLexar->getAndExpectNext(TokenType::OBracket);
@@ -30,6 +33,9 @@ Variable Parser::parseVariable(){
         m_currentLexar->getAndExpectNext(TokenType::CBracket);
         TODO("support for arrays");   
     }
+    m_currentFunc->local_variables.push_back(var);
+
+
     return var;
 }
 Program* Parser::parse() {
@@ -53,7 +59,7 @@ Program* Parser::parse() {
                         file_name += (*tkn)->string_value;
                         //std::println("{:10} => {}", (*tkn)->string_value, printableToken.at((*tkn)->type));
                     }
-                    std::println("{}", file_name);
+                    //std::println("{}", file_name);
                     Lexar l(readFileToString(file_name), file_name);
 
                     m_currentLexar->getNext();
@@ -75,7 +81,6 @@ Program* Parser::parse() {
     return &m_program;
 
 }
-size_t current_locals_count = 1;
 // should be instuctions not statments
 Func Parser::parseFunction(){
     auto tkn = &m_currentLexar->currentToken;
@@ -86,11 +91,14 @@ Func Parser::parseFunction(){
     func.name = m_currentLexar->currentToken->string_value;
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-        Variable var = parseVariable();
+        func.arguments.push_back(parseVariable());
+        func.arguments_count++;
 
         // Process parameter(Local Variables)
-        if(m_currentLexar->peek()->type != TokenType::CParen)
+        if(m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->expectNext(TokenType::Comma);
+            m_currentLexar->getNext();
+        }
     }
 
     m_currentLexar->getAndExpectNext(TokenType::CParen);
@@ -169,24 +177,19 @@ Func Parser::parseFunction(){
                 m_currentLexar->getAndExpectNext(TokenType::SemiColon);
             }break;
             case TokenType::TypeID: {
-                std::string id;
-                Type t = TypeIds.at((*tkn)->string_value);
-                m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::UScore});
-                if ((*tkn)->type == TokenType::ID)
-                    id = (*tkn)->string_value;
-                else 
-                    continue;
-                m_currentLexar->getAndExpectNext({TokenType::Eq, TokenType::SemiColon});
+                auto var = parseVariable();
+                Variable default_val;
 
-                Variable v = {t, id, variable_default_value(t), current_locals_count++*8};
-                Type def_t;
-                if (t == Type::String_t)
-                    def_t = Type::String_lit;
+                if (var.type == Type::String_t)
+                    default_val.type = Type::String_lit;
                 else 
-                    def_t = Type::Int_lit;
-                Variable def = {def_t, "def_value", variable_default_value(t)};
-                func.body.push_back({Op::STORE_VAR, {def, v}});
-                func.local_variables.push_back(v);
+                    default_val.type = Type::Int_lit;
+                default_val.name = "def_value";
+                default_val.value = variable_default_value(var.type);
+                m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+
+
+                m_currentLexar->getAndExpectNext(TokenType::SemiColon);
             }break;
         }
         //while ((*tkn)->type != TokenType::SemiColon) m_currentLexar->getNext();
@@ -267,7 +270,7 @@ Variable Parser::parseArgument() {
             parseFuncCall();
             arg.offset = current_locals_count++*8;
             arg.type = func.return_type;
-            std::println("{}", int(arg.type));
+            //std::println("{}", int(arg.type));
             m_currentFunc->body.push_back({Op::STORE_RET, {arg}});
         }
         if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage))

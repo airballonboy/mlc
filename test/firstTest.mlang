@@ -1,20 +1,9 @@
-#include <./test/include.mlang>
+//#include <./test/include.mlang>
 
-func twelve() -> int {
-    return 12;
+func println(string s) {
+    printf("%s\n", s);
 }
 func main() -> int {
-    int x;
-    int xx;
-    int xy;
-    int xz;
-    xz = twelve();
-    x = 12;
-    xx = x;
-    x = 14;
-    printf("test %d = %d\n", xx, twelve());
-    int t;
-    t = ten();
-    printf("included ten = %d\n", ten());
+    println("hello world");
     return 0;
 }

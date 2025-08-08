@@ -32,6 +32,7 @@ void gnu_asm::compileProgram() {
 void gnu_asm::compileFunction(Func func) {
     // if the function doesn't return you make it return 0
     bool returned = false;
+    std::string_view arg_register[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
     output.appendf(".global {}\n", func.name);
     output.appendf("{}:\n", func.name);
@@ -39,6 +40,11 @@ void gnu_asm::compileFunction(Func func) {
     output.appendf("    movq %rsp, %rbp\n");
     func.stack_size += func.stack_size % 16;
     output.appendf("    subq ${}, %rsp\n", func.stack_size);
+
+    for (int i = 0; i < func.arguments_count; i++) {
+        if (i < std::size(arg_register))
+            move_reg_to_var(arg_register[i], func.arguments[i]);       
+    }
 
     for (auto& inst : func.body) {
         output.appendf(".op_{}:\n", op++);
@@ -67,7 +73,6 @@ void gnu_asm::compileFunction(Func func) {
             case Op::CALL: {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
-                std::string_view arg_register[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
                 if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
 
