@@ -1,0 +1,4 @@
+
+func println(string s) {
+    printf("%s\n", s);
+}

@@ -59,7 +59,7 @@ Program* Parser::parse() {
                         file_name += (*tkn)->string_value;
                         //std::println("{:10} => {}", (*tkn)->string_value, printableToken.at((*tkn)->type));
                     }
-                    //std::println("{}", file_name);
+                    std::println("including {}", file_name);
                     Lexar l(readFileToString(file_name), file_name);
 
                     m_currentLexar->getNext();

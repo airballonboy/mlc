@@ -1,9 +1,7 @@
-//#include <./test/include.mlang>
+#include <./test/std.mlang>
 
-func println(string s) {
-    printf("%s\n", s);
-}
 func main() -> int {
-    println("hello world");
+    println("hello from mlang");
+
     return 0;
 }
