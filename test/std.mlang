@@ -1,4 +1,6 @@
-
 func println(string s) {
     printf("%s\n", s);
+}
+func print(string s) {
+    printf("%s", s);
 }

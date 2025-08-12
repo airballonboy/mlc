@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "context.h"
 #include "lexar.h"
 #include "tools/file.h"
 #include "tools/logger.h"
@@ -39,7 +40,7 @@ Variable Parser::parseVariable(){
     return var;
 }
 Program* Parser::parse() {
-    auto tkn = &m_currentLexar->currentToken;
+    tkn = &m_currentLexar->currentToken;
 
     while ((*tkn)->type != TokenType::EndOfFile) {
         switch((*tkn)->type) {
@@ -49,28 +50,8 @@ Program* Parser::parse() {
                 
             }break;//TokenType::Func
             case TokenType::Hash: {
-                m_currentLexar->getAndExpectNext({TokenType::Import, TokenType::Include});
-                if ((*tkn)->type == TokenType::Include) {
-                    if (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
-                        m_currentLexar->getAndExpectNext(TokenType::Less);
-                    std::string file_name{};
-                    while (m_currentLexar->peek()->loc.line == (*tkn)->loc.line && m_currentLexar->peek()->type != TokenType::Greater) {
-                        m_currentLexar->getNext();
-                        file_name += (*tkn)->string_value;
-                        //std::println("{:10} => {}", (*tkn)->string_value, printableToken.at((*tkn)->type));
-                    }
-                    std::println("including {}", file_name);
-                    Lexar l(readFileToString(file_name), file_name);
-
-                    m_currentLexar->getNext();
-
-                    m_currentLexar->pushtokensaftercurrent(&l);
-
-                    m_currentLexar->getNext();
-
-                }
-                //std::println("# passed but not implemented");
-            }break;
+                parseHash();
+            }break;//TokenType::Hash
             default: {
                 std::println("unimplemented type of {} at {}:{}:{}", printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
                 m_currentLexar->getNext();
@@ -81,9 +62,36 @@ Program* Parser::parse() {
     return &m_program;
 
 }
-// should be instuctions not statments
+void Parser::parseHash() {
+    m_currentLexar->getAndExpectNext({TokenType::Import, TokenType::Include, TokenType::Extern});
+    switch ((*tkn)->type ) {
+        case TokenType::Include: {
+            if (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
+                m_currentLexar->getAndExpectNext(TokenType::Less);
+            std::string file_name{};
+            while (m_currentLexar->peek()->loc.line == (*tkn)->loc.line && m_currentLexar->peek()->type != TokenType::Greater) {
+                m_currentLexar->getNext();
+                file_name += (*tkn)->string_value;
+            }
+            if (fileExistsInPaths(file_name, ctx.includePaths)) {
+                std::string file_path = getFilePathFromPaths(file_name, ctx.includePaths);
+
+                Lexar l(readFileToString(file_path), file_path);
+
+                m_currentLexar->getNext();
+                m_currentLexar->pushtokensaftercurrent(&l);
+            }else {
+                TODO("file not found");
+            };
+            m_currentLexar->getNext();
+        }break;//TokenType::Include
+        case TokenType::Extern: {
+            TODO("extern");
+        }break;//TokenType::Include
+    }
+}
 Func Parser::parseFunction(){
-    auto tkn = &m_currentLexar->currentToken;
+    tkn = &m_currentLexar->currentToken;
     current_locals_count = 1;
     Func func;
     m_currentFunc = &func;
@@ -147,7 +155,7 @@ Func Parser::parseFunction(){
                     func.body.push_back({Op::STORE_VAR, {var2, var1}});
                     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
                 }
-            }break;
+            }break;//TokenType::ID
             case TokenType::Return: {
                 m_currentLexar->getAndExpectNext({TokenType::IntLit, TokenType::ID, TokenType::SemiColon});
                 Variable return_value;
@@ -175,7 +183,7 @@ Func Parser::parseFunction(){
                 }
                 func.body.push_back({Op::RETURN, {return_value}});
                 m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-            }break;
+            }break;//TokenType::Return
             case TokenType::TypeID: {
                 auto var = parseVariable();
                 Variable default_val;
@@ -190,9 +198,8 @@ Func Parser::parseFunction(){
 
 
                 m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-            }break;
+            }break;//TokenType::TypeID
         }
-        //while ((*tkn)->type != TokenType::SemiColon) m_currentLexar->getNext();
     }
 
     m_currentLexar->getAndExpectNext(TokenType::CCurly);
@@ -235,7 +242,7 @@ Func& Parser::get_func_from_name(std::string_view name, FunctionStorage& func_st
     for (auto& func : func_storage) {
         if (func.name == name) return func;
     }
-    std::println("{}", name);
+    std::println("func {} was not found", name);
     TODO("func doesn't exist");
 }
 // OUTDATED:
@@ -252,7 +259,7 @@ Variable& Parser::get_var_from_name(std::string_view name, VariableStorage& var_
     TODO("var doesn't exist");
 }
 Variable Parser::parseArgument() {
-    auto tkn = &m_currentLexar->currentToken;
+    tkn = &m_currentLexar->currentToken;
     Variable arg;
     if((*tkn)->type == TokenType::DQoute) m_currentLexar->getAndExpectNext(TokenType::StringLit);
     if((*tkn)->type == TokenType::StringLit) {

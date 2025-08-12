@@ -8,6 +8,7 @@
 #include <vector>
 #include <filesystem>
 #include "codegen/gnu_asm_x86_64.h"
+#include "context.h"
 #include "parser.h"
 #include "types.h"
 #include "tools/file.h"
@@ -82,6 +83,10 @@ int main(int argc, char* argv[])
     build_path = input_path+"/.build";
     std::string output_path = build_path+"/output";
 
+    // Should add the libmlang path to here
+    ctx.includePaths.push_back(".");
+    ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/test");
+
     if (!std::filesystem::exists(build_path)) {
         if (std::filesystem::create_directory(build_path)) {
             println("Directory created: {}", build_path);
@@ -103,6 +108,13 @@ int main(int argc, char* argv[])
                 output_path = args[++i];
             else {
                 println(stderr, "-o requires output path after it");
+                exit(1);
+            }
+        }else if (args[i] == "-I") {
+            if (i+1 < args.size()) {
+                ctx.includePaths.push_back(args[++i]);
+            }else {
+                println(stderr, "-I requires search path for includes, imports, libs and binarys after it");
                 exit(1);
             }
         }else if (args[i] == "-t") {

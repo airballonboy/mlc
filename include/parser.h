@@ -12,7 +12,9 @@ public:
     Variable parseVariable();
     Variable parseArgument();
     void     parseFuncCall();
+    void     parseHash();
 
+    Token** tkn;
 private:
     Lexar* m_currentLexar;
     Program m_program;

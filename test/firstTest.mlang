@@ -1,4 +1,4 @@
-#include <./test/std.mlang>
+#include <std.mlang>
 
 func main() -> int {
     println("hello from mlang");
