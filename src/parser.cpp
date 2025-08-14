@@ -51,6 +51,7 @@ Program* Parser::parse() {
             }break;//TokenType::Func
             case TokenType::Hash: {
                 parseHash();
+                m_currentLexar->getNext();
             }break;//TokenType::Hash
             default: {
                 std::println("unimplemented type of {} at {}:{}:{}", printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
@@ -68,6 +69,7 @@ void Parser::parseHash() {
         case TokenType::Include: {
             if (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
                 m_currentLexar->getAndExpectNext(TokenType::Less);
+            else TODO("no file provided to include");
             std::string file_name{};
             while (m_currentLexar->peek()->loc.line == (*tkn)->loc.line && m_currentLexar->peek()->type != TokenType::Greater) {
                 m_currentLexar->getNext();
@@ -83,10 +85,48 @@ void Parser::parseHash() {
             }else {
                 TODO("file not found");
             };
-            m_currentLexar->getNext();
         }break;//TokenType::Include
         case TokenType::Extern: {
-            TODO("extern");
+            m_currentLexar->getAndExpectNext(TokenType::Func);
+
+            Func func;
+            m_currentFunc = &func;
+            func.external = true;
+            m_currentLexar->getAndExpectNext(TokenType::ID);
+            func.name = m_currentLexar->currentToken->string_value;
+            m_currentLexar->getAndExpectNext(TokenType::OParen);
+            while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile) {
+                if(m_currentLexar->peek()->type == TokenType::Dot) {
+                    
+                    m_currentLexar->getAndExpectNext(TokenType::Dot);
+                    m_currentLexar->getAndExpectNext(TokenType::Dot);
+                    m_currentLexar->getAndExpectNext(TokenType::Dot);
+                    func.arguments_count = 1000;
+                    
+                    break;
+                }else {
+                    func.arguments.push_back(parseVariable());
+                    func.arguments_count++;
+                }
+                // Process parameter(Local Variables)
+                if(m_currentLexar->peek()->type != TokenType::CParen) {
+                    m_currentLexar->expectNext(TokenType::Comma);
+                    m_currentLexar->getNext();
+                }
+            }
+
+            m_currentLexar->getAndExpectNext(TokenType::CParen);
+
+            // Returns
+            if (m_currentLexar->peek()->type == TokenType::Arrow) {
+                m_currentLexar->getAndExpectNext(TokenType::Arrow);
+                m_currentLexar->getAndExpectNext(TokenType::TypeID);
+                func.return_type = TypeIds.at((*tkn)->string_value);
+            }
+
+            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+            m_program.func_storage.push_back(func);
+
         }break;//TokenType::Include
     }
 }
@@ -213,8 +253,8 @@ Func Parser::parseFunction(){
 void Parser::parseFuncCall(){
     auto func_name = m_currentLexar->currentToken->string_value;
 
-    //TODO: uncomment because it now can't finc c std fuctions
-    //if (!function_exist_in_storage(func_name, m_program.func_storage)) {std::println("{}", func_name);TODO("func doesn't exist");}
+    // TODO: currently uncommented but not fully working because i don't have variadic functions
+    if (!function_exist_in_storage(func_name, m_program.func_storage)) {std::println("{}", func_name);TODO("func doesn't exist");}
 
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);

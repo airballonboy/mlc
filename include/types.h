@@ -272,6 +272,8 @@ struct Func {
     VariableStorage local_variables{};
     size_t stack_size = 0;
 
+    bool external = false;
+
     std::vector<Instruction> body{};
 };
 

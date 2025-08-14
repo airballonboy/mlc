@@ -17,7 +17,10 @@ void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
     output.append(".section .text\n");
     for (const auto& func : m_program->func_storage) {
-        compileFunction(func);
+        if(func.external)
+            output.appendf("#extrn {}\n", func.name);
+        else 
+            compileFunction(func);
     }
     for (const auto& var : m_program->var_storage) {
         if (var.type == Type::String_lit)
