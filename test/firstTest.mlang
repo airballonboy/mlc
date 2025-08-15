@@ -1,7 +1,5 @@
 #include <std.mlang>
 
-func main() -> int {
-    println("hello from mlang");
-
-    return 0;
+func main() {
+    io::println("hello from mlang");
 }

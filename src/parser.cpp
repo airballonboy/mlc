@@ -14,6 +14,7 @@
 
 int stringLiteralCount = 0;
 size_t current_locals_count = 1;
+std::string current_module_prefix{};
 
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
@@ -42,13 +43,19 @@ Variable Parser::parseVariable(){
 Program* Parser::parse() {
     tkn = &m_currentLexar->currentToken;
 
+    m_currentFuncStorage = &m_program.func_storage;
+
     while ((*tkn)->type != TokenType::EndOfFile) {
         switch((*tkn)->type) {
             case TokenType::Func:{
-                m_program.func_storage.push_back(parseFunction());
+                m_currentFuncStorage->push_back(parseFunction());
                 m_currentLexar->getNext();
                 
             }break;//TokenType::Func
+            case TokenType::Module: {
+                parseModuleDeclaration();
+                m_currentLexar->getNext();
+            }break;//TokenType::Module
             case TokenType::Hash: {
                 parseHash();
                 m_currentLexar->getNext();
@@ -62,6 +69,24 @@ Program* Parser::parse() {
     }
     return &m_program;
 
+}
+void Parser::parseModuleDeclaration() {
+    m_currentLexar->getAndExpectNext(TokenType::ID);
+
+    ModuleStorage* current_mod = &m_program.module_storage;
+
+    if (m_program.module_storage.contains((*tkn)->string_value)) {
+        if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+            current_mod = &current_mod->at((*tkn)->string_value).module_storage;
+            m_currentLexar->getAndExpectNext(TokenType::ColonColon);
+            m_currentLexar->getAndExpectNext(TokenType::ID);
+        }else {
+            TODO("redeclare module");
+        }
+    }
+
+    current_mod->emplace((*tkn)->string_value, Module{});
+    m_currentLexar->getAndExpectNext(TokenType::SemiColon);
 }
 void Parser::parseHash() {
     m_currentLexar->getAndExpectNext({TokenType::Import, TokenType::Include, TokenType::Extern});
@@ -127,7 +152,39 @@ void Parser::parseHash() {
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
             m_program.func_storage.push_back(func);
 
-        }break;//TokenType::Include
+        }break;//TokenType::Extern
+        case TokenType::Import: {
+            TODO("handle imports");
+        }break;//TokenType::Import
+    }
+}
+void Parser::parseModulePrefix(){
+    auto current_module_storage = &m_program.module_storage;
+
+    //if(!current_module_storage->contains((*tkn)->string_value)) TODO("error");
+    if(!current_module_storage->contains((*tkn)->string_value)) { 
+        std::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
+        TODO("error");
+    }
+
+    m_currentFuncStorage   = &current_module_storage->at((*tkn)->string_value).func_storage;
+    current_module_storage = &m_program.module_storage.at((*tkn)->string_value).module_storage;
+    current_module_prefix += (*tkn)->string_value + "__";
+
+    m_currentLexar->getAndExpectNext(TokenType::ColonColon);
+
+    while((m_currentLexar->peek() + 1)->type == TokenType::ColonColon){
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+        if(!current_module_storage->contains((*tkn)->string_value)) { 
+            std::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
+            TODO("error");
+        }
+
+        m_currentFuncStorage   = &current_module_storage->at((*tkn)->string_value).func_storage;
+        current_module_storage = &current_module_storage->at((*tkn)->string_value).module_storage;
+        current_module_prefix += (*tkn)->string_value + "__";
+
+        m_currentLexar->getAndExpectNext(TokenType::ColonColon);
     }
 }
 Func Parser::parseFunction(){
@@ -136,7 +193,14 @@ Func Parser::parseFunction(){
     Func func;
     m_currentFunc = &func;
     m_currentLexar->getAndExpectNext(TokenType::ID);
-    func.name = m_currentLexar->currentToken->string_value;
+    current_module_prefix = "";
+    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        parseModulePrefix();
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+    }
+    func.name = current_module_prefix + m_currentLexar->currentToken->string_value;
+    current_module_prefix = "";
+
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
         func.arguments.push_back(parseVariable());
@@ -169,17 +233,9 @@ Func Parser::parseFunction(){
             case TokenType::ID: {
                 if (m_currentLexar->peek()->type == TokenType::OParen) {
                     parseFuncCall();
-                    m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+                    m_currentLexar->getAndExpectNext(TokenType::SemiColon);                
                 }else if (m_currentLexar->peek()->type == TokenType::ColonColon) {
-                    auto current_module_storage = m_program.module_storage;
-                    if(!current_module_storage.contains((*tkn)->string_value)) TODO("error");
-                    m_currentLexar->getAndExpectNext(TokenType::ColonColon);
-                    while((m_currentLexar->peek() + 1)->type == TokenType::ColonColon){
-                        m_currentLexar->getAndExpectNext(TokenType::ID);
-                        if(!current_module_storage.contains((*tkn)->string_value)) TODO("error");
-                        current_module_storage = current_module_storage.at((*tkn)->string_value).module_storage;
-                        m_currentLexar->getAndExpectNext(TokenType::ColonColon);
-                    }
+                    parseModulePrefix();
                 }else if (m_currentLexar->peek()->type == TokenType::Eq) {
                     auto var1 = get_var_from_name((*tkn)->string_value, func.local_variables);
                     m_currentLexar->getAndExpectNext(TokenType::Eq);
@@ -251,7 +307,7 @@ Func Parser::parseFunction(){
 
 
 void Parser::parseFuncCall(){
-    auto func_name = m_currentLexar->currentToken->string_value;
+    std::string func_name = current_module_prefix + m_currentLexar->currentToken->string_value;
 
     // TODO: currently uncommented but not fully working because i don't have variadic functions
     if (!function_exist_in_storage(func_name, m_program.func_storage)) {std::println("{}", func_name);TODO("func doesn't exist");}
@@ -267,6 +323,9 @@ void Parser::parseFuncCall(){
     }
     m_currentLexar->getAndExpectNext(TokenType::CParen);
     m_currentFunc->body.push_back({Op::CALL, {func_name, args}});
+
+    m_currentFuncStorage = &m_program.func_storage;
+    current_module_prefix = "";
 }
 
 bool Parser::function_exist_in_storage(std::string_view func_name, const FunctionStorage& func_storage) {

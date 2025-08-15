@@ -45,6 +45,7 @@ enum class TokenType {
     Else, While, Switch,
     Goto, Return, Import,
     Func, From, Include,
+    Module, 
 };
 enum class Type : int {
     Void_t = 0, 
@@ -168,6 +169,7 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     {TokenType::Func       ,"keyword `func`"},
     {TokenType::From       ,"keyword `from`"},
     {TokenType::Include    ,"keyword `include`"},
+    {TokenType::Module     ,"keyword `module`"},
 };
 
 static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
@@ -232,6 +234,7 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     {"func"   , TokenType::Func},
     {"from"   , TokenType::From},
     {"include", TokenType::Include},
+    {"module" , TokenType::Module},
 };
 
 
@@ -282,8 +285,8 @@ typedef std::vector<Func> FunctionStorage;
 struct Module {
     std::string name{};
     std::unordered_map<std::string, Module> module_storage;
-    FunctionStorage     func_storage;
-    VariableStorage     var_storage;
+    FunctionStorage func_storage;
+    VariableStorage var_storage;
 };
 //typedef std::vector<Module> ModuleStorage;
 typedef std::unordered_map<std::string, Module> ModuleStorage;

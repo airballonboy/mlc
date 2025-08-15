@@ -1,9 +1,12 @@
-
 #extern func printf(...);
 
-func println(string s) {
+//module std;
+module io;
+
+
+func io::println(string s) {
     printf("%s\n", s);
 }
-func print(string s) {
+func io::print(string s) {
     printf("%s", s);
 }

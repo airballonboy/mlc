@@ -11,6 +11,8 @@ public:
     Func parseFunction();
     Variable parseVariable();
     Variable parseArgument();
+    void     parseModuleDeclaration();
+    void     parseModulePrefix();
     void     parseFuncCall();
     void     parseHash();
 
@@ -19,6 +21,7 @@ private:
     Lexar* m_currentLexar;
     Program m_program;
     Func*   m_currentFunc;
+    FunctionStorage* m_currentFuncStorage;
 
     bool variable_exist_in_storage(std::string_view varName, const VariableStorage&);
     bool function_exist_in_storage(std::string_view funcName, const FunctionStorage&);
