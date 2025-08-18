@@ -46,6 +46,7 @@ void gnu_asm::compileProgram() {
 void gnu_asm::compileFunction(Func func) {
     // if the function doesn't return you make it return 0
     bool returned = false;
+    // TODO: maybe remove the 32 bit stuff
 	#ifdef WIN32
     std::pair<std::string_view, std::string_view> arg_register[] = {{"%rcx", "ecx"}, {"%rdx", "edx"}, {"%r8", "r8d"}, {"%r9", "r9d"}};
 	#else	
@@ -66,7 +67,7 @@ void gnu_asm::compileFunction(Func func) {
     for (int i = 0; i < func.arguments_count; i++) {
         if (i < std::size(arg_register)) {
             if (func.arguments[i].type == Type::Int32_t)
-                move_reg_to_var(arg_register[i].second, func.arguments[i]);       
+                move_reg_to_var(arg_register[i].first, func.arguments[i]);       
             else 
                 move_reg_to_var(arg_register[i].first, func.arguments[i]);       
         }
@@ -104,7 +105,7 @@ void gnu_asm::compileFunction(Func func) {
 
                 for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
                     if (args[i].type == Type::Int32_t)
-                        move_var_to_reg(args[i], arg_register[i].second);
+                        move_var_to_reg(args[i], arg_register[i].first);
                     else 
                         move_var_to_reg(args[i], arg_register[i].first);
 
