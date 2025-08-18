@@ -2,11 +2,20 @@
 #include <raylib.mlang>
 
 
+#extern func loop();
+func loop() {
+
+    rl::begin_drawing();
+
+    rl::clear_background(65535);
+
+    rl::end_drawing();
+
+    loop();
+}
+
 func main() {
-    int width;
-    int height;
-    width = 120;
-    height = 500;
     rl::init_window(120, 500, "hello world");
+    loop();
     rl::close_window();
 }
