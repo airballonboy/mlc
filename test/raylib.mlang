@@ -1,10 +1,7 @@
+module rl;
 
-namespace rl {
-
-#extrn init_window(int, int, string) [from[name = "InitWindow"       , lib = "libraylib.a", search_path = "/home/user/lib_path"]]
-#extrn close_window()                [from[name = "CloseWindow"      , lib = "libraylib.a", search_path = "/home/user/lib_path"]]
-#extrn begin_drawing()               [from[name = "BeginDrawing"     , lib = "libraylib.a", search_path = "/home/user/lib_path"]]
-#extrn end_drawing()                 [from[name = "EndDrawing"       , lib = "libraylib.a", search_path = "/home/user/lib_path"]]
-#extrn clear_background()            [from[name = "ClearBackground"  , lib = "libraylib.a", search_path = "/home/user/lib_path"]]
-
-}
+#extern func rl::init_window(int x, int y, string s) [link_name = "InitWindow"  , lib = "raylib", search_path = "/home/ahmed/dev/thirdparty/raylib-5.5/lib"];
+#extern func rl::close_window()                      [link_name = "CloseWindow" , lib = "m"];
+#extern func rl::begin_drawing()                     [link_name = "BeginDrawing", lib = ""];
+#extern func rl::end_drawing()                       [link_name = "EndDrawing"];
+#extern func rl::clear_background()                  [link_name = "ClearBackground"];

@@ -1,12 +1,13 @@
-#extern func printf(...);
-
-//module std;
 module io;
+module c_std;
 
+#extern func c_std::printf(...) [link_name = "printf", lib = "m"];
+#extern func sleep(...);
 
-func io::println(string s) {
-    printf("%s\n", s);
-}
 func io::print(string s) {
-    printf("%s", s);
+    c_std::printf("%s", s);
 }
+func io::println(string s) {
+    c_std::printf("%s\n", s);
+}
+

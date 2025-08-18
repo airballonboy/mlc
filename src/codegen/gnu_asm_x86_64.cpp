@@ -1,4 +1,5 @@
 #include "codegen/gnu_asm_x86_64.h"
+#include "context.h"
 #include "tools/logger.h"
 #include "types.h"
 #include "tools/format.h"
@@ -17,10 +18,18 @@ void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
     output.append(".section .text\n");
     for (const auto& func : m_program->func_storage) {
-        if(func.external)
-            output.appendf("#extrn {}\n", func.name);
-        else 
+        if(func.external) {
+            output.appendf(".global {}\n", func.name);
+            output.appendf(".extern {}\n", func.link_name);
+            if (func.name != func.link_name)
+                output.appendf(".set    {}, {}\n", func.name, func.link_name);
+            if (!ctx.libs.contains(func.lib))
+                ctx.libs.insert(func.lib);
+            if (!ctx.search_paths.contains(func.search_path))
+                ctx.search_paths.insert(func.search_path);
+        }else {
             compileFunction(func);
+        }
     }
 
 	output.appendf(".section .rodata\n");
@@ -38,22 +47,29 @@ void gnu_asm::compileFunction(Func func) {
     // if the function doesn't return you make it return 0
     bool returned = false;
 	#ifdef WIN32
-    std::string_view arg_register[] = {"%rcx", "%rdx", "%r8", "%r9"};
+    std::pair<std::string_view, std::string_view> arg_register[] = {{"%rcx", "ecx"}, {"%rdx", "edx"}, {"%r8", "r8d"}, {"%r9", "r9d"}};
 	#else	
-    std::string_view arg_register[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+    std::pair<std::string_view, std::string_view> arg_register[] = {
+        {"%rdi", "%edi"}, {"%rsi", "%esi"}, {"%rdx", "%edx"}, {"%rcx", "%ecx"}, {"%r8", "%r8d"}, {"%r9", "%r9d"}
+    };
 	#endif
 
     output.appendf(".global {}\n", func.name);
     output.appendf("{}:\n", func.name);
     output.appendf("    pushq %rbp\n");
     output.appendf("    movq %rsp, %rbp\n");
+    output.appendf("    andq $-16, %rsp\n");
     func.stack_size += func.stack_size % 16;
 	if (func.stack_size < 32) func.stack_size = 32;
     output.appendf("    subq ${}, %rsp\n", func.stack_size);
 
     for (int i = 0; i < func.arguments_count; i++) {
-        if (i < std::size(arg_register))
-            move_reg_to_var(arg_register[i], func.arguments[i]);       
+        if (i < std::size(arg_register)) {
+            if (func.arguments[i].type == Type::Int32_t)
+                move_reg_to_var(arg_register[i].second, func.arguments[i]);       
+            else 
+                move_reg_to_var(arg_register[i].first, func.arguments[i]);       
+        }
     }
 
     for (auto& inst : func.body) {
@@ -87,7 +103,10 @@ void gnu_asm::compileFunction(Func func) {
                 if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
 
                 for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
-                    move_var_to_reg(args[i], arg_register[i]);
+                    if (args[i].type == Type::Int32_t)
+                        move_var_to_reg(args[i], arg_register[i].second);
+                    else 
+                        move_var_to_reg(args[i], arg_register[i].first);
 
                 }
 

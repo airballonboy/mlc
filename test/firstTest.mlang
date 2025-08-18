@@ -1,5 +1,12 @@
 #include <std.mlang>
+#include <raylib.mlang>
+
 
 func main() {
-    io::println("hello from mlang");
+    int width;
+    int height;
+    width = 120;
+    height = 500;
+    rl::init_window(120, 500, "hello world");
+    rl::close_window();
 }

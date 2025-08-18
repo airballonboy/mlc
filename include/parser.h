@@ -13,6 +13,7 @@ public:
     Variable parseArgument();
     void     parseModuleDeclaration();
     void     parseModulePrefix();
+    void     parseExtern();
     void     parseFuncCall();
     void     parseHash();
 

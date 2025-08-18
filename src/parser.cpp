@@ -48,7 +48,7 @@ Program* Parser::parse() {
     while ((*tkn)->type != TokenType::EndOfFile) {
         switch((*tkn)->type) {
             case TokenType::Func:{
-                m_currentFuncStorage->push_back(parseFunction());
+                m_program.func_storage.push_back(parseFunction());
                 m_currentLexar->getNext();
                 
             }break;//TokenType::Func
@@ -112,51 +112,92 @@ void Parser::parseHash() {
             };
         }break;//TokenType::Include
         case TokenType::Extern: {
-            m_currentLexar->getAndExpectNext(TokenType::Func);
-
-            Func func;
-            m_currentFunc = &func;
-            func.external = true;
-            m_currentLexar->getAndExpectNext(TokenType::ID);
-            func.name = m_currentLexar->currentToken->string_value;
-            m_currentLexar->getAndExpectNext(TokenType::OParen);
-            while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile) {
-                if(m_currentLexar->peek()->type == TokenType::Dot) {
-                    
-                    m_currentLexar->getAndExpectNext(TokenType::Dot);
-                    m_currentLexar->getAndExpectNext(TokenType::Dot);
-                    m_currentLexar->getAndExpectNext(TokenType::Dot);
-                    func.arguments_count = 1000;
-                    
-                    break;
-                }else {
-                    func.arguments.push_back(parseVariable());
-                    func.arguments_count++;
-                }
-                // Process parameter(Local Variables)
-                if(m_currentLexar->peek()->type != TokenType::CParen) {
-                    m_currentLexar->expectNext(TokenType::Comma);
-                    m_currentLexar->getNext();
-                }
-            }
-
-            m_currentLexar->getAndExpectNext(TokenType::CParen);
-
-            // Returns
-            if (m_currentLexar->peek()->type == TokenType::Arrow) {
-                m_currentLexar->getAndExpectNext(TokenType::Arrow);
-                m_currentLexar->getAndExpectNext(TokenType::TypeID);
-                func.return_type = TypeIds.at((*tkn)->string_value);
-            }
-
-            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-            m_program.func_storage.push_back(func);
-
+            parseExtern();
         }break;//TokenType::Extern
         case TokenType::Import: {
             TODO("handle imports");
         }break;//TokenType::Import
     }
+}
+void Parser::parseExtern(){
+    m_currentLexar->getAndExpectNext(TokenType::Func);
+
+    Func func;
+    m_currentFunc = &func;
+    func.external = true;
+
+    // Func name
+    m_currentLexar->getAndExpectNext(TokenType::ID);
+    current_module_prefix = "";
+    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        parseModulePrefix();
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+    }
+    func.name = current_module_prefix + m_currentLexar->currentToken->string_value;
+    func.link_name = func.name;                
+    current_module_prefix = "";
+
+    m_currentLexar->getAndExpectNext(TokenType::OParen);
+    while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile) {
+        if(m_currentLexar->peek()->type == TokenType::Dot) {
+            
+            m_currentLexar->getAndExpectNext(TokenType::Dot);
+            m_currentLexar->getAndExpectNext(TokenType::Dot);
+            m_currentLexar->getAndExpectNext(TokenType::Dot);
+            func.arguments_count = 1000;
+            
+            break;
+        }else {
+            func.arguments.push_back(parseVariable());
+            func.arguments_count++;
+        }
+        // Process parameter(Local Variables)
+        if(m_currentLexar->peek()->type != TokenType::CParen) {
+            m_currentLexar->expectNext(TokenType::Comma);
+            m_currentLexar->getNext();
+        }
+    }
+
+    m_currentLexar->getAndExpectNext(TokenType::CParen);
+
+    // Returns
+    if (m_currentLexar->peek()->type == TokenType::Arrow) {
+        m_currentLexar->getAndExpectNext(TokenType::Arrow);
+        m_currentLexar->getAndExpectNext(TokenType::TypeID);
+        func.return_type = TypeIds.at((*tkn)->string_value);
+    }
+    if (m_currentLexar->peek()->type == TokenType::OBracket) {
+        m_currentLexar->getAndExpectNext(TokenType::OBracket);
+        do {
+            m_currentLexar->getAndExpectNext(TokenType::ID);
+            std::string s = (*tkn)->string_value;
+            m_currentLexar->getAndExpectNext(TokenType::Eq);
+            m_currentLexar->getAndExpectNext(TokenType::DQoute);
+            m_currentLexar->getAndExpectNext(TokenType::StringLit);
+            std::string seq = (*tkn)->string_value;
+            m_currentLexar->getAndExpectNext(TokenType::DQoute);
+
+            if (s == "link_name")
+                func.link_name = seq;                
+            else if (s == "lib")
+                func.lib = seq;                
+            else if (s == "search_path")
+                func.search_path = seq;                
+            else 
+                TODO("ERROR: UnReachable");
+            
+            if(m_currentLexar->peek()->type != TokenType::CBracket) {
+                m_currentLexar->getAndExpectNext(TokenType::Comma);
+            }else {
+                m_currentLexar->getAndExpectNext(TokenType::CBracket);
+            }
+        }while((*tkn)->type != TokenType::CBracket);
+    }
+
+    m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+
+    m_program.func_storage.push_back(func);
+
 }
 void Parser::parseModulePrefix(){
     auto current_module_storage = &m_program.module_storage;

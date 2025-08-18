@@ -276,6 +276,9 @@ struct Func {
     size_t stack_size = 0;
 
     bool external = false;
+    std::string link_name{};
+    std::string lib{};
+    std::string search_path{};
 
     std::vector<Instruction> body{};
 };

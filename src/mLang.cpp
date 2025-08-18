@@ -149,7 +149,22 @@ int main(int argc, char* argv[])
         case Platform::gnu_asm_86_64: {
             gnu_asm compiler(prog);
             compiler.compileProgram();
-            cmd("{} -static -x assembler {}/{}.s -o {} -lc", GCC, build_path, input_no_extention, output_path);
+
+            std::string link_flags;
+
+            // add search paths
+            for (auto& path : ctx.search_paths) {
+                if (path != "")
+                    link_flags += " -L" + (std::string)path;
+            }
+
+            // add libraries
+            for (auto& lib : ctx.libs) {
+                if (lib != "")
+                    link_flags += " -l" + (std::string)lib;
+            }
+
+            cmd("{} -g -x assembler {}/{}.s -o {} {} -lc", GCC, build_path, input_no_extention, output_path, link_flags);
         }break;
     }
 
