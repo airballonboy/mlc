@@ -22,6 +22,8 @@ void gnu_asm::compileProgram() {
         else 
             compileFunction(func);
     }
+
+	output.appendf(".section .rodata\n");
     for (const auto& var : m_program->var_storage) {
         if (var.type == Type::String_lit)
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
@@ -35,13 +37,18 @@ void gnu_asm::compileProgram() {
 void gnu_asm::compileFunction(Func func) {
     // if the function doesn't return you make it return 0
     bool returned = false;
+	#ifdef WIN32
+    std::string_view arg_register[] = {"%rcx", "%rdx", "%r8", "%r9"};
+	#else	
     std::string_view arg_register[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+	#endif
 
     output.appendf(".global {}\n", func.name);
     output.appendf("{}:\n", func.name);
     output.appendf("    pushq %rbp\n");
     output.appendf("    movq %rsp, %rbp\n");
     func.stack_size += func.stack_size % 16;
+	if (func.stack_size < 32) func.stack_size = 32;
     output.appendf("    subq ${}, %rsp\n", func.stack_size);
 
     for (int i = 0; i < func.arguments_count; i++) {
@@ -99,7 +106,7 @@ void gnu_asm::compileFunction(Func func) {
 
 void gnu_asm::move_var_to_reg(Variable arg, std::string_view reg) {
     if (arg.type == Type::String_lit)
-        output.appendf("    movq ${}, {}\n", arg.name, reg);
+        output.appendf("    leaq {}(%rip), {}\n", arg.name, reg);
     else if (arg.type == Type::Int_lit)
         output.appendf("    movq ${}, {}\n", std::any_cast<int>(arg.value), reg);
     else if (arg.type == Type::Void_t)

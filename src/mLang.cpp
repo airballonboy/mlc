@@ -85,8 +85,11 @@ int main(int argc, char* argv[])
 
     // Should add the libmlang path to here
     ctx.includePaths.push_back(".");
+	#ifdef WIN32
+    ctx.includePaths.push_back("D:/ahmed/dev/cpp/mlc/test");
+	#else 
     ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/test");
-
+	#endif
     if (!std::filesystem::exists(build_path)) {
         if (std::filesystem::create_directory(build_path)) {
             println("Directory created: {}", build_path);
