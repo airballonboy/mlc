@@ -1,13 +1,21 @@
 module io;
+module sys;
 module c_std;
 
-#extern func c_std::printf(...) [link_name = "printf", lib = "m"];
-#extern func sleep(...);
+#extern func c_std::printf(...)        [link_name = "printf"];
+#extern func c_std::sleep(...)         [link_name = "sleep"];
+#extern func c_std::system(...) -> int [link_name = "system"];
 
 func io::print(string s) {
     c_std::printf("%s", s);
 }
 func io::println(string s) {
     c_std::printf("%s\n", s);
+}
+
+func sys::system(string command) -> int {
+    c_std::printf("Running `%s`\n", command);
+    c_std::system(command);
+    return 0;
 }
 

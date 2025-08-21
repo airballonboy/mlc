@@ -4,4 +4,5 @@ module rl;
 #extern func rl::close_window()                      [link_name = "CloseWindow" , lib = "m"];
 #extern func rl::begin_drawing()                     [link_name = "BeginDrawing", lib = ""];
 #extern func rl::end_drawing()                       [link_name = "EndDrawing"];
+#extern func rl::window_should_close()               [link_name = "WindowShouldClose"];
 #extern func rl::clear_background()                  [link_name = "ClearBackground"];
