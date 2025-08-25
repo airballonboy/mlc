@@ -259,6 +259,8 @@ struct Variable {
     Type        type;
     std::string name;
     std::any    value;
+    // TODO: make this used and add pointers
+    int64_t     deref_count = 0;
     size_t      offset;
 };
 

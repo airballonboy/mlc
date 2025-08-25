@@ -10,6 +10,8 @@ public:
     void move_var_to_reg(Variable arg, std::string_view reg);
     void move_reg_to_var(std::string_view reg, Variable arg2);
     void move_var_to_var(Variable arg1, Variable arg2);
+    void move_reg_to_reg(std::string_view reg1, std::string_view reg2);
+    void deref_var_to_reg(Variable arg, std::string_view reg);
     void compileProgram() override;
     void compileFunction(Func func) override;
 };

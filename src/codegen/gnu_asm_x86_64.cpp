@@ -4,6 +4,7 @@
 #include "types.h"
 #include "tools/format.h"
 #include <any>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
@@ -13,6 +14,7 @@
 #include <string_view>
 
 int op = 0;
+#define MAX_STRING_SIZE 2048
 
 void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
@@ -36,6 +38,12 @@ void gnu_asm::compileProgram() {
     for (const auto& var : m_program->var_storage) {
         if (var.type == Type::String_lit)
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
+    }
+	output.appendf(".section .bss\n");
+    for (const auto& var : m_program->var_storage) {
+        if (var.type == Type::String_t) {
+            output.appendf(".lcomm {}, {}", var.name, MAX_STRING_SIZE);
+        }
     }
 
 
@@ -91,7 +99,9 @@ void gnu_asm::compileFunction(Func func) {
             case Op::STORE_VAR: {
                 Variable var1 = std::any_cast<Variable>(inst.args[0]);
                 Variable var2 = std::any_cast<Variable>(inst.args[1]);
-                move_var_to_var(var1, var2);
+
+                deref_var_to_reg(var1, "%rax");
+                move_reg_to_var("%rax", var2);
             }break;
             case Op::STORE_RET: {
                 Variable var = std::any_cast<Variable>(inst.args[0]);
@@ -105,9 +115,9 @@ void gnu_asm::compileFunction(Func func) {
 
                 for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
                     if (args[i].type == Type::Int32_t)
-                        move_var_to_reg(args[i], arg_register[i].first);
+                        deref_var_to_reg(args[i], arg_register[i].first);
                     else 
-                        move_var_to_reg(args[i], arg_register[i].first);
+                        deref_var_to_reg(args[i], arg_register[i].first);
 
                 }
 
@@ -115,6 +125,7 @@ void gnu_asm::compileFunction(Func func) {
             }break;
         }
     }
+    output.appendf(".op_{}:\n", op++);
     if (!returned) {
         move_var_to_reg({Type::Int_lit, "Int_lit", 0}, "%rax");
         output.appendf("    movq %rbp, %rsp\n");
@@ -123,7 +134,25 @@ void gnu_asm::compileFunction(Func func) {
     }
 }
 
+void gnu_asm::deref_var_to_reg(Variable arg, std::string_view reg) {
+    if (arg.deref_count == -1) {
+        output.appendf("    leaq -{}(%rbp), {}\n", arg.offset, "%rax");
+        return;
+    }
+    move_var_to_reg(arg, "%rax");
+    //output.appendf("    movq -{}(%rbp), {}\n", arg.offset, "%rax");
+    while (arg.deref_count > 0) {
+        output.appendf("    movq ({}), {}\n", "%rax", "%rax");
+        arg.deref_count--;
+    }
+    
+    move_reg_to_reg("%rax", reg);
+}
 
+
+void gnu_asm::move_reg_to_reg(std::string_view reg1, std::string_view reg2) {
+    output.appendf("    movq {}, {}\n", reg1, reg2);
+}
 void gnu_asm::move_var_to_reg(Variable arg, std::string_view reg) {
     if (arg.type == Type::String_lit)
         output.appendf("    leaq {}(%rip), {}\n", arg.name, reg);
@@ -136,35 +165,16 @@ void gnu_asm::move_var_to_reg(Variable arg, std::string_view reg) {
 }
 void gnu_asm::move_reg_to_var(std::string_view reg, Variable arg) {
     if (arg.type == Type::String_lit)
-        output.appendf("    movq {}, ${}\n", reg, arg.name);
+        TODO("can't move reg to string lit");
     else if (arg.type == Type::Int_lit)
-        output.appendf("    movq {}, ${}\n", reg, std::any_cast<int>(arg.value));
+        TODO("can't move reg to int lit");
     else if (arg.type == Type::Void_t)
-        TODO("error trying to move register to void");
+        TODO("can't move reg to void");
     else 
         output.appendf("    movq {}, -{}(%rbp)\n", reg, arg.offset);
 }
 void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
-    if (arg2.type == Type::String_lit)
-        TODO("can't move var to lit");
-        //move_var_to_reg(arg1, f("${}",arg2.name));
-    else if (arg2.type == Type::Int_lit)
-        TODO("can't move var to lit");
-        //move_var_to_reg(arg1, f("${}", std::any_cast<int>(arg2.value)));
-    else if (arg2.type == Type::Void_t)
-        TODO("can't move var to void");
-        //move_var_to_reg(arg1, "$0");
-    else {
-        if (arg1.type == Type::String_lit)
-            move_reg_to_var(f("${}", arg1.name), arg2);
-        else if (arg1.type == Type::Int_lit)
-            move_reg_to_var(f("${}", std::any_cast<int>(arg1.value)), arg2);
-        else if (arg1.type == Type::Void_t)
-            move_reg_to_var("$0", arg2);
-        else {
-            move_var_to_reg(arg1, "%rax");
-            move_reg_to_var("%rax", arg2);
-        }
-    }
+    move_var_to_reg(arg1, "%rax");
+    move_reg_to_var("%rax", arg2);
 }
 

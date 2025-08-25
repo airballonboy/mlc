@@ -1,21 +1,8 @@
 #include <std.mlang>
-#include <raylib.mlang>
 
-
-#extern func loop();
-func loop() {
-
-    rl::begin_drawing();
-
-    rl::clear_background(65535);
-
-    rl::end_drawing();
-
-    loop();
-}
-
+#extern func scanf(...);
 func main() {
-    rl::init_window(120, 500, "hello world");
-    loop();
-    rl::close_window();
+    string* s;
+    scanf("%s", s);
+    c_std::printf("%s", s);
 }

@@ -24,6 +24,10 @@ Variable Parser::parseVariable(){
     if (m_currentLexar->currentToken->type != TokenType::TypeID)
         m_currentLexar->getAndExpectNext(TokenType::TypeID);
     var.type = TypeIds.at(m_currentLexar->currentToken->string_value);
+
+    while (m_currentLexar->peek()->type == TokenType::Mul)
+        m_currentLexar->getAndExpectNext(TokenType::Mul);
+
     m_currentLexar->getAndExpectNext(TokenType::ID);
     var.name = m_currentLexar->currentToken->string_value;    
     var.offset = current_locals_count++*8;
@@ -280,7 +284,7 @@ Func Parser::parseFunction(){
                 }else if (m_currentLexar->peek()->type == TokenType::Eq) {
                     auto var1 = get_var_from_name((*tkn)->string_value, func.local_variables);
                     m_currentLexar->getAndExpectNext(TokenType::Eq);
-                    m_currentLexar->getAndExpectNext({TokenType::DQoute, TokenType::IntLit, TokenType::ID});
+                    m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
                     // Storing a function return
                     if (m_currentLexar->peek()->type == TokenType::OParen) {
                         parseFuncCall();
@@ -292,6 +296,8 @@ Func Parser::parseFunction(){
                     func.body.push_back({Op::STORE_VAR, {var2, var1}});
                     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
                 }
+                // TODO: make the above code into a function and apply it for return and assignment and maybe call it parse statment or something
+            
             }break;//TokenType::ID
             case TokenType::Return: {
                 m_currentLexar->getAndExpectNext({TokenType::IntLit, TokenType::ID, TokenType::SemiColon});
@@ -331,6 +337,8 @@ Func Parser::parseFunction(){
                     default_val.type = Type::Int_lit;
                 default_val.name = "def_value";
                 default_val.value = variable_default_value(var.type);
+                if (default_val.type == Type::String_lit)
+                    m_program.var_storage.push_back({Type::String_t, "def_value", std::string("")});
                 m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
 
 
@@ -356,7 +364,7 @@ void Parser::parseFuncCall(){
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
-        m_currentLexar->getAndExpectNext({TokenType::DQoute, TokenType::IntLit, TokenType::ID});
+        m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
         args.push_back(parseArgument());
         if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->getAndExpectNext(TokenType::Comma);
@@ -401,15 +409,25 @@ Variable& Parser::get_var_from_name(std::string_view name, VariableStorage& var_
 Variable Parser::parseArgument() {
     tkn = &m_currentLexar->currentToken;
     Variable arg;
-    if((*tkn)->type == TokenType::DQoute) m_currentLexar->getAndExpectNext(TokenType::StringLit);
-    if((*tkn)->type == TokenType::StringLit) {
-        // TODO: make string literals stored in local variable not public
-        arg = {Type::String_lit, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value};
-        m_program.var_storage.push_back({Type::String_lit, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
-        m_currentLexar->getAndExpectNext(TokenType::DQoute);
+    int64_t deref = 0;
+    while ((*tkn)->type == TokenType::Mul) { 
+        m_currentLexar->getNext();
+        deref++;
+    }
+    if((*tkn)->type == TokenType::DQoute) {
+        m_currentLexar->getAndExpectNext(TokenType::StringLit);
+        if((*tkn)->type == TokenType::StringLit) {
+            arg = {Type::String_lit, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value};
+            m_program.var_storage.push_back({Type::String_lit, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
+            m_currentLexar->getAndExpectNext(TokenType::DQoute);
+        }
     }
     if ((*tkn)->type == TokenType::IntLit) {
         arg = {Type::Int_lit, "Int_Lit", (*tkn)->int_value};
+    }
+    if ((*tkn)->type == TokenType::And) {
+        deref = -1;
+        m_currentLexar->getNext();
     }
     if ((*tkn)->type == TokenType::ID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
@@ -425,6 +443,7 @@ Variable Parser::parseArgument() {
         else {
             if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
                 arg = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
+                arg.deref_count = deref;
             }
         }
     }

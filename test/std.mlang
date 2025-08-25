@@ -5,6 +5,8 @@ module c_std;
 #extern func c_std::printf(...)        [link_name = "printf"];
 #extern func c_std::sleep(...)         [link_name = "sleep"];
 #extern func c_std::system(...) -> int [link_name = "system"];
+#extern func c_std::exit(...)          [link_name = "exit"];
+#extern func c_std::abort(...)         [link_name = "abort"];
 
 func io::print(string s) {
     c_std::printf("%s", s);
@@ -13,9 +15,11 @@ func io::println(string s) {
     c_std::printf("%s\n", s);
 }
 
-func sys::system(string command) -> int {
+func sys::run_command(string command) -> int {
     c_std::printf("Running `%s`\n", command);
     c_std::system(command);
     return 0;
 }
+func sys::exit(int code) { c_std::exit(code); }
+func sys::abort()        { c_std::abort(); }
 
