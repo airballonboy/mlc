@@ -13,6 +13,7 @@
 #define ERROR(loc, massage) std::println("{}:{}:{} {}", (loc).inputPath, (loc).line, (loc).offset, massage);
 
 int stringLiteralCount = 0;
+int stringCount = 0;
 size_t current_locals_count = 1;
 std::string current_module_prefix{};
 
@@ -30,7 +31,10 @@ Variable Parser::parseVariable(){
 
     m_currentLexar->getAndExpectNext(TokenType::ID);
     var.name = m_currentLexar->currentToken->string_value;    
-    var.offset = current_locals_count++*8;
+    if(var.type == Type::String_t)
+        var.offset = stringCount++;
+    else 
+        var.offset = current_locals_count++*8;
     // TODO: support arrays
     if (m_currentLexar->peek()->type == TokenType::OBracket) {
         m_currentLexar->getAndExpectNext(TokenType::OBracket);
@@ -269,6 +273,20 @@ Func Parser::parseFunction(){
     }
                 
 
+    for (auto& var : func.arguments) {
+        Variable default_val;
+        if (var.type == Type::String_t)
+            default_val.type = Type::String_lit;
+        else 
+            default_val.type = Type::Int_lit;
+        default_val.name = "def_value";
+        default_val.value = variable_default_value(var.type);
+        if (default_val.type == Type::String_lit) {
+            std::string var_name = f("{}_{}", var.name, var.offset);
+            m_program.var_storage.push_back({Type::String_t, var_name, std::string("")});
+        } else 
+            m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+    }
 
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
@@ -337,9 +355,11 @@ Func Parser::parseFunction(){
                     default_val.type = Type::Int_lit;
                 default_val.name = "def_value";
                 default_val.value = variable_default_value(var.type);
-                if (default_val.type == Type::String_lit)
-                    m_program.var_storage.push_back({Type::String_t, "def_value", std::string("")});
-                m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+                if (default_val.type == Type::String_lit) {
+                    std::string var_name = f("{}_{}", var.name, var.offset);
+                    m_program.var_storage.push_back({Type::String_t, var_name, std::string("")});
+                } else 
+                    m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
 
 
                 m_currentLexar->getAndExpectNext(TokenType::SemiColon);
@@ -439,7 +459,7 @@ Variable Parser::parseArgument() {
             m_currentFunc->body.push_back({Op::STORE_RET, {arg}});
         }
         if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage))
-            TODO("check Global variables");
+            TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
         else {
             if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
                 arg = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);

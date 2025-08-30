@@ -3,6 +3,7 @@ module sys;
 module c_std;
 
 #extern func c_std::printf(...)        [link_name = "printf"];
+#extern func c_std::scanf(...)         [link_name = "scanf"];
 #extern func c_std::sleep(...)         [link_name = "sleep"];
 #extern func c_std::system(...) -> int [link_name = "system"];
 #extern func c_std::exit(...)          [link_name = "exit"];
@@ -13,6 +14,9 @@ func io::print(string s) {
 }
 func io::println(string s) {
     c_std::printf("%s\n", s);
+}
+func io::readln(string s) {
+    c_std::scanf("%s", s);
 }
 
 func sys::run_command(string command) -> int {

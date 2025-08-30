@@ -16,6 +16,15 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 
+// TODO: maybe remove the 32 bit stuff
+#ifdef WIN32
+static std::pair<std::string_view, std::string_view> arg_register[] = {{"%rcx", "ecx"}, {"%rdx", "edx"}, {"%r8", "r8d"}, {"%r9", "r9d"}};
+#else	
+static std::pair<std::string_view, std::string_view> arg_register[] = {
+    {"%rdi", "%edi"}, {"%rsi", "%esi"}, {"%rdx", "%edx"}, {"%rcx", "%ecx"}, {"%r8", "%r8d"}, {"%r9", "%r9d"}
+};
+#endif
+
 void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
     output.append(".section .text\n");
@@ -42,7 +51,7 @@ void gnu_asm::compileProgram() {
 	output.appendf(".section .bss\n");
     for (const auto& var : m_program->var_storage) {
         if (var.type == Type::String_t) {
-            output.appendf(".lcomm {}, {}", var.name, MAX_STRING_SIZE);
+            output.appendf("{}: .skip {}\n", var.name, MAX_STRING_SIZE);
         }
     }
 
@@ -54,14 +63,6 @@ void gnu_asm::compileProgram() {
 void gnu_asm::compileFunction(Func func) {
     // if the function doesn't return you make it return 0
     bool returned = false;
-    // TODO: maybe remove the 32 bit stuff
-	#ifdef WIN32
-    std::pair<std::string_view, std::string_view> arg_register[] = {{"%rcx", "ecx"}, {"%rdx", "edx"}, {"%r8", "r8d"}, {"%r9", "r9d"}};
-	#else	
-    std::pair<std::string_view, std::string_view> arg_register[] = {
-        {"%rdi", "%edi"}, {"%rsi", "%esi"}, {"%rdx", "%edx"}, {"%rcx", "%ecx"}, {"%r8", "%r8d"}, {"%r9", "%r9d"}
-    };
-	#endif
 
     output.appendf(".global {}\n", func.name);
     output.appendf("{}:\n", func.name);
@@ -111,17 +112,8 @@ void gnu_asm::compileFunction(Func func) {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
 
-                if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
+                call_func(func_name, args);
 
-                for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
-                    if (args[i].type == Type::Int32_t)
-                        deref_var_to_reg(args[i], arg_register[i].first);
-                    else 
-                        deref_var_to_reg(args[i], arg_register[i].first);
-
-                }
-
-                output.appendf("    call {}\n", func_name);
             }break;
         }
     }
@@ -134,6 +126,19 @@ void gnu_asm::compileFunction(Func func) {
     }
 }
 
+void gnu_asm::call_func(std::string func_name, VariableStorage args) {
+    if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
+
+    for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
+        if (args[i].type == Type::Int32_t)
+            deref_var_to_reg(args[i], arg_register[i].first);
+        else 
+            deref_var_to_reg(args[i], arg_register[i].first);
+
+    }
+
+    output.appendf("    call {}\n", func_name);
+}
 void gnu_asm::deref_var_to_reg(Variable arg, std::string_view reg) {
     if (arg.deref_count == -1) {
         output.appendf("    leaq -{}(%rbp), {}\n", arg.offset, "%rax");
@@ -160,6 +165,8 @@ void gnu_asm::move_var_to_reg(Variable arg, std::string_view reg) {
         output.appendf("    movq ${}, {}\n", std::any_cast<int>(arg.value), reg);
     else if (arg.type == Type::Void_t)
         output.appendf("    movq $0, {}\n", reg);
+    else if (arg.type == Type::String_t)
+        output.appendf("    leaq {}(%rip), {}\n", f("{}_{}", arg.name, arg.offset), reg);
     else 
         output.appendf("    movq -{}(%rbp), {}\n", arg.offset, reg);
 }
@@ -170,7 +177,11 @@ void gnu_asm::move_reg_to_var(std::string_view reg, Variable arg) {
         TODO("can't move reg to int lit");
     else if (arg.type == Type::Void_t)
         TODO("can't move reg to void");
-    else 
+    else if (arg.type == Type::String_t) {
+        output.appendf("    leaq {}(%rip), {}\n", f("{}_{}", arg.name, arg.offset), arg_register[0].first);
+        move_reg_to_reg(reg, arg_register[1].first);
+        output.appendf("    call strcpy\n");
+    }else 
         output.appendf("    movq {}, -{}(%rbp)\n", reg, arg.offset);
 }
 void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {

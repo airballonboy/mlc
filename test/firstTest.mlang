@@ -1,8 +1,9 @@
 #include <std.mlang>
 
-#extern func scanf(...);
 func main() {
-    string* s;
-    scanf("%s", s);
-    c_std::printf("%s", s);
+    string s;
+    s = "122hell";
+    c_std::printf("%s\n", s);
+    c_std::scanf("%s", s);
+    c_std::printf("%s\n", s);
 }
