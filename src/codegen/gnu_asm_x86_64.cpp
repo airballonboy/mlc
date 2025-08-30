@@ -68,6 +68,7 @@ void gnu_asm::compileFunction(Func func) {
     output.appendf("{}:\n", func.name);
     output.appendf("    pushq %rbp\n");
     output.appendf("    movq %rsp, %rbp\n");
+    // may be unsafe if error check it
     output.appendf("    andq $-16, %rsp\n");
     func.stack_size += func.stack_size % 16;
 	if (func.stack_size < 32) func.stack_size = 32;
@@ -77,8 +78,10 @@ void gnu_asm::compileFunction(Func func) {
         if (i < std::size(arg_register)) {
             if (func.arguments[i].type == Type::Int32_t)
                 move_reg_to_var(arg_register[i].first, func.arguments[i]);       
-            else 
-                move_reg_to_var(arg_register[i].first, func.arguments[i]);       
+            else {
+                move_reg_to_reg(arg_register[i].first, "%rax");
+                move_reg_to_var("%rax", func.arguments[i]);
+            }
         }
     }
 
