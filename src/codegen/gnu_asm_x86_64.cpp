@@ -42,6 +42,21 @@ void gnu_asm::compileProgram() {
             compileFunction(func);
         }
     }
+    std::string target = "    movq %rax, %rax";
+
+    size_t pos;
+    while ((pos = output.find(target)) != std::string::npos) {
+        // erase the line containing it
+        size_t lineStart = output.rfind('\n', pos);
+        if (lineStart == std::string::npos) lineStart = 0;
+        else lineStart++;
+
+        size_t lineEnd = output.find('\n', pos);
+        if (lineEnd == std::string::npos) lineEnd = output.size();
+
+        output.erase(lineStart, lineEnd - lineStart + 1);
+    }
+
 
 	output.appendf(".section .rodata\n");
     for (const auto& var : m_program->var_storage) {
