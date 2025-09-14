@@ -1,0 +1,6 @@
+//#import std::io from <std.mlang>
+#include <std.mlang>
+
+func main() {
+	io::println("hello, world");
+}

@@ -1,10 +1,8 @@
 #include <std.mlang>
 
 func main() {
-    string s;
-    s = "122hell";
-    c_std::printf("%s\n", s);
-    c_std::scanf("%s", s);
-    io::println("rerrerer");
-    c_std::printf("%s\n", s);
+    string name;
+    io::print("Enter your name: ");
+    c_std::scanf("%s", name);
+    c_std::printf("Hello %s\n", name);
 }
