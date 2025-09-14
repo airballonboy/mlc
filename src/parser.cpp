@@ -449,9 +449,15 @@ Variable Parser::parseArgument() {
         deref = -1;
         m_currentLexar->getNext();
     }
+    current_module_prefix = "";
+    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        parseModulePrefix();
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+    }
+    std::string name = current_module_prefix + m_currentLexar->currentToken->string_value;
     if ((*tkn)->type == TokenType::ID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
-            auto& func = get_func_from_name((*tkn)->string_value, m_program.func_storage);
+            auto& func = get_func_from_name(name, m_program.func_storage);
             parseFuncCall();
             arg.offset = current_locals_count++*8;
             arg.type = func.return_type;
@@ -468,6 +474,7 @@ Variable Parser::parseArgument() {
         }
     }
 
+    current_module_prefix = "";
     return arg;
 }
 std::any Parser::variable_default_value(Type t) {
