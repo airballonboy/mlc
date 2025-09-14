@@ -10,7 +10,7 @@ func loop() {
 }
 
 func main() {
-    rl::init_window(200, 100, "hello raylib");
+    rl::init_window(1200, 675, "hello raylib");
     loop();
     rl::close_window();
 
