@@ -16,6 +16,7 @@ int stringLiteralCount = 0;
 int stringCount = 0;
 size_t current_locals_count = 1;
 std::string current_module_prefix{};
+std::vector<std::string> included_files;
 
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
@@ -108,16 +109,19 @@ void Parser::parseHash() {
                 m_currentLexar->getNext();
                 file_name += (*tkn)->string_value;
             }
+            m_currentLexar->getNext();
+            for (std::string& file : included_files) if (file == file_name) goto end_of_include;
             if (fileExistsInPaths(file_name, ctx.includePaths)) {
                 std::string file_path = getFilePathFromPaths(file_name, ctx.includePaths);
 
                 Lexar l(readFileToString(file_path), file_path);
 
-                m_currentLexar->getNext();
                 m_currentLexar->pushtokensaftercurrent(&l);
+                included_files.push_back(file_name);
             }else {
                 TODO("file not found");
             };
+            end_of_include:
         }break;//TokenType::Include
         case TokenType::Extern: {
             parseExtern();
