@@ -1,0 +1,13 @@
+module io;
+
+#include <c_std.mlang>
+
+func io::print(string s) {
+    c_std::printf("%s", s);
+}
+func io::println(string s) {
+    c_std::printf("%s\n", s);
+}
+func io::readln(string s) {
+    c_std::scanf("%s", s);
+}

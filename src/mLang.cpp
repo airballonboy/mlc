@@ -87,8 +87,10 @@ int main(int argc, char* argv[])
     ctx.includePaths.push_back(".");
 	#ifdef WIN32
     ctx.includePaths.push_back("D:/ahmed/dev/cpp/mlc/test");
+    ctx.includePaths.push_back("D:/ahmed/dev/cpp/mlc/mlang-std");
 	#else 
     ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/test");
+    ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/mlang-std");
 	#endif
     if (!std::filesystem::exists(build_path)) {
         if (std::filesystem::create_directory(build_path)) {
