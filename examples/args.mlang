@@ -1,0 +1,5 @@
+#import io from <std.mlang>
+
+func main(string args[]) {
+	io::println(args.join());
+}

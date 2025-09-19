@@ -1,5 +1,5 @@
 
 func main() -> int {
-	int i = 121;
-	return i;
+	int i = 0;
+	return 0;
 }

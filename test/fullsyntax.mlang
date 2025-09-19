@@ -1,8 +1,7 @@
 #include <math.mlang>
-// raylib.mlang is specified with "" because it's in working directory
-#include "raylib.mlang"
+#include <raylib.mlang>
 
-// std::io is a namespace in namespace
+// io is a module
 #import std::io from <std.mlang>
 
 /*
@@ -29,7 +28,7 @@ func main() -> int{
 	game::init();
 
 	if (!game::close()){
-		std::io::println("game couldn't close");
+		io::println("game couldn't close");
 	}
     return 0;
 }
