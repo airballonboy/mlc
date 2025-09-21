@@ -2,11 +2,9 @@
 
 func main() {
     {
-        int c;
-        c = 122; 
+        int c = 122; 
         c_std::printf("c = %d\n", c);
     }
-    int a;
-    a = c_std::system("git --version");
+    int a = c_std::system("git --version");
     c_std::printf("hello world, %d\n", a);
 }

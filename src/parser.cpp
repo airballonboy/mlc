@@ -360,19 +360,25 @@ void Parser::parseStatement(){
         }break;//TokenType::Return
         case TokenType::TypeID: {
             auto var = parseVariable();
-            Variable default_val;
 
-            if (var.type == Type::String_t)
-                default_val.type = Type::String_lit;
-            else 
-                default_val.type = Type::Int_lit;
-            default_val.name = "def_value";
-            default_val.value = variable_default_value(var.type);
-            if (default_val.type == Type::String_lit) {
-                std::string var_name = f("{}_{}", var.name, var.offset);
-                m_program.var_storage.push_back({Type::String_t, var_name, std::string("")});
-            } else 
-                m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+            if (m_currentLexar->peek()->type == TokenType::Eq) {
+                m_currentLexar->getAndExpectNext(TokenType::Eq);
+                auto var2 = parseExpression();
+                m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
+            } else {
+                Variable default_val;
+                if (var.type == Type::String_t) default_val.type = Type::String_lit;
+                else default_val.type = Type::Int_lit;
+
+                default_val.name = "def_value";
+                default_val.value = variable_default_value(var.type);
+                if (default_val.type == Type::String_lit) {
+                    std::string var_name = f("{}_{}", var.name, var.offset);
+                    m_program.var_storage.push_back({Type::String_t, var_name, std::string("")});
+                } else {
+                    m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+                }
+            }
 
 
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
