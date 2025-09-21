@@ -69,10 +69,6 @@ enum class Op {
     SUB,
     MUL,
     DIV,
-    // PUSH_SCOPE()
-    PUSH_SCOPE,
-    // PUSH_SCOPE()
-    POP_SCOPE,
     // RETURN(variable)
     RETURN,
     // CALL(func_name, args)

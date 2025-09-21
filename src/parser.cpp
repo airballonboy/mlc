@@ -297,11 +297,9 @@ Func Parser::parseFunction(){
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
 
-    m_currentFunc->body.push_back({Op::PUSH_SCOPE});
 
     parseBlock();
 
-    m_currentFunc->body.push_back({Op::POP_SCOPE});
     //while (m_currentLexar->peek()->type != TokenType::CCurly && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
     //}
 

@@ -81,6 +81,10 @@ void gnu_asm::compileFunction(Func func) {
 
     output.appendf(".global {}\n", func.name);
     output.appendf("{}:\n", func.name);
+    output.appendf("    pushq %rbp\n");
+    output.appendf("    movq %rsp, %rbp\n");
+    func.stack_size = (func.stack_size + 15) & ~15;
+    output.appendf("    subq ${}, %rsp\n", func.stack_size);
 
     for (int i = 0; i < func.arguments_count; i++) {
         if (i < std::size(arg_register)) {
@@ -96,23 +100,12 @@ void gnu_asm::compileFunction(Func func) {
     for (auto& inst : func.body) {
         output.appendf(".op_{}:\n", op++);
         switch (inst.op) {
-            case Op::PUSH_SCOPE: {
-                output.appendf("    pushq %rbp\n");
-                output.appendf("    movq %rsp, %rbp\n");
-                // may be unsafe if error check it
-                output.appendf("    andq $-16, %rsp\n");
-                func.stack_size += func.stack_size % 16;
-                if (func.stack_size < 32) func.stack_size = 32;
-                output.appendf("    subq ${}, %rsp\n", func.stack_size);
-            }break;
-            case Op::POP_SCOPE: {
-                output.appendf("    movq %rbp, %rsp\n");
-                output.appendf("    popq %rbp\n");
-            }break;
             case Op::RETURN: {
                 // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
                 Variable arg = std::any_cast<Variable>(inst.args[0]);
                 move_var_to_reg(arg, "%rax");
+                output.appendf("    movq %rbp, %rsp\n");
+                output.appendf("    popq %rbp\n");
                 output.appendf("    ret\n");
                 returned = true;
             }break;
@@ -142,6 +135,8 @@ void gnu_asm::compileFunction(Func func) {
     output.appendf(".op_{}:\n", op++);
     if (!returned) {
         move_var_to_reg({Type::Int_lit, "Int_lit", 0}, "%rax");
+        output.appendf("    movq %rbp, %rsp\n");
+        output.appendf("    popq %rbp\n");
         output.appendf("    ret\n");
     }
 }
