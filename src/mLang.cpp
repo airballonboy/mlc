@@ -98,6 +98,10 @@ int main(int argc, char* argv[])
         } else {
             println(stderr, "Failed to create directory: {}", build_path);
         }
+        std::ofstream gitignore(f("{}/.gitignore", build_path));
+        println("created: {}/.gitignore", build_path);
+        gitignore << "*";
+        gitignore.close();
     } else {
         println("Directory already exists: {}", build_path);
     }
