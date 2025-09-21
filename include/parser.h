@@ -14,6 +14,9 @@ public:
     void     parseModuleDeclaration();
     void     parseModulePrefix();
     void     parseExtern();
+    void     parseStatement();
+    void     parseBlock();
+    Variable parseExpression();
     void     parseFuncCall();
     void     parseHash();
 

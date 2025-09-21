@@ -5,7 +5,6 @@
 #include "tools/logger.h"
 #include "types.h"
 #include <any>
-#include <functional>
 #include <print>
 #include <string_view>
 #include <vector>
@@ -15,6 +14,7 @@
 int stringLiteralCount = 0;
 int stringCount = 0;
 size_t current_locals_count = 1;
+size_t max_locals_count = 1;
 std::string current_module_prefix{};
 std::vector<std::string> included_files;
 
@@ -103,7 +103,9 @@ void Parser::parseHash() {
         case TokenType::Include: {
             if (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
                 m_currentLexar->getAndExpectNext(TokenType::Less);
-            else TODO("no file provided to include");
+            else 
+                TODO("no file provided to include");
+
             std::string file_name{};
             while (m_currentLexar->peek()->loc.line == (*tkn)->loc.line && m_currentLexar->peek()->type != TokenType::Greater) {
                 m_currentLexar->getNext();
@@ -121,7 +123,7 @@ void Parser::parseHash() {
             }else {
                 TODO("file not found");
             };
-            end_of_include:
+        end_of_include:;
         }break;//TokenType::Include
         case TokenType::Extern: {
             parseExtern();
@@ -294,90 +296,174 @@ Func Parser::parseFunction(){
 
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
-    while (m_currentLexar->peek()->type != TokenType::CCurly && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-        m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID, TokenType::OCurly, TokenType::Return});
-        switch ((*tkn)->type) {
-            case TokenType::ID: {
-                if (m_currentLexar->peek()->type == TokenType::OParen) {
-                    parseFuncCall();
-                    m_currentLexar->getAndExpectNext(TokenType::SemiColon);                
-                }else if (m_currentLexar->peek()->type == TokenType::ColonColon) {
-                    parseModulePrefix();
-                }else if (m_currentLexar->peek()->type == TokenType::Eq) {
-                    auto var1 = get_var_from_name((*tkn)->string_value, func.local_variables);
-                    m_currentLexar->getAndExpectNext(TokenType::Eq);
-                    m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
-                    // Storing a function return
-                    if (m_currentLexar->peek()->type == TokenType::OParen) {
-                        parseFuncCall();
-                        func.body.push_back({Op::STORE_RET, {var1}});
-                        m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-                        break;
-                    }
-                    auto var2 = parseArgument();
-                    func.body.push_back({Op::STORE_VAR, {var2, var1}});
-                    m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-                }
-                // TODO: make the above code into a function and apply it for return and assignment and maybe call it parse statment or something
-            
-            }break;//TokenType::ID
-            case TokenType::Return: {
-                m_currentLexar->getAndExpectNext({TokenType::IntLit, TokenType::ID, TokenType::SemiColon});
-                Variable return_value;
-                if ((*tkn)->type == TokenType::SemiColon) {
-                    if (func.return_type != Type::Void_t) TODO("error on no return");
-                    return_value = {Type::Int_lit, "IntLit", 0};
-                    m_currentLexar->currentToken--;
-                }else if ((*tkn)->type == TokenType::IntLit) {
-                    // TODO: type checker
-                    // it should have a map to functions called cast and take and give the type expected and
-                    //  if the current type has a cast to the other type then they are compatible types
-                    if (func.return_type == Type::Int8_t  || 
-                        func.return_type == Type::Int16_t || 
-                        func.return_type == Type::Int32_t || 
-                        func.return_type == Type::Int64_t 
-                    )
-                        return_value = {Type::Int_lit, "IntLit", (*tkn)->int_value};
-                    else if(func.return_type == Type::Void_t) {
-                        ERROR((*tkn)->loc, "void can't return");
-                    }
-                }else if ((*tkn)->type == TokenType::ID) {
-                    if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
-                        return_value = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
-                    }
-                }
-                func.body.push_back({Op::RETURN, {return_value}});
-                m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-            }break;//TokenType::Return
-            case TokenType::TypeID: {
-                auto var = parseVariable();
-                Variable default_val;
 
-                if (var.type == Type::String_t)
-                    default_val.type = Type::String_lit;
-                else 
-                    default_val.type = Type::Int_lit;
-                default_val.name = "def_value";
-                default_val.value = variable_default_value(var.type);
-                if (default_val.type == Type::String_lit) {
-                    std::string var_name = f("{}_{}", var.name, var.offset);
-                    m_program.var_storage.push_back({Type::String_t, var_name, std::string("")});
-                } else 
-                    m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+    m_currentFunc->body.push_back({Op::PUSH_SCOPE});
 
+    parseBlock();
 
-                m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-            }break;//TokenType::TypeID
-        }
-    }
+    m_currentFunc->body.push_back({Op::POP_SCOPE});
+    //while (m_currentLexar->peek()->type != TokenType::CCurly && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
+    //}
 
-    m_currentLexar->getAndExpectNext(TokenType::CCurly);
-    func.stack_size = current_locals_count*8;
+    func.stack_size = max_locals_count*8;
 
     return func;
 
 }
+void Parser::parseStatement(){
+    //m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID, TokenType::OCurly, TokenType::Return});
+    switch ((*tkn)->type) {
+        case TokenType::SemiColon: { }break;
+        case TokenType::OCurly: {
+            parseBlock();
+        }break;//TokenType::OCurly
+        case TokenType::ID: {
+            if (m_currentLexar->peek()->type == TokenType::OParen) {
+                parseFuncCall();
+                m_currentLexar->getAndExpectNext(TokenType::SemiColon);                
+            }else if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+                parseModulePrefix();
+            }else if (m_currentLexar->peek()->type == TokenType::Eq) {
+                auto var1 = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
+                m_currentLexar->getAndExpectNext(TokenType::Eq);
+                auto var2 = parseExpression();
+                m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var1}});
+                m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+            }
+        
+        }break;//TokenType::ID
+        case TokenType::Return: {
+            m_currentLexar->getAndExpectNext({TokenType::IntLit, TokenType::ID, TokenType::SemiColon});
+            Variable return_value;
+            if ((*tkn)->type == TokenType::SemiColon) {
+                if (m_currentFunc->return_type != Type::Void_t) TODO("error on no return");
+                return_value = {Type::Int_lit, "IntLit", 0};
+                m_currentLexar->currentToken--;
+            }else if ((*tkn)->type == TokenType::IntLit) {
+                // TODO: type checker
+                // it should have a map to functions called cast and take and give the type expected and
+                //  if the current type has a cast to the other type then they are compatible types
+                if (m_currentFunc->return_type == Type::Int8_t  || 
+                    m_currentFunc->return_type == Type::Int16_t || 
+                    m_currentFunc->return_type == Type::Int32_t || 
+                    m_currentFunc->return_type == Type::Int64_t 
+                )
+                    return_value = {Type::Int_lit, "IntLit", (*tkn)->int_value};
+                else if(m_currentFunc->return_type == Type::Void_t) {
+                    ERROR((*tkn)->loc, "void can't return");
+                }
+            }else if ((*tkn)->type == TokenType::ID) {
+                if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
+                    return_value = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
+                }
+            }
+            m_currentFunc->body.push_back({Op::RETURN, {return_value}});
+            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+        }break;//TokenType::Return
+        case TokenType::TypeID: {
+            auto var = parseVariable();
+            Variable default_val;
 
+            if (var.type == Type::String_t)
+                default_val.type = Type::String_lit;
+            else 
+                default_val.type = Type::Int_lit;
+            default_val.name = "def_value";
+            default_val.value = variable_default_value(var.type);
+            if (default_val.type == Type::String_lit) {
+                std::string var_name = f("{}_{}", var.name, var.offset);
+                m_program.var_storage.push_back({Type::String_t, var_name, std::string("")});
+            } else 
+                m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+
+
+            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+        }break;//TokenType::TypeID
+    }
+}
+
+void Parser::parseBlock(){
+    size_t locals_count = current_locals_count;
+    auto storage = m_currentFunc->local_variables;
+
+    while (m_currentLexar->peek()->type != TokenType::CCurly) {
+        m_currentLexar->getNext();
+        parseStatement();
+    }
+    m_currentLexar->getAndExpectNext(TokenType::CCurly);
+
+    if (current_locals_count > max_locals_count) max_locals_count = current_locals_count;
+
+    m_currentFunc->local_variables = storage;
+    current_locals_count = locals_count;
+
+}
+
+Variable Parser::parseExpression(){
+    Variable var;
+    tkn = &m_currentLexar->currentToken;
+    int64_t deref = 0;
+
+    m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
+
+    // Storing a function return
+    if (m_currentLexar->peek()->type == TokenType::OParen) {
+        parseFuncCall();
+        m_currentFunc->body.push_back({Op::STORE_RET, {var}});
+        m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+        return var;
+    }
+    
+    while ((*tkn)->type == TokenType::Mul) { 
+        m_currentLexar->getNext();
+        deref++;
+    }
+    if((*tkn)->type == TokenType::DQoute) {
+        m_currentLexar->getAndExpectNext(TokenType::StringLit);
+        if((*tkn)->type == TokenType::StringLit) {
+            var = {Type::String_lit, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value};
+            m_program.var_storage.push_back({Type::String_lit, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
+            m_currentLexar->getAndExpectNext(TokenType::DQoute);
+        }
+        return var;
+    }
+    if ((*tkn)->type == TokenType::IntLit) {
+        var = {Type::Int_lit, "Int_Lit", (*tkn)->int_value};
+        return var;
+    }
+    if ((*tkn)->type == TokenType::And) {
+        deref = -1;
+        m_currentLexar->getNext();
+    }
+    current_module_prefix = "";
+    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        parseModulePrefix();
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+    }
+    std::string name = current_module_prefix + m_currentLexar->currentToken->string_value;
+    if ((*tkn)->type == TokenType::ID) {
+        if (m_currentLexar->peek()->type == TokenType::OParen) {
+            auto& func = get_func_from_name(name, m_program.func_storage);
+            parseFuncCall();
+            var.offset = current_locals_count++*8;
+            var.type = func.return_type;
+            //std::println("{}", int(arg.type));
+            m_currentFunc->body.push_back({Op::STORE_RET, {var}});
+            return var;
+        }
+        if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage))
+            TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
+        else if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
+            var = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
+            var.deref_count = deref;
+        } else {
+            TODO(f("ERROR: variable `{}` at {}:{}:{} wasn't found", (*tkn)->string_value, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
+        }
+    }
+
+    current_module_prefix = "";
+    return var;
+}
 
 void Parser::parseFuncCall(){
     std::string func_name = current_module_prefix + m_currentLexar->currentToken->string_value;
@@ -388,8 +474,7 @@ void Parser::parseFuncCall(){
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
-        m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
-        args.push_back(parseArgument());
+        args.push_back(parseExpression());
         if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->getAndExpectNext(TokenType::Comma);
         }
@@ -431,55 +516,7 @@ Variable& Parser::get_var_from_name(std::string_view name, VariableStorage& var_
     TODO("var doesn't exist");
 }
 Variable Parser::parseArgument() {
-    tkn = &m_currentLexar->currentToken;
-    Variable arg;
-    int64_t deref = 0;
-    while ((*tkn)->type == TokenType::Mul) { 
-        m_currentLexar->getNext();
-        deref++;
-    }
-    if((*tkn)->type == TokenType::DQoute) {
-        m_currentLexar->getAndExpectNext(TokenType::StringLit);
-        if((*tkn)->type == TokenType::StringLit) {
-            arg = {Type::String_lit, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value};
-            m_program.var_storage.push_back({Type::String_lit, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
-            m_currentLexar->getAndExpectNext(TokenType::DQoute);
-        }
-    }
-    if ((*tkn)->type == TokenType::IntLit) {
-        arg = {Type::Int_lit, "Int_Lit", (*tkn)->int_value};
-    }
-    if ((*tkn)->type == TokenType::And) {
-        deref = -1;
-        m_currentLexar->getNext();
-    }
-    current_module_prefix = "";
-    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
-        parseModulePrefix();
-        m_currentLexar->getAndExpectNext(TokenType::ID);
-    }
-    std::string name = current_module_prefix + m_currentLexar->currentToken->string_value;
-    if ((*tkn)->type == TokenType::ID) {
-        if (m_currentLexar->peek()->type == TokenType::OParen) {
-            auto& func = get_func_from_name(name, m_program.func_storage);
-            parseFuncCall();
-            arg.offset = current_locals_count++*8;
-            arg.type = func.return_type;
-            //std::println("{}", int(arg.type));
-            m_currentFunc->body.push_back({Op::STORE_RET, {arg}});
-        }
-        if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage))
-            TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
-        else {
-            if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
-                arg = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
-                arg.deref_count = deref;
-            }
-        }
-    }
-
-    current_module_prefix = "";
-    return arg;
+    return {};
 }
 std::any Parser::variable_default_value(Type t) {
     switch (t) {

@@ -1,8 +1,12 @@
-#include <std.mlang>
+#include <c_std.mlang>
 
 func main() {
-    string name;
-    io::print("Enter your name: ");
-    c_std::scanf("%s", name);
-    c_std::printf("Hello %s\n", name);
+    {
+        int c;
+        c = 122; 
+        c_std::printf("c = %d\n", c);
+    }
+    int a;
+    a = c_std::system("git --version");
+    c_std::printf("hello world, %d\n", a);
 }
