@@ -392,9 +392,12 @@ void Parser::parseStatement(){
                 }
             }
 
-
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
         }break;//TokenType::TypeID
+        default: {
+            ERROR(m_currentLexar->currentToken->loc, "unsupported token");
+            exit(1);
+        }
     }
 }
 
