@@ -9,7 +9,14 @@
 #include <string_view>
 #include <vector>
 
-#define ERROR(loc, massage) std::println("{}:{}:{} {}", (loc).inputPath, (loc).line, (loc).offset, massage);
+#define ERROR(loc, massage) \
+    do { \
+        mlog::log(mlog::Red,     \
+                   "ERROR:\n", \
+                 mlog::Cyan,    \
+                 f("  {}:{}:{} {}", (loc).inputPath, (loc).line, (loc).offset, (massage)).c_str()); \
+        exit(1); \
+    } while(0)
 
 int stringLiteralCount = 0;
 int stringCount = 0;
@@ -31,7 +38,12 @@ Variable Parser::parseVariable(){
         m_currentLexar->getAndExpectNext(TokenType::Mul);
 
     m_currentLexar->getAndExpectNext(TokenType::ID);
-    var.name = m_currentLexar->currentToken->string_value;    
+
+    if (variable_exist_in_storage(m_currentLexar->currentToken->string_value, m_currentFunc->local_variables)) 
+        ERROR(m_currentLexar->currentToken->loc, f("redifinition of {}", m_currentLexar->currentToken->string_value));
+    else 
+        var.name = m_currentLexar->currentToken->string_value;    
+
     if(var.type == Type::String_t)
         var.offset = stringCount++;
     else 
@@ -70,7 +82,7 @@ Program* Parser::parse() {
                 m_currentLexar->getNext();
             }break;//TokenType::Hash
             default: {
-                std::println("unimplemented type of {} at {}:{}:{}", printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
+                std::println(stderr, "unimplemented type of {} at {}:{}:{}", printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
                 m_currentLexar->getNext();
 
             }break;
@@ -198,7 +210,7 @@ void Parser::parseExtern(){
             else if (s == "search_path")
                 func.search_path = seq;                
             else 
-                TODO("ERROR: UnReachable");
+                TODO("ERROR: UNREACHABLE");
             
             if(m_currentLexar->peek()->type != TokenType::CBracket) {
                 m_currentLexar->getAndExpectNext(TokenType::Comma);
