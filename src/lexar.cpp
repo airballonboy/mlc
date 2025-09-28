@@ -194,7 +194,7 @@ void Lexar::expectNext(TokenType tt){
     }
 
     auto l = peek()->loc;
-    logger::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
+    mlog::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
                   f("Lexing error Expected {} but got {}", printableToken.at(tt), printableToken.at(peek()->type)).c_str());
 
 }
@@ -212,7 +212,7 @@ void Lexar::expectNext(std::vector<TokenType> tts){
     }
     string_tts += " ]";
     auto l = peek()->loc;
-    logger::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
+    mlog::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
                   f("Lexing error Expected {} but got {}", string_tts, printableToken.at(peek()->type)).c_str());
 
 }
@@ -222,7 +222,7 @@ void Lexar::expectCurrent(TokenType tt){
     }
 
     auto l = currentToken->loc;
-    logger::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
+    mlog::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
                   f("Lexing error Expected {} but got {}", printableToken.at(tt), printableToken.at(currentToken->type)).c_str());
 
 }
@@ -240,7 +240,7 @@ void Lexar::expectCurrent(std::vector<TokenType> tts){
     }
     string_tts += " ]";
     auto l = currentToken->loc;
-    logger::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
+    mlog::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
                   f("Lexing error Expected {} but got {}", string_tts, printableToken.at(currentToken->type)).c_str());
 
 }

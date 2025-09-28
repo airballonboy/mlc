@@ -70,9 +70,9 @@ int main(int argc, char* argv[])
     Platform platform = Platform::gnu_asm_86_64;
 	std::string programName = shift_args(&argc, &argv);
 	if (argc == 0) {
-		logger::error("PROGRAM: ", "incorrect usage");
-		logger::error("PROGRAM: ", "correct usage is");
-		logger::log("   ", logger::Blue, f("{} input.mlang [-run [-a arg0 arg1 arg2 ...]]", programName).c_str());
+		mlog::error("PROGRAM: ", "incorrect usage");
+		mlog::error("PROGRAM: ", "correct usage is");
+		mlog::log("   ", mlog::Blue, f("{} input.mlang [-run [-a arg0 arg1 arg2 ...]]", programName).c_str());
 		return 1;
 	}
     std::string inputFile = shift_args(&argc, &argv);

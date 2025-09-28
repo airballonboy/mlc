@@ -1,9 +1,10 @@
 #ifndef MASTERLOGGER
 #define MASTERLOGGER
 
-#include <cstdio>
+#include <print>
+#include "tools/format.h"
 
-namespace logger {
+namespace mlog {
 
 
 enum color{
@@ -20,46 +21,49 @@ enum color{
 
 inline void log(const color color, const char* text)
 {
-    printf("\033[%dm%s\033[0m\n", color, text);
+    std::println("\033[{}m{}\033[0m", (int)color, text);
 }
 inline void log(const char* prefix, const color color, const char* text)
 {
-    printf("\033[36m%s\033[%dm%s\033[0m\n", prefix, color, text);
+    std::println("\033[36m{}\033[{}m{}\033[0m", prefix, (int)color, text);
+}
+inline void log(const color color_prefix, const char* prefix, const color color, const char* text)
+{
+    std::println("\033[{}m{}\033[{}m{}\033[0m", (int)color_prefix, prefix, (int)color, text);
 }
 
 inline void success(const char* text)
 {
-    printf("\033[32m%s\033[0m\n", text);
+    std::println("\033[32m{}\033[0m", text);
 }
 inline void success(const char* prefix, const char* successMassage)
 {
-    printf("\033[36m%s\033[32m%s\033[0m\n", prefix, successMassage);
+    std::println("\033[36m{}\033[32m{}\033[0m", prefix, successMassage);
 }
 
 
 inline void error(const char* error)
 {
-    printf("\033[31m%s\033[0m\n", error);
+    std::println("\033[31m{}\033[0m", error);
 }
 inline void error(const char* prefix, const char* errorMassage)
 {
-    printf("\033[36m%s\033[31m%s\033[0m\n", prefix, errorMassage);
+    std::println("\033[36m{}\033[31m{}\033[0m", prefix, errorMassage);
 }
 
 
 }
 
-#include "tools/format.h"
 #ifdef _WIN32
 #define TODO(x) \
     do { \
-        logger::log("TODO: ", logger::Blue, f("\n   {}:{} \033[{}m{}\033[0m", "filePath"/*__FILE_NAME__*/, __LINE__, logger::Red, x).c_str()); \
+        mlog::log("TODO: ", mlog::Blue, f("\n   {}:{} \033[{}m{}\033[0m", "filePath"/*__FILE_NAME__*/, __LINE__, mlog::Red, x).c_str()); \
         exit(1); \
     }while(0)
 #else 
 #define TODO(x) \
     do { \
-        logger::log("TODO: ", logger::Blue, f("\n   {}:{} \033[{}m{}\033[0m", __FILE_NAME__, __LINE__, logger::Red, x).c_str()); \
+        mlog::log("TODO: ", mlog::Blue, f("\n   {}:{} \033[{}m{}\033[0m", __FILE_NAME__, __LINE__, mlog::Red, x).c_str()); \
         exit(1); \
     }while(0)
 #endif
