@@ -543,8 +543,8 @@ std::any Parser::variable_default_value(Type t) {
         case Type::Int8_t:
         case Type::Int16_t:
         case Type::Int32_t:
-        case Type::Int64_t:
-        case Type::Float_t:  return 0    ; break;
+        case Type::Int64_t:  return (int64_t)0; break;
+        case Type::Float_t:  return 0         ; break;
 
         case Type::String_t: return ""   ; break;
         case Type::Char_t:   return ""   ; break;

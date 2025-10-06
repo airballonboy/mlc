@@ -27,11 +27,11 @@ enum class Platform {
 };
 
 
-#ifndef GCC
+#ifndef CC
 #ifdef _WIN32
-#define GCC "gcc.exe -static-libgcc"
+#define GCC "clang.exe -lmsvc"
 #else 
-#define GCC "gcc"
+#define CC "gcc -lc"
 #endif
 #endif
 #ifndef EXECUTABLE_EXTENSION
@@ -170,7 +170,7 @@ int main(int argc, char* argv[])
                     link_flags += " -l" + (std::string)lib;
             }
 
-            cmd("{} -g -x assembler {}/{}.s -o {} {} -lc", GCC, build_path, input_no_extention, output_path, link_flags);
+            cmd("{} -g -x assembler {}/{}.s -o {}{} {}", CC, build_path, input_no_extention, output_path, EXECUTABLE_EXTENSION, link_flags);
         }break;
     }
 

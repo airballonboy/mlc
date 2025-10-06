@@ -101,16 +101,13 @@ void gnu_asm::compileFunction(Func func) {
         output.appendf(".op_{}:\n", op++);
         switch (inst.op) {
             case Op::RETURN: {
-                // NOTE: on Unix it takes the % of the return and 255 so the largest you can have is 255 and then it returns to 0
+                // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
                 Variable arg = std::any_cast<Variable>(inst.args[0]);
                 move_var_to_reg(arg, "%rax");
                 output.appendf("    movq %rbp, %rsp\n");
                 output.appendf("    popq %rbp\n");
                 output.appendf("    ret\n");
                 returned = true;
-            }break;
-            case Op::LOAD_CONST: {
-                output.appendf("    load({})\n", std::any_cast<int32_t>(inst.args[0]));
             }break;
             case Op::STORE_VAR: {
                 Variable var1 = std::any_cast<Variable>(inst.args[0]);
@@ -134,7 +131,7 @@ void gnu_asm::compileFunction(Func func) {
     }
     output.appendf(".op_{}:\n", op++);
     if (!returned) {
-        move_var_to_reg({Type::Int_lit, "Int_lit", 0}, "%rax");
+        move_var_to_reg({Type::Int_lit, "Int_lit", (int64_t)0}, "%rax");
         output.appendf("    movq %rbp, %rsp\n");
         output.appendf("    popq %rbp\n");
         output.appendf("    ret\n");
@@ -156,17 +153,14 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
 }
 void gnu_asm::deref_var_to_reg(Variable arg, std::string_view reg) {
     if (arg.deref_count == -1) {
-        output.appendf("    leaq -{}(%rbp), {}\n", arg.offset, "%rax");
+        output.appendf("    leaq -{}(%rbp), {}\n", arg.offset, reg);
         return;
     }
-    move_var_to_reg(arg, "%rax");
-    //output.appendf("    movq -{}(%rbp), {}\n", arg.offset, "%rax");
+    move_var_to_reg(arg, reg);
     while (arg.deref_count > 0) {
-        output.appendf("    movq ({}), {}\n", "%rax", "%rax");
+        output.appendf("    movq ({}), {}\n", reg, reg);
         arg.deref_count--;
     }
-    
-    move_reg_to_reg("%rax", reg);
 }
 
 
@@ -177,7 +171,7 @@ void gnu_asm::move_var_to_reg(Variable arg, std::string_view reg) {
     if (arg.type == Type::String_lit)
         output.appendf("    leaq {}(%rip), {}\n", arg.name, reg);
     else if (arg.type == Type::Int_lit)
-        output.appendf("    movq ${}, {}\n", std::any_cast<int>(arg.value), reg);
+        output.appendf("    movq ${}, {}\n", std::any_cast<int64_t>(arg.value), reg);
     else if (arg.type == Type::Void_t)
         output.appendf("    movq $0, {}\n", reg);
     else if (arg.type == Type::String_t)

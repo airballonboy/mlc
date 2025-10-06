@@ -248,7 +248,8 @@ typedef struct {
     TokenType type;
     Loc loc;
     std::string string_value;
-    int         int_value;
+    int64_t     int_value;
+    double      double_value;
 }Token;
 
 struct Instruction {

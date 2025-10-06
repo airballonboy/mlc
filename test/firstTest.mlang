@@ -1,10 +1,19 @@
-#include <c_std.mlang>
+#include <raylib.mlang>
+
+#extern func loop();
+func loop() {
+    rl::begin_drawing();
+
+    rl::clear_background(rl::get_color(0xffffffff));
+
+    rl::end_drawing();
+
+    loop();
+}
+
 
 func main() {
-    {
-        int c = 122; 
-        c_std::printf("c = %d\n", c);
-    }
-    int a = c_std::system("git --version");
-    c_std::printf("hello world, %d\n", a);
+    rl::init_window(100, 200, "hello");
+
+    loop();
 }

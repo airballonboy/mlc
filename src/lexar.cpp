@@ -3,6 +3,7 @@
 #include "tools/format.h"
 #include "types.h"
 #include <cctype>
+#include <cmath>
 #include <print>
 #include <string>
 #include <vector>
@@ -12,6 +13,32 @@
 // Next Character
 #define nc m_source[m_currentCharIndex+1]
 
+bool ishex(char chr) {
+    return ((chr > 96 && chr < 103) || (chr > 47 && chr < 58));
+}
+int64_t hex_string_to_int64(std::string s) {
+    int64_t total = 0;
+    for (int i = s.size() - 1, j = 0; i >= 0;j++, i--) {
+        if (isdigit(s[i])) {
+            total += std::stoi(std::string() + s[i]) * std::pow(16, j);
+        }else if (s[i] > 96 && s[i] < 103) {
+            total += (s[i] - 97 + 10) * std::pow(16, j);
+        }else {
+            std::println(stderr, "ERROR: cannot convert non hex to int");
+            exit(1);
+        }
+    }
+    return total;
+}
+int64_t string_to_int64(std::string s) {
+    int64_t total = 0;
+    for (int i = s.size() - 1, j = 0; i >= 0;j++, i--) {
+        if (!std::isdigit(s[i])) { std::println(stderr, "ERROR: cannot convert non digit to int (the char is {} {})", j, i); exit(1); }
+        total += std::stoi(std::string() + s[i]) * std::pow(10, j);
+    }
+    return total;
+}
+
 Lexar::Lexar(){}
 // NOTE:
 // Lexing order should be
@@ -20,9 +47,8 @@ Lexar::Lexar(){}
 //  3. Strings and Chars
 //  4. Punctuation
 //  5. Identifiers but check first if it's a keyword
-//  7. Int
-//  TODO: add Hex support
 //  6. Hex
+//  7. Int
 Lexar::Lexar(const std::string& source, const std::string& path){
     m_source = source;
     m_filePath = path;
@@ -114,18 +140,33 @@ Lexar::Lexar(const std::string& source, const std::string& path){
         }else if(isdigit(c)){
             Loc loc = m_currentLoc;
             std::string lit;
-            lit.push_back(c);
-            m_currentLoc.offset++;
-            m_currentCharIndex++;
 
-            while(isdigit(c)){
+            if ((std::string() + c + nc) == "0x" || (std::string() + c + nc) == "0X") {
+                m_currentLoc.offset += 2;
+                m_currentCharIndex  += 2;
+
+                while(ishex(c)){
+                    lit.push_back(c);
+                    m_currentLoc.offset++;
+                    m_currentCharIndex++;
+                }
+
+                int64_t intLit = hex_string_to_int64(lit);
+                m_tokens.push_back({.type = TokenType::IntLit, .loc = loc, .int_value = intLit});
+
+            }else {
                 lit.push_back(c);
                 m_currentLoc.offset++;
                 m_currentCharIndex++;
-            }
-            int intLit = std::stoi(lit);
-            m_tokens.push_back({.type = TokenType::IntLit, .loc = loc, .int_value = intLit});
 
+                while(isdigit(c)){
+                    lit.push_back(c);
+                    m_currentLoc.offset++;
+                    m_currentCharIndex++;
+                }
+                int64_t intLit = string_to_int64(lit);
+                m_tokens.push_back({.type = TokenType::IntLit, .loc = loc, .int_value = intLit});
+            }
         // Skiping Spaces
         }else if(isspace(c)){
             skipSpaces();
