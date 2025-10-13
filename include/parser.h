@@ -16,6 +16,11 @@ public:
     void     parseExtern();
     void     parseStatement();
     void     parseBlock();
+    Variable parsePrimaryExpression();
+    Variable parseUnaryExpression();
+    Variable parseMultiplicativeExpression();
+    Variable parseAdditiveExpression();
+    Variable parseCondition(int min_prec);
     Variable parseExpression();
     void     parseFuncCall();
     void     parseHash();

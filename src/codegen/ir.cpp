@@ -25,9 +25,6 @@ void ir::compileFunction(Func func) {
                 if (std::any_cast<int>(inst.args[0]) == (int)Type::Int32_t)
                     output.appendf("    ret({})\n", std::any_cast<int32_t>(inst.args[1]));
             }break;
-            case Op::LOAD_CONST: {
-                output.appendf("    load({})\n", std::any_cast<int32_t>(inst.args[0]));
-            }break;
             case Op::CALL: {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);

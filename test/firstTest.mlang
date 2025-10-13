@@ -1,19 +1,10 @@
-#include <raylib.mlang>
+#include <c_std.mlang>
 
-#extern func loop();
-func loop() {
-    rl::begin_drawing();
-
-    rl::clear_background(rl::get_color(0xffffffff));
-
-    rl::end_drawing();
-
-    loop();
-}
-
-
-func main() {
-    rl::init_window(100, 200, "hello");
-
-    loop();
+func main() -> int{
+    int a = 3;
+    int c = 25;
+    int ada = 0;
+    int d = -c;
+    //int d = a - 13;
+    c_std::printf("-25 + 3*3*3 = %d", d);
 }

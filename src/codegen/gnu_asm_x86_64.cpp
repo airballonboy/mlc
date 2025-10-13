@@ -127,6 +127,157 @@ void gnu_asm::compileFunction(Func func) {
                 call_func(func_name, args);
 
             }break;
+            case Op::ADD: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    addq %rbx, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::SUB: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    subq %rbx, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::MUL: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    imulq %rbx, %rax\n"); // signed multiply
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::DIV: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                output.appendf("    cqto\n");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    idivq %rbx\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::MOD: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                output.appendf("    cqto\n");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    idivq %rbx\n");
+                output.appendf("    movq %rdx, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::LT: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    setl %al\n");
+                output.appendf("    movzbq %al, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::EQ: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    sete %al\n");
+                output.appendf("    movzbq %al, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::NE: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    setne %al\n");
+                output.appendf("    movzbq %al, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::LE: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    setle %al\n");
+                output.appendf("    movzbq %al, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::GT: { 
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    setg %al\n");
+                output.appendf("    movzbq %al, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::GE: { 
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    setge %al\n");
+                output.appendf("    movzbq %al, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::LAND: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    andq %rbx, %rax\n");
+                output.appendf("    cmpq $0, %rax\n");
+                output.appendf("    setne %al\n");
+                output.appendf("    movzbq %al, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
+            case Op::LOR: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                move_var_to_reg(lhs, "%rax");
+                move_var_to_reg(rhs, "%rbx");
+                output.appendf("    orq %rbx, %rax\n");
+                output.appendf("    cmpq $0, %rax\n");
+                output.appendf("    setne %al\n");
+                output.appendf("    movzbq %al, %rax\n");
+                move_reg_to_var("%rax", result);
+            } break;
         }
     }
     output.appendf(".op_{}:\n", op++);
@@ -184,8 +335,10 @@ void gnu_asm::move_reg_to_var(std::string_view reg, Variable arg) {
         TODO("can't move reg to string lit");
     else if (arg.type == Type::Int_lit)
         TODO("can't move reg to int lit");
-    else if (arg.type == Type::Void_t)
+    else if (arg.type == Type::Void_t) {
+        std::println("reg {}, var {}", reg, arg.name);
         TODO("can't move reg to void");
+    }
     else if (arg.type == Type::String_t) {
         output.appendf("    leaq {}(%rip), {}\n", f("{}_{}", arg.name, arg.offset), arg_register[0].first);
         move_reg_to_reg(reg, arg_register[1].first);

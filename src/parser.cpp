@@ -25,6 +25,27 @@ size_t max_locals_count = 1;
 std::string current_module_prefix{};
 std::vector<std::string> included_files;
 
+// TODO: fix this and remove it
+bool eq = false;
+
+int get_cond_precedence(TokenType tt) {
+    switch (tt) {
+        case TokenType::Less:
+        case TokenType::LessEq:
+        case TokenType::Greater:
+        case TokenType::GreaterEq:
+            return 30; // relational
+        case TokenType::EqEq:
+        case TokenType::NotEq:
+            return 20; // equality
+        case TokenType::AndAnd:
+            return 10; // logical AND
+        case TokenType::OrOr:
+            return 5;  // logical OR
+        default:
+            return -1;
+    }
+}
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
 }
@@ -328,16 +349,15 @@ void Parser::parseStatement(){
             parseBlock();
         }break;//TokenType::OCurly
         case TokenType::ID: {
-            if (m_currentLexar->peek()->type == TokenType::OParen) {
-                parseFuncCall();
-                m_currentLexar->getAndExpectNext(TokenType::SemiColon);                
-            }else if (m_currentLexar->peek()->type == TokenType::ColonColon) {
-                parseModulePrefix();
-            }else if (m_currentLexar->peek()->type == TokenType::Eq) {
+            parsePrimaryExpression();
+            if (m_currentLexar->peek()->type == TokenType::Eq) {
                 auto var1 = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
                 m_currentLexar->getAndExpectNext(TokenType::Eq);
+                eq = true;
+                m_currentLexar->getNext();
                 auto var2 = parseExpression();
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var1}});
+                eq = false;
                 m_currentLexar->getAndExpectNext(TokenType::SemiColon);
             }
         
@@ -375,6 +395,7 @@ void Parser::parseStatement(){
 
             if (m_currentLexar->peek()->type == TokenType::Eq) {
                 m_currentLexar->getAndExpectNext(TokenType::Eq);
+                m_currentLexar->getNext();
                 auto var2 = parseExpression();
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
             } else {
@@ -418,25 +439,13 @@ void Parser::parseBlock(){
 
 }
 
-Variable Parser::parseExpression(){
-    Variable var;
+Variable Parser::parsePrimaryExpression(){
     tkn = &m_currentLexar->currentToken;
+    Variable var;
     int64_t deref = 0;
 
-    m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
+    //m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
 
-    // Storing a function return
-    if (m_currentLexar->peek()->type == TokenType::OParen) {
-        parseFuncCall();
-        m_currentFunc->body.push_back({Op::STORE_RET, {var}});
-        m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-        return var;
-    }
-    
-    while ((*tkn)->type == TokenType::Mul) { 
-        m_currentLexar->getNext();
-        deref++;
-    }
     if((*tkn)->type == TokenType::DQoute) {
         m_currentLexar->getAndExpectNext(TokenType::StringLit);
         if((*tkn)->type == TokenType::StringLit) {
@@ -446,9 +455,15 @@ Variable Parser::parseExpression(){
         }
         return var;
     }
+
     if ((*tkn)->type == TokenType::IntLit) {
         var = {Type::Int_lit, "Int_Lit", (*tkn)->int_value};
         return var;
+    }
+    
+    while ((*tkn)->type == TokenType::Mul) { 
+        m_currentLexar->getNext();
+        deref++;
     }
     if ((*tkn)->type == TokenType::And) {
         deref = -1;
@@ -464,24 +479,155 @@ Variable Parser::parseExpression(){
         if (m_currentLexar->peek()->type == TokenType::OParen) {
             auto& func = get_func_from_name(name, m_program.func_storage);
             parseFuncCall();
-            var.offset = current_locals_count++*8;
+            // temp variable
+            var.offset = current_locals_count*8;
             var.type = func.return_type;
-            //std::println("{}", int(arg.type));
-            m_currentFunc->body.push_back({Op::STORE_RET, {var}});
+            if (eq)
+                m_currentFunc->body.push_back({Op::STORE_RET, {var}});
             return var;
         }
-        if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage))
+        if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
             TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
-        else if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
+            return var;
+        }else if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
             var = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
             var.deref_count = deref;
+            return var;
         } else {
             TODO(f("ERROR: variable `{}` at {}:{}:{} wasn't found", (*tkn)->string_value, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
         }
     }
 
-    current_module_prefix = "";
+    // Paranthesis
+    if ((*tkn)->type == TokenType::OParen) {
+        m_currentLexar->getNext(); 
+        m_currentLexar->getNext(); 
+        Variable inside = parseExpression();
+        m_currentLexar->getAndExpectNext(TokenType::CParen);
+        return inside;
+    }
+
+    ERROR((*tkn)->loc, f("unexpected token of type {}", printableToken.at((*tkn)->type)));
+
     return var;
+}
+Variable Parser::parseUnaryExpression(){
+    tkn = &m_currentLexar->currentToken;
+
+    if ((*tkn)->type == TokenType::Minus) {
+        m_currentLexar->getNext();
+        auto rhs = parseUnaryExpression();
+        Variable result { .type = rhs.type, .offset = current_locals_count*8 };
+        Variable zero = {Type::Int_lit, "Int_lit", (int64_t)0};
+        m_currentFunc->body.push_back({Op::SUB, {rhs, zero, result}});
+        return result;
+    }
+    if ((*tkn)->type == TokenType::Not) {
+        m_currentLexar->getNext();
+        auto rhs = parseUnaryExpression();
+        Variable result { .type = rhs.type, .offset = current_locals_count*8 };
+        Variable zero = {Type::Int_lit, "Int_lit", (int64_t)0};
+        m_currentFunc->body.push_back({Op::EQ, {rhs, zero, result}});
+        return result;
+    }
+
+    return parsePrimaryExpression();
+}
+Variable Parser::parseMultiplicativeExpression(){
+    tkn = &m_currentLexar->currentToken;
+    auto lhs = parseUnaryExpression();
+
+    while ((*tkn)->type != TokenType::EndOfFile) {
+        auto peek = m_currentLexar->peek()->type;
+        if (peek != TokenType::Mul && peek != TokenType::Div && peek != TokenType::Mod) break;
+
+        m_currentLexar->getNext();
+        auto op_type = (*tkn)->type;
+        m_currentLexar->getNext();
+        auto rhs = parseUnaryExpression();
+
+        Variable result { .type = lhs.type, .offset = current_locals_count*8 };
+
+        if (op_type == TokenType::Mul) {
+            m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
+        }else if (op_type == TokenType::Div) {
+            m_currentFunc->body.push_back({Op::DIV, {lhs, rhs, result}});
+        }else if (op_type == TokenType::Mod) {
+            m_currentFunc->body.push_back({Op::MOD, {lhs, rhs, result}});
+        }
+
+        lhs = result;
+    }
+
+    return lhs;
+}
+Variable Parser::parseAdditiveExpression(){
+    tkn = &m_currentLexar->currentToken;
+    auto lhs = parseMultiplicativeExpression();
+
+    while ((*tkn)->type != TokenType::EndOfFile) {
+        TokenType peek = m_currentLexar->peek()->type;
+        if (peek != TokenType::Plus && peek != TokenType::Minus) break;
+
+        m_currentLexar->getNext();
+        TokenType op_type = (*tkn)->type;
+        m_currentLexar->getNext();
+        auto rhs = parseMultiplicativeExpression();
+
+
+        Variable result { .type = lhs.type, .offset = current_locals_count*8 };
+        if (op_type == TokenType::Plus) {
+            m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
+        }else {
+            m_currentFunc->body.push_back({Op::SUB, {lhs, rhs, result}});
+        }
+
+        lhs = result;
+    }
+
+    return lhs;
+}
+Variable Parser::parseCondition(int min_prec){
+    tkn = &m_currentLexar->currentToken;
+    auto lhs = parseAdditiveExpression();
+
+    while ((*tkn)->type != TokenType::EndOfFile) {
+        auto peek = m_currentLexar->peek()->type;
+        int prec = get_cond_precedence(peek);
+        if (prec < min_prec) 
+            break;
+
+        Op op;
+        switch (peek) {
+            case TokenType::EqEq:      op = Op::EQ;   break;
+            case TokenType::NotEq:     op = Op::NE;   break;
+            case TokenType::Less:      op = Op::LT;   break;
+            case TokenType::LessEq:    op = Op::LE;   break;
+            case TokenType::Greater:   op = Op::GT;  break;
+            case TokenType::GreaterEq: op = Op::GE; break;
+            case TokenType::AndAnd:    op = Op::LAND; break;
+            case TokenType::OrOr:      op = Op::LOR;  break;
+            default:
+                return lhs;
+        }
+        // consume operator
+        m_currentLexar->getNext();
+        m_currentLexar->getNext();
+
+        Variable rhs = parseCondition(prec + 1);
+
+        Variable result { .type = lhs.type, .offset = current_locals_count*8 };
+
+        m_currentFunc->body.push_back({ op, { lhs, rhs, result } });
+
+        lhs = result;
+
+    }
+
+    return lhs;
+}
+Variable Parser::parseExpression(){
+    return parseCondition(0);
 }
 
 void Parser::parseFuncCall(){
@@ -493,6 +639,7 @@ void Parser::parseFuncCall(){
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
+        m_currentLexar->getNext();
         args.push_back(parseExpression());
         if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->getAndExpectNext(TokenType::Comma);

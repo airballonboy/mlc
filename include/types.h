@@ -23,6 +23,7 @@ enum class TokenType {
     MinusMinus, Less,
     LessEq, Greater,
     GreaterEq, Or, Eq,
+    OrOr, AndAnd,
     EqEq, NotEq, Shl,
     ShlEq, Shr, ShrEq,
     ModEq, OrEq, AndEq,
@@ -57,22 +58,23 @@ enum class Type : int {
     String_lit, Int_lit
 };
 enum class Op {
-    LOAD_CONST,
     // stores variable1 into variable2
     // STORE_VAR(variable1, variable2)
     STORE_VAR,
     // stores the return of the last function called
     // STORE_RET(variable)
     STORE_RET,
-    LOAD_VAR,
-    ADD,
-    SUB,
-    MUL,
-    DIV,
     // RETURN(variable)
     RETURN,
     // CALL(func_name, args)
     CALL,
+    // (lhs, rhs, result)
+    // Binary operations
+    ADD, SUB, MUL, DIV, MOD,
+    // Comparison
+    LT, LE, GT, GE, EQ, NE,
+    // Logical AND/OR
+    LAND, LOR,
 };
 
 
@@ -121,6 +123,7 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     {TokenType::Div        ,"`/`"},
     {TokenType::Mod        ,"`%`"},
     {TokenType::And        ,"`&`"},
+    {TokenType::AndAnd     ,"`&&`"},
     {TokenType::Plus       ,"`+`"},
     {TokenType::PlusPlus   ,"`++`"},
     {TokenType::Minus      ,"`-`"},
@@ -130,6 +133,7 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     {TokenType::Greater    ,"`>`"},
     {TokenType::GreaterEq  ,"`>=`"},
     {TokenType::Or         ,"`|`"},
+    {TokenType::OrOr       ,"`||`"},
     {TokenType::NotEq      ,"`!=`"},
     {TokenType::Eq         ,"`=`"},
     {TokenType::EqEq       ,"`==`"},
@@ -204,8 +208,10 @@ static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
     {"/=" , TokenType::DivEq},
     {"/"  , TokenType::Div},
     {"|=" , TokenType::OrEq},
+    {"||" , TokenType::OrOr},
     {"|"  , TokenType::Or},
     {"&=" , TokenType::AndEq},
+    {"&&" , TokenType::AndAnd},
     {"&"  , TokenType::And},
     {"==" , TokenType::EqEq},
     {"="  , TokenType::Eq},
