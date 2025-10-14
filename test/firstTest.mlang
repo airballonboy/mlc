@@ -1,10 +1,7 @@
 #include <c_std.mlang>
 
 func main() -> int{
-    int a = 3;
-    int c = 25;
-    int ada = 0;
-    int d = -c;
-    //int d = a - 13;
-    c_std::printf("-25 + 3*3*3 = %d", d);
+    int a = 12;
+    int c = -a;
+    c_std::printf("%d\n", c);
 }

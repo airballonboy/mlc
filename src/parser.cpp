@@ -519,7 +519,7 @@ Variable Parser::parseUnaryExpression(){
         auto rhs = parseUnaryExpression();
         Variable result { .type = rhs.type, .offset = current_locals_count*8 };
         Variable zero = {Type::Int_lit, "Int_lit", (int64_t)0};
-        m_currentFunc->body.push_back({Op::SUB, {rhs, zero, result}});
+        m_currentFunc->body.push_back({Op::SUB, {zero, rhs, result}});
         return result;
     }
     if ((*tkn)->type == TokenType::Not) {
@@ -546,7 +546,7 @@ Variable Parser::parseMultiplicativeExpression(){
         m_currentLexar->getNext();
         auto rhs = parseUnaryExpression();
 
-        Variable result { .type = lhs.type, .offset = current_locals_count*8 };
+        Variable result { .type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type), .offset = current_locals_count*8 };
 
         if (op_type == TokenType::Mul) {
             m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
@@ -575,7 +575,7 @@ Variable Parser::parseAdditiveExpression(){
         auto rhs = parseMultiplicativeExpression();
 
 
-        Variable result { .type = lhs.type, .offset = current_locals_count*8 };
+        Variable result { .type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type), .offset = current_locals_count*8 };
         if (op_type == TokenType::Plus) {
             m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
         }else {
@@ -616,7 +616,7 @@ Variable Parser::parseCondition(int min_prec){
 
         Variable rhs = parseCondition(prec + 1);
 
-        Variable result { .type = lhs.type, .offset = current_locals_count*8 };
+        Variable result { .type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type), .offset = current_locals_count*8 };
 
         m_currentFunc->body.push_back({ op, { lhs, rhs, result } });
 
