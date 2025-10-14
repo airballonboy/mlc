@@ -1,7 +1,6 @@
 #include <c_std.mlang>
 
 func main() -> int{
-    int a = 12;
-    int c = -a;
-    c_std::printf("%d\n", c);
+    int a = (3 + 2) * 5;
+    c_std::printf("%d\n", -a);
 }

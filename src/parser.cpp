@@ -501,7 +501,6 @@ Variable Parser::parsePrimaryExpression(){
     // Paranthesis
     if ((*tkn)->type == TokenType::OParen) {
         m_currentLexar->getNext(); 
-        m_currentLexar->getNext(); 
         Variable inside = parseExpression();
         m_currentLexar->getAndExpectNext(TokenType::CParen);
         return inside;
