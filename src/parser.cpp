@@ -5,6 +5,7 @@
 #include "tools/logger.h"
 #include "types.h"
 #include <any>
+#include <cstdint>
 #include <print>
 #include <string_view>
 #include <vector>
@@ -350,16 +351,50 @@ void Parser::parseStatement(){
         }break;//TokenType::OCurly
         case TokenType::ID: {
             parsePrimaryExpression();
-            if (m_currentLexar->peek()->type == TokenType::Eq) {
+            auto peek_type = m_currentLexar->peek()->type;
+
+            if (peek_type == TokenType::Eq || peek_type == TokenType::PlusEq || peek_type == TokenType::MinusEq || peek_type == TokenType::MulEq) {
                 auto var1 = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
-                m_currentLexar->getAndExpectNext(TokenType::Eq);
+                m_currentLexar->getNext();
                 eq = true;
                 m_currentLexar->getNext();
                 auto var2 = parseExpression();
-                m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var1}});
+
+                switch (peek_type) {
+                case TokenType::Eq:
+                    m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var1}});
+                    break;
+                case TokenType::PlusEq:
+                    m_currentFunc->body.push_back({Op::ADD, {var1, var2, var1}});
+                    break;
+                case TokenType::MinusEq:
+                    m_currentFunc->body.push_back({Op::SUB, {var1, var2, var1}});
+                    break;
+                case TokenType::MulEq:
+                    m_currentFunc->body.push_back({Op::MUL, {var1, var2, var1}});
+                    break;
+                default: TODO("unsupported Token found");
+                }
+
                 eq = false;
-                m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+            } else if (peek_type == TokenType::PlusPlus || peek_type == TokenType::MinusMinus) {
+                auto var1 = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
+                m_currentLexar->getNext();
+                
+                // TODO: Add Word Size for pointers
+                Variable amount = {.type = Type::Int_lit, .name = "Int_literal", .value = (int64_t)1};
+
+                switch (peek_type) {
+                case TokenType::PlusPlus:
+                    m_currentFunc->body.push_back({Op::ADD, {var1, amount, var1}});
+                    break;
+                case TokenType::MinusMinus:
+                    m_currentFunc->body.push_back({Op::SUB, {var1, amount, var1}});
+                    break;
+                }
             }
+
+            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
         
         }break;//TokenType::ID
         case TokenType::Return: {
@@ -369,7 +404,7 @@ void Parser::parseStatement(){
                 if (m_currentFunc->return_type != Type::Void_t) TODO("error on no return");
                 return_value = {Type::Int_lit, "IntLit", 0};
                 m_currentLexar->currentToken--;
-            }else if ((*tkn)->type == TokenType::IntLit) {
+            } else if ((*tkn)->type == TokenType::IntLit) {
                 // TODO: type checker
                 // it should have a map to functions called cast and take and give the type expected and
                 //  if the current type has a cast to the other type then they are compatible types
@@ -382,7 +417,7 @@ void Parser::parseStatement(){
                 else if(m_currentFunc->return_type == Type::Void_t) {
                     ERROR((*tkn)->loc, "void can't return");
                 }
-            }else if ((*tkn)->type == TokenType::ID) {
+            } else if ((*tkn)->type == TokenType::ID) {
                 if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
                     return_value = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
                 }
