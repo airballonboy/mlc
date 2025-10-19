@@ -428,23 +428,22 @@ void Parser::parseStatement(){
         case TokenType::TypeID: {
             auto var = parseVariable();
 
+            if (var.type == Type::String_t) {
+                m_currentFunc->local_variables.push_back(var);
+                m_currentFunc->body.push_back({Op::INIT_STRING, {var}});
+            }
             if (m_currentLexar->peek()->type == TokenType::Eq) {
                 m_currentLexar->getAndExpectNext(TokenType::Eq);
                 m_currentLexar->getNext();
                 auto var2 = parseExpression();
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
-            } else {
+            } else if (var.type != Type::String_t) {
                 Variable default_val;
                 default_val.type = Type::Int_lit;
 
                 default_val.name = "def_value";
                 default_val.value = variable_default_value(var.type);
-                if (var.type == Type::String_t) {
-                    m_currentFunc->local_variables.push_back(var);
-                    m_currentFunc->body.push_back({Op::INIT_STRING, {var}});
-                } else {
-                    m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
-                }
+                m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
             }
 
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);

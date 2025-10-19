@@ -118,8 +118,14 @@ void gnu_asm::compileFunction(Func func) {
                 Variable var1 = std::any_cast<Variable>(inst.args[0]);
                 Variable var2 = std::any_cast<Variable>(inst.args[1]);
 
-                deref_var_to_reg(var1, "%rax");
-                move_reg_to_var("%rax", var2);
+                if (var1.type != Type::String_lit) {
+                    deref_var_to_reg(var1, "%rax");
+                    move_reg_to_var("%rax", var2);
+                } else {
+                    move_var_to_reg(var2, arg_register[0].first);
+                    move_var_to_reg(var1, arg_register[1].first);                    
+                    output.appendf("    call strcpy\n");
+                }
             }break;
             case Op::STORE_RET: {
                 Variable var = std::any_cast<Variable>(inst.args[0]);
@@ -330,7 +336,7 @@ void gnu_asm::move_reg_to_reg(std::string_view reg1, std::string_view reg2) {
 }
 void gnu_asm::move_var_to_reg(Variable arg, std::string_view reg) {
     if (arg.type == Type::String_lit)
-        output.appendf("    leaq {}(%rip), {}\n", arg.name, arg_register[0].first);
+        output.appendf("    leaq {}(%rip), {}\n", arg.name, reg);
     else if (arg.type == Type::Int_lit)
         output.appendf("    movq ${}, {}\n", std::any_cast<int64_t>(arg.value), reg);
     else if (arg.type == Type::Void_t)

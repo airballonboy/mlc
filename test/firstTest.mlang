@@ -1,6 +1,9 @@
 #include <c_std.mlang>
 
 func main(int argc, string* argv) {
-    c_std::printf("%s\n", *argv);    
-    c_std::printf("%s\n", *(argv+8));    
+    string str = "2312";
+    c_std::sprintf(str, "%s3232", str);
+    c_std::printf("%s\n", str);
+    c_std::printf("%s\n", *argv);
+    c_std::printf("%s\n", *(argv+8*argc));
 }
