@@ -64,6 +64,8 @@ enum class Op {
     // stores the return of the last function called
     // STORE_RET(variable)
     STORE_RET,
+    // INIT_STRING(string)
+    INIT_STRING,
     // RETURN(variable)
     RETURN,
     // CALL(func_name, args)

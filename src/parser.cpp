@@ -67,7 +67,7 @@ Variable Parser::parseVariable(){
         var.name = m_currentLexar->currentToken->string_value;    
 
     if(var.type == Type::String_t)
-        var.offset = stringCount++;
+        var.offset = current_locals_count++*8;
     else 
         var.offset = current_locals_count++*8;
     // TODO: support arrays
@@ -435,14 +435,13 @@ void Parser::parseStatement(){
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
             } else {
                 Variable default_val;
-                if (var.type == Type::String_t) default_val.type = Type::String_lit;
-                else default_val.type = Type::Int_lit;
+                default_val.type = Type::Int_lit;
 
                 default_val.name = "def_value";
                 default_val.value = variable_default_value(var.type);
-                if (default_val.type == Type::String_lit) {
-                    std::string var_name = f("{}_{}", var.name, var.offset);
-                    m_program.var_storage.push_back({Type::String_t, var_name, std::string("")});
+                if (var.type == Type::String_t) {
+                    m_currentFunc->local_variables.push_back(var);
+                    m_currentFunc->body.push_back({Op::INIT_STRING, {var}});
                 } else {
                     m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
                 }
@@ -496,9 +495,11 @@ Variable Parser::parsePrimaryExpression(){
         return var;
     }
     
-    while ((*tkn)->type == TokenType::Mul) { 
+    if ((*tkn)->type == TokenType::Mul) { 
         m_currentLexar->getNext();
-        deref++;
+        auto var = parsePrimaryExpression();
+        var.deref_count++;
+        return var;
     }
     if ((*tkn)->type == TokenType::And) {
         deref = -1;

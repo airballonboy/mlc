@@ -15,6 +15,7 @@
 
 int op = 0;
 #define MAX_STRING_SIZE 2048
+size_t current_string_count = 0;
 
 // TODO: maybe remove the 32 bit stuff
 #ifdef WIN32
@@ -63,13 +64,10 @@ void gnu_asm::compileProgram() {
         if (var.type == Type::String_lit)
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
     }
-	output.appendf(".section .bss\n");
-    for (const auto& var : m_program->var_storage) {
-        if (var.type == Type::String_t) {
-            output.appendf("{}: .skip {}\n", var.name, MAX_STRING_SIZE);
-        }
+    if (current_string_count != 0) {
+        output.appendf(".section .bss\n");
+        output.appendf("string_storage: .skip {}\n", current_string_count*MAX_STRING_SIZE);
     }
-
 
     std::ofstream outfile(f("{}/{}.s", build_path, input_no_extention));
     outfile << output;
@@ -119,6 +117,12 @@ void gnu_asm::compileFunction(Func func) {
             case Op::STORE_RET: {
                 Variable var = std::any_cast<Variable>(inst.args[0]);
                 move_reg_to_var("%rax", var);
+            }break;
+            case Op::INIT_STRING: {
+                Variable str = std::any_cast<Variable>(inst.args[0]);
+                auto storage_offset = current_string_count++*MAX_STRING_SIZE;
+                output.appendf("    leaq string_storage+{}(%rip), {}\n", storage_offset, "%rax");
+                move_reg_to_var("%rax", str);
             }break;
             case Op::CALL: {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
@@ -325,8 +329,8 @@ void gnu_asm::move_var_to_reg(Variable arg, std::string_view reg) {
         output.appendf("    movq ${}, {}\n", std::any_cast<int64_t>(arg.value), reg);
     else if (arg.type == Type::Void_t)
         output.appendf("    movq $0, {}\n", reg);
-    else if (arg.type == Type::String_t)
-        output.appendf("    leaq {}(%rip), {}\n", f("{}_{}", arg.name, arg.offset), reg);
+    //else if (arg.type == Type::String_t)
+    //    output.appendf("    leaq string_storage+{}(%rip), {}\n", arg.offset*MAX_STRING_SIZE, reg);
     else 
         output.appendf("    movq -{}(%rbp), {}\n", arg.offset, reg);
 }
@@ -338,11 +342,10 @@ void gnu_asm::move_reg_to_var(std::string_view reg, Variable arg) {
     else if (arg.type == Type::Void_t) {
         std::println("reg {}, var {}", reg, arg.name);
         TODO("can't move reg to void");
-    }
-    else if (arg.type == Type::String_t) {
-        output.appendf("    leaq {}(%rip), {}\n", f("{}_{}", arg.name, arg.offset), arg_register[0].first);
-        move_reg_to_reg(reg, arg_register[1].first);
-        output.appendf("    call strcpy\n");
+    //} else if (arg.type == Type::String_t) {
+    //    output.appendf("    leaq string_storage+{}(%rip), {}\n", arg.offset*MAX_STRING_SIZE, arg_register[0].first);
+    //    move_reg_to_reg(reg, arg_register[1].first);
+    //    output.appendf("    call strcpy\n");
     }else 
         output.appendf("    movq {}, -{}(%rbp)\n", reg, arg.offset);
 }
