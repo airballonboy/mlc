@@ -1,8 +1,9 @@
 module c_std;
 
-#extern func c_std::printf(...)        [link_name = "printf"];
-#extern func c_std::scanf(...)         [link_name = "scanf"];
-#extern func c_std::sleep(...)         [link_name = "sleep"];
-#extern func c_std::system(...) -> int [link_name = "system"];
-#extern func c_std::exit(...)          [link_name = "exit"];
-#extern func c_std::abort(...)         [link_name = "abort"];
+#extern func c_std::printf(...)         [link_name = "printf"];
+#extern func c_std::sprintf(...) -> int [link_name = "sprintf"];
+#extern func c_std::scanf(...)          [link_name = "scanf"];
+#extern func c_std::sleep(...)          [link_name = "sleep"];
+#extern func c_std::system(...) -> int  [link_name = "system"];
+#extern func c_std::exit(...)           [link_name = "exit"];
+#extern func c_std::abort(...)          [link_name = "abort"];

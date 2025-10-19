@@ -30,16 +30,7 @@ void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
     output.append(".section .text\n");
     for (const auto& func : m_program->func_storage) {
-        if(func.external) {
-            output.appendf(".global {}\n", func.name);
-            output.appendf(".extern {}\n", func.link_name);
-            if (func.name != func.link_name)
-                output.appendf(".set    {}, {}\n", func.name, func.link_name);
-            if (!ctx.libs.contains(func.lib))
-                ctx.libs.insert(func.lib);
-            if (!ctx.search_paths.contains(func.search_path))
-                ctx.search_paths.insert(func.search_path);
-        }else {
+        if(!func.external) {
             compileFunction(func);
         }
     }
@@ -65,8 +56,24 @@ void gnu_asm::compileProgram() {
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
     }
     if (current_string_count != 0) {
+        output.appendf(".align 8\n");
         output.appendf(".section .bss\n");
         output.appendf("string_storage: .skip {}\n", current_string_count*MAX_STRING_SIZE);
+    }
+
+    output.appendf(".section .text\n");
+    output.appendf("// Externals\n");
+    for (const auto& func : m_program->func_storage) {
+        if (func.external) {
+            output.appendf(".global {}\n", func.name);
+            output.appendf(".extern {}\n", func.link_name);
+            if (func.name != func.link_name)
+                output.appendf(".set    {}, {}\n", func.name, func.link_name);
+            if (!ctx.libs.contains(func.lib))
+                ctx.libs.insert(func.lib);
+            if (!ctx.search_paths.contains(func.search_path))
+                ctx.search_paths.insert(func.search_path);
+        }
     }
 
     std::ofstream outfile(f("{}/{}.s", build_path, input_no_extention));
@@ -96,7 +103,7 @@ void gnu_asm::compileFunction(Func func) {
     }
 
     for (auto& inst : func.body) {
-        output.appendf(".op_{}:\n", op++);
+        //output.appendf(".op_{}:\n", op++);
         switch (inst.op) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
@@ -121,7 +128,7 @@ void gnu_asm::compileFunction(Func func) {
             case Op::INIT_STRING: {
                 Variable str = std::any_cast<Variable>(inst.args[0]);
                 auto storage_offset = current_string_count++*MAX_STRING_SIZE;
-                output.appendf("    leaq string_storage+{}(%rip), {}\n", storage_offset, "%rax");
+                output.appendf("    leaq {}+string_storage(%rip), {}\n", storage_offset, "%rax");
                 move_reg_to_var("%rax", str);
             }break;
             case Op::CALL: {
@@ -284,7 +291,6 @@ void gnu_asm::compileFunction(Func func) {
             } break;
         }
     }
-    output.appendf(".op_{}:\n", op++);
     if (!returned) {
         move_var_to_reg({Type::Int_lit, "Int_lit", (int64_t)0}, "%rax");
         output.appendf("    movq %rbp, %rsp\n");
@@ -324,7 +330,7 @@ void gnu_asm::move_reg_to_reg(std::string_view reg1, std::string_view reg2) {
 }
 void gnu_asm::move_var_to_reg(Variable arg, std::string_view reg) {
     if (arg.type == Type::String_lit)
-        output.appendf("    leaq {}(%rip), {}\n", arg.name, reg);
+        output.appendf("    leaq {}(%rip), {}\n", arg.name, arg_register[0].first);
     else if (arg.type == Type::Int_lit)
         output.appendf("    movq ${}, {}\n", std::any_cast<int64_t>(arg.value), reg);
     else if (arg.type == Type::Void_t)
