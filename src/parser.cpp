@@ -674,7 +674,13 @@ void Parser::parseFuncCall(){
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
         m_currentLexar->getNext();
-        args.push_back(parseExpression());
+        if (eq) {
+            args.push_back(parseExpression());
+        } else {
+            eq = true;
+            args.push_back(parseExpression());
+            eq = false;
+        }
         if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->getAndExpectNext(TokenType::Comma);
         }
