@@ -312,6 +312,7 @@ Func Parser::parseFunction(){
     }
                 
 
+    /*
     for (auto& var : func.arguments) {
         Variable default_val;
         if (var.type == Type::String_t)
@@ -326,6 +327,7 @@ Func Parser::parseFunction(){
         } else 
             m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
     }
+    */
 
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
