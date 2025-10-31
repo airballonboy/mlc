@@ -21,8 +21,8 @@
 
 int stringLiteralCount = 0;
 int stringCount = 0;
-size_t current_locals_count = 1;
-size_t max_locals_count = 1;
+size_t current_offset = 0;
+size_t max_locals_offset = 8;
 std::string current_module_prefix{};
 std::vector<std::string> included_files;
 
@@ -55,6 +55,7 @@ Variable Parser::parseVariable(){
     if (m_currentLexar->currentToken->type != TokenType::TypeID)
         m_currentLexar->getAndExpectNext(TokenType::TypeID);
     var.type = TypeIds.at(m_currentLexar->currentToken->string_value);
+    var.size = variable_size_bytes(var.type);
 
     while (m_currentLexar->peek()->type == TokenType::Mul)
         m_currentLexar->getAndExpectNext(TokenType::Mul);
@@ -66,10 +67,8 @@ Variable Parser::parseVariable(){
     else 
         var.name = m_currentLexar->currentToken->string_value;    
 
-    if(var.type == Type::String_t)
-        var.offset = current_locals_count++*8;
-    else 
-        var.offset = current_locals_count++*8;
+    current_offset += var.size;
+    var.offset = current_offset;
     // TODO: support arrays
     if (m_currentLexar->peek()->type == TokenType::OBracket) {
         m_currentLexar->getAndExpectNext(TokenType::OBracket);
@@ -278,7 +277,7 @@ void Parser::parseModulePrefix(){
 }
 Func Parser::parseFunction(){
     tkn = &m_currentLexar->currentToken;
-    current_locals_count = 1;
+    current_offset = 0;
     Func func;
     m_currentFunc = &func;
     m_currentLexar->getAndExpectNext(TokenType::ID);
@@ -323,7 +322,7 @@ Func Parser::parseFunction(){
         default_val.value = variable_default_value(var.type);
         if (default_val.type == Type::String_lit) {
             std::string var_name = f("{}_{}", var.name, var.offset);
-            m_program.var_storage.push_back({Type::String_t, var_name, std::string("")});
+            m_program.var_storage.push_back({.type = Type::String_t, .name = var_name, .value = std::string(""), .size = 8});
         } else 
             m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
     }
@@ -337,7 +336,8 @@ Func Parser::parseFunction(){
     //while (m_currentLexar->peek()->type != TokenType::CCurly && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
     //}
 
-    func.stack_size = max_locals_count*8;
+    func.stack_size = max_locals_offset;
+    max_locals_offset = 8;
 
     return func;
 
@@ -382,7 +382,7 @@ void Parser::parseStatement(){
                 m_currentLexar->getNext();
                 
                 // TODO: Add Word Size for pointers
-                Variable amount = {.type = Type::Int_lit, .name = "Int_literal", .value = (int64_t)1};
+                Variable amount = {.type = Type::Int_lit, .name = "Int_literal", .value = (int64_t)1, .size = 4};
 
                 switch (peek_type) {
                 case TokenType::PlusPlus:
@@ -402,7 +402,7 @@ void Parser::parseStatement(){
             Variable return_value;
             if ((*tkn)->type == TokenType::SemiColon) {
                 if (m_currentFunc->return_type != Type::Void_t) TODO("error on no return");
-                return_value = {Type::Int_lit, "IntLit", 0};
+                return_value = {.type = Type::Int_lit, .name = "IntLit", .value = 0, .size = 4};
                 m_currentLexar->currentToken--;
             } else if ((*tkn)->type == TokenType::IntLit) {
                 // TODO: type checker
@@ -413,7 +413,7 @@ void Parser::parseStatement(){
                     m_currentFunc->return_type == Type::Int32_t || 
                     m_currentFunc->return_type == Type::Int64_t 
                 )
-                    return_value = {Type::Int_lit, "IntLit", (*tkn)->int_value};
+                    return_value = {.type = Type::Int_lit, .name = "IntLit", .value = (*tkn)->int_value, .size = 4};
                 else if(m_currentFunc->return_type == Type::Void_t) {
                     ERROR((*tkn)->loc, "void can't return");
                 }
@@ -428,6 +428,7 @@ void Parser::parseStatement(){
         case TokenType::TypeID: {
             auto var = parseVariable();
 
+            // TODO: factor out to a function
             if (var.type == Type::String_t) {
                 m_currentFunc->local_variables.push_back(var);
                 m_currentFunc->body.push_back({Op::INIT_STRING, {var}});
@@ -440,6 +441,7 @@ void Parser::parseStatement(){
             } else if (var.type != Type::String_t) {
                 Variable default_val;
                 default_val.type = Type::Int_lit;
+                default_val.size = 4;
 
                 default_val.name = "def_value";
                 default_val.value = variable_default_value(var.type);
@@ -456,7 +458,7 @@ void Parser::parseStatement(){
 }
 
 void Parser::parseBlock(){
-    size_t locals_count = current_locals_count;
+    size_t offset = current_offset;
     auto storage = m_currentFunc->local_variables;
 
     while (m_currentLexar->peek()->type != TokenType::CCurly) {
@@ -465,10 +467,10 @@ void Parser::parseBlock(){
     }
     m_currentLexar->getAndExpectNext(TokenType::CCurly);
 
-    if (current_locals_count > max_locals_count) max_locals_count = current_locals_count;
+    if (current_offset > max_locals_offset) max_locals_offset = current_offset;
 
     m_currentFunc->local_variables = storage;
-    current_locals_count = locals_count;
+    current_offset = offset;
 
 }
 
@@ -482,15 +484,15 @@ Variable Parser::parsePrimaryExpression(){
     if((*tkn)->type == TokenType::DQoute) {
         m_currentLexar->getAndExpectNext(TokenType::StringLit);
         if((*tkn)->type == TokenType::StringLit) {
-            var = {Type::String_lit, f("string_literal_{}", stringLiteralCount), (*tkn)->string_value};
-            m_program.var_storage.push_back({Type::String_lit, f("string_literal_{}", stringLiteralCount++), (*tkn)->string_value});
+            var = {.type = Type::String_lit, .name = f("string_literal_{}", stringLiteralCount++), .value = (*tkn)->string_value, .size = 8};
+            m_program.var_storage.push_back(var);
             m_currentLexar->getAndExpectNext(TokenType::DQoute);
         }
         return var;
     }
 
     if ((*tkn)->type == TokenType::IntLit) {
-        var = {Type::Int_lit, "Int_Lit", (*tkn)->int_value};
+        var = {.type = Type::Int_lit, .name = "Int_Lit", .value = (*tkn)->int_value, .size = 4};
         return var;
     }
     
@@ -515,8 +517,9 @@ Variable Parser::parsePrimaryExpression(){
             auto& func = get_func_from_name(name, m_program.func_storage);
             parseFuncCall();
             // temp variable
-            var.offset = current_locals_count*8;
             var.type = func.return_type;
+            var.size = variable_size_bytes(var.type);
+            var.offset = current_offset + var.size;
             if (eq)
                 m_currentFunc->body.push_back({Op::STORE_RET, {var}});
             return var;
@@ -551,16 +554,18 @@ Variable Parser::parseUnaryExpression(){
     if ((*tkn)->type == TokenType::Minus) {
         m_currentLexar->getNext();
         auto rhs = parseUnaryExpression();
-        Variable result { .type = rhs.type, .offset = current_locals_count*8 };
-        Variable zero = {Type::Int_lit, "Int_lit", (int64_t)0};
+        auto type = (rhs.type == Type::Int_lit ? Type::Int32_t : rhs.type);
+        Variable result {.type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
+        Variable zero = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
         m_currentFunc->body.push_back({Op::SUB, {zero, rhs, result}});
         return result;
     }
     if ((*tkn)->type == TokenType::Not) {
         m_currentLexar->getNext();
         auto rhs = parseUnaryExpression();
-        Variable result { .type = rhs.type, .offset = current_locals_count*8 };
-        Variable zero = {Type::Int_lit, "Int_lit", (int64_t)0};
+        auto type = (rhs.type == Type::Int_lit ? Type::Int32_t : rhs.type);
+        Variable result {.type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
+        Variable zero = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
         m_currentFunc->body.push_back({Op::EQ, {rhs, zero, result}});
         return result;
     }
@@ -580,7 +585,8 @@ Variable Parser::parseMultiplicativeExpression(){
         m_currentLexar->getNext();
         auto rhs = parseUnaryExpression();
 
-        Variable result { .type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type), .offset = current_locals_count*8 };
+        auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
+        Variable result { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type) };
 
         if (op_type == TokenType::Mul) {
             m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
@@ -609,7 +615,8 @@ Variable Parser::parseAdditiveExpression(){
         auto rhs = parseMultiplicativeExpression();
 
 
-        Variable result { .type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type), .offset = current_locals_count*8 };
+        auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
+        Variable result { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type) };
         if (op_type == TokenType::Plus) {
             m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
         }else {
@@ -650,7 +657,8 @@ Variable Parser::parseCondition(int min_prec){
 
         Variable rhs = parseCondition(prec + 1);
 
-        Variable result { .type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type), .offset = current_locals_count*8 };
+        auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
+        Variable result { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
 
         m_currentFunc->body.push_back({ op, { lhs, rhs, result } });
 
@@ -751,11 +759,13 @@ size_t Parser::variable_size_bytes(Type t) {
         case Type::Int8_t:   return 1; break;
         case Type::Int16_t:  return 2; break;
         case Type::Int32_t:  return 4; break;
+        case Type::Int_lit:  return 4; break;
         case Type::Int64_t:  return 8; break;
         case Type::Size_t:   return 8; break;
         case Type::Float_t:  return 4; break;
 
-        case Type::String_t: return 0; break;
+        case Type::String_t:   return 8; break;
+        case Type::String_lit: return 8; break;
         case Type::Void_t:   return 0; break;
 
         default: 

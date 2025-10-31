@@ -246,24 +246,25 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
 };
 
 
-typedef struct LocStruct{
+struct Loc{
     size_t line   = 1;
     size_t offset = 1;
     std::string inputPath;
-}Loc;
+};
 
-typedef struct {
+struct Token {
     TokenType type;
     Loc loc;
     std::string string_value;
     int64_t     int_value;
     double      double_value;
-}Token;
+};
 
 struct Instruction {
     Op op;
     std::vector<std::any> args;
 };
+
 struct Variable {
     Type        type;
     std::string name;
@@ -271,8 +272,8 @@ struct Variable {
     // TODO: make this used and add pointers
     int64_t     deref_count = 0;
     size_t      offset;
+    size_t      size;
 };
-
 typedef std::vector<Variable> VariableStorage;
 
 struct Func {
@@ -293,7 +294,6 @@ struct Func {
 
     std::vector<Instruction> body{};
 };
-
 typedef std::vector<Func> FunctionStorage;
 
 struct Module {
@@ -304,6 +304,7 @@ struct Module {
 };
 //typedef std::vector<Module> ModuleStorage;
 typedef std::unordered_map<std::string, Module> ModuleStorage;
+
 
 struct Program {
     ModuleStorage   module_storage;

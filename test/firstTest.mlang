@@ -1,9 +1,12 @@
 #include <c_std.mlang>
 
-func main(int argc, string* argv) {
-    string str = "2312";
-    c_std::sprintf(str, "%s3232", str);
-    c_std::printf("%s\n", str);
-    c_std::printf("%s\n", *argv);
-    c_std::printf("%s\n", *(argv+8*argc));
+func main() {
+    int64 a64 = 64;
+    c_std::printf("%lld\n", a64);
+    int a32 = 32;
+    c_std::printf("%d\n", a32);
+    int16 a16 = 16;
+    c_std::printf("%hd\n", a16);
+    bool  a8  = 8;
+    c_std::printf("%hhd\n", a8);
 }
