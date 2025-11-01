@@ -95,7 +95,7 @@ void gnu_asm::compileFunction(Func func) {
     output.appendf("{}:\n", func.name);
     output.appendf("    pushq %rbp\n");
     output.appendf("    movq %rsp, %rbp\n");
-    func.stack_size = (func.stack_size + 15) & ~15;
+    func.stack_size = ((func.stack_size + 15) & ~15) + 32;
     output.appendf("    subq ${}, %rsp\n", func.stack_size);
 
     for (int i = 0; i < func.arguments_count; i++) {
@@ -305,7 +305,7 @@ void gnu_asm::compileFunction(Func func) {
         }
     }
     if (!returned) {
-        move_var_to_reg({Type::Int_lit, "Int_lit", (int64_t)0}, Rax);
+        move_var_to_reg({.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 8}, Rax);
         output.appendf("    movq %rbp, %rsp\n");
         output.appendf("    popq %rbp\n");
         output.appendf("    ret\n");

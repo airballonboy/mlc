@@ -42,11 +42,11 @@ enum class Platform {
 #endif
 #endif
 char* shift_args(int *argc, char ***argv) {
-	assert("no more args" && *argc > 0);
-	char *result = (**argv);
-	(*argv) += 1;
-	(*argc) -= 1;
-	return result;
+    assert("no more args" && *argc > 0);
+    char *result = (**argv);
+    (*argv) += 1;
+    (*argc) -= 1;
+    return result;
 }
 
 template<typename... _Args>
@@ -68,13 +68,13 @@ int main(int argc, char* argv[])
 {
     bool run = false;
     Platform platform = Platform::gnu_asm_86_64;
-	std::string programName = shift_args(&argc, &argv);
-	if (argc == 0) {
-		mlog::error("PROGRAM: ", "incorrect usage");
-		mlog::error("PROGRAM: ", "correct usage is");
-		mlog::log("   ", mlog::Blue, f("{} input.mlang [-run [-a arg0 arg1 arg2 ...]]", programName).c_str());
-		return 1;
-	}
+    std::string programName = shift_args(&argc, &argv);
+    if (argc == 0) {
+        mlog::error("PROGRAM: ", "incorrect usage");
+        mlog::error("PROGRAM: ", "correct usage is");
+        mlog::log("   ", mlog::Blue, f("{} input.mlang [-run [-a arg0 arg1 arg2 ...]]", programName).c_str());
+        return 1;
+    }
     std::string inputFile = shift_args(&argc, &argv);
 
     std::filesystem::path inputFilePath(inputFile);
@@ -85,13 +85,13 @@ int main(int argc, char* argv[])
 
     // Should add the libmlang path to here
     ctx.includePaths.push_back(".");
-	#ifdef WIN32
+    #ifdef WIN32
     ctx.includePaths.push_back("D:/ahmed/dev/cpp/mlc/test");
     ctx.includePaths.push_back("D:/ahmed/dev/cpp/mlc/mlang-std");
-	#else 
+    #else 
     ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/test");
     ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/mlang-std");
-	#endif
+    #endif
     if (!std::filesystem::exists(build_path)) {
         if (std::filesystem::create_directory(build_path)) {
             println("Directory created: {}", build_path);

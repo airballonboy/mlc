@@ -216,6 +216,7 @@ void Lexar::pushTokensAt(size_t index, Lexar* l) {
     for (auto& t : l->m_tokens) ts.push_back(t); 
     for (;index < m_tokens.size(); index++) ts.push_back(m_tokens[index]); 
     m_tokens = ts;
+    currentToken = &m_tokens.at(m_currentTokenIndex);
 }
 std::vector<Token> Lexar::getTokens() {
     return m_tokens;
