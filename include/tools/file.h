@@ -11,6 +11,7 @@ static std::string readFileToString(std::string filePath) {
 	std::fstream input(filePath, std::ios::in);
 	contents_stream << input.rdbuf();
 	fileContent = contents_stream.str();
+	input.flush();
 	input.close();
 	contents_stream.clear();
     return fileContent;

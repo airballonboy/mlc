@@ -56,7 +56,7 @@ void gnu_asm::compileProgram() {
     }
 
 
-	output.appendf(".section .rodata\n");
+    output.appendf(".section .rodata\n");
     for (const auto& var : m_program->var_storage) {
         if (var.type == Type::String_lit)
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
@@ -84,6 +84,7 @@ void gnu_asm::compileProgram() {
 
     std::ofstream outfile(f("{}/{}.s", build_path, input_no_extention));
     outfile << output;
+    outfile.flush();
     outfile.close();
 }
 void gnu_asm::compileFunction(Func func) {
