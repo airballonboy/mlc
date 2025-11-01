@@ -29,7 +29,7 @@ enum class Platform {
 
 #ifndef CC
 #ifdef _WIN32
-#define GCC "clang.exe -lmsvc"
+#define CC "gcc -lmsvcrt"
 #else 
 #define CC "gcc -lc"
 #endif
@@ -80,14 +80,18 @@ int main(int argc, char* argv[])
     std::filesystem::path inputFilePath(inputFile);
     input_no_extention = inputFilePath.stem().string();
     input_path = inputFilePath.parent_path().string();
+    #ifdef WIN32
+    build_path = input_path+"\\.build";
+    std::string output_path = build_path+"\\output";
+    #else
     build_path = input_path+"/.build";
     std::string output_path = build_path+"/output";
-
+    #endif
     // Should add the libmlang path to here
     ctx.includePaths.push_back(".");
     #ifdef WIN32
-    ctx.includePaths.push_back("D:/ahmed/dev/cpp/mlc/test");
-    ctx.includePaths.push_back("D:/ahmed/dev/cpp/mlc/mlang-std");
+    ctx.includePaths.push_back("D:\\ahmed\\dev\\cpp\\mlc\\test");
+    ctx.includePaths.push_back("D:\\ahmed\\dev\\cpp\\mlc\\mlang-std");
     #else 
     ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/test");
     ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/mlang-std");

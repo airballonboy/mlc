@@ -25,7 +25,7 @@ size_t current_string_count = 0;
 #ifdef WIN32
 static const Register arg_register[] = {
     Rcx, Rdx, R8, R9
-}
+};
 #else	
 static const Register arg_register[] = {
     Rdi, Rsi, Rdx, Rcx, R8, R9
