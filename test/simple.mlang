@@ -1,5 +1,0 @@
-
-func main() -> int {
-	int i = 0;
-	return 0;
-}

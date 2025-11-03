@@ -1,5 +1,6 @@
 #pragma once 
 #include <functional>
+#include <ranges>
 #include <string>
 #include <typeindex>
 #include <vector>
@@ -46,7 +47,7 @@ enum class TokenType {
     Else, While, Switch,
     Goto, Return, Import,
     Func, From, Include,
-    Module, 
+    Module, Struct,
 };
 enum class Type : int {
     Void_t = 0, 
@@ -176,6 +177,7 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     {TokenType::From       ,"keyword `from`"},
     {TokenType::Include    ,"keyword `include`"},
     {TokenType::Module     ,"keyword `module`"},
+    {TokenType::Struct     ,"keyword `struct`"},
 };
 
 static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
@@ -243,6 +245,7 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     {"from"   , TokenType::From},
     {"include", TokenType::Include},
     {"module" , TokenType::Module},
+    {"struct" , TokenType::Struct},
 };
 
 
@@ -305,11 +308,17 @@ struct Module {
 //typedef std::vector<Module> ModuleStorage;
 typedef std::unordered_map<std::string, Module> ModuleStorage;
 
+struct Struct {
+    std::string name{};
+    VariableStorage var_storage;
+};
+typedef std::vector<Struct> StructStorage;
 
 struct Program {
     ModuleStorage   module_storage;
     FunctionStorage func_storage;
     VariableStorage var_storage;
+    StructStorage   struct_storage;
 };
 
 inline std::string input_no_extention;

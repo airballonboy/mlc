@@ -102,6 +102,10 @@ Program* Parser::parse() {
                 parseHash();
                 m_currentLexar->getNext();
             }break;//TokenType::Hash
+            case TokenType::Struct: {
+                parseStructDeclaration();
+                m_currentLexar->getNext();
+            }break;//TokenType::Struct
             default: {
                 std::println(stderr, "unimplemented type of {} at {}:{}:{}", printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
                 m_currentLexar->getNext();
@@ -110,6 +114,44 @@ Program* Parser::parse() {
         }
     }
     return &m_program;
+
+}
+void Parser::parseStructDeclaration() {
+    tkn = &m_currentLexar->currentToken;
+    std::string struct_name = "";
+    Struct current_struct{};
+    
+    m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::OParen});
+
+    if ((*tkn)->type == TokenType::ID) {
+        struct_name = (*tkn)->string_value;
+        m_currentLexar->getAndExpectNext(TokenType::OParen);
+    }
+    while ((*tkn)->type != TokenType::CParen) {
+        auto var = parseVariable();
+        current_struct.var_storage.push_back(var);
+
+#if 0 // TODO: setting the default value is currently unsupported should be added later
+        if (var.type == Type::String_t) {
+            m_currentFunc->local_variables.push_back(var);
+            m_currentFunc->body.push_back({Op::INIT_STRING, {var}});
+        }
+        if (m_currentLexar->peek()->type == TokenType::Eq) {
+            m_currentLexar->getAndExpectNext(TokenType::Eq);
+            m_currentLexar->getNext();
+            auto var2 = parseExpression();
+            m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
+        } else if (var.type != Type::String_t) {
+            Variable default_val;
+            default_val.type = Type::Int_lit;
+
+            default_val.name = "def_value";
+            default_val.value = variable_default_value(var.type);
+            m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+        }
+#endif
+    }
+    
 
 }
 void Parser::parseModuleDeclaration() {

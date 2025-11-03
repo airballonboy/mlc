@@ -1,0 +1,13 @@
+#include <io.mlang>
+
+struct ctx {
+    int num = 12;
+    func init() {
+        // do some initializing
+        io::println("success init ctx");
+    }
+};
+func main() {
+    ctx CTX;
+    CTX.init();
+}

@@ -12,6 +12,7 @@ public:
     Variable parseVariable();
     Variable parseArgument();
     void     parseModuleDeclaration();
+    void     parseStructDeclaration();
     void     parseModulePrefix();
     void     parseExtern();
     void     parseStatement();
