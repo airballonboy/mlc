@@ -18,6 +18,9 @@ int op = 0;
 size_t current_string_count = 0;
 
 
+#define WARNING(...) std::println("\nWarning: {}\n", f(__VA_ARGS__))
+
+
 #define REG_SIZE(REG, SIZE)   (SIZE) == 8 ? (REG)._64 : (SIZE) == 4 ? (REG)._32 : (SIZE) == 2 ? (REG)._16 : (REG)._8 
 #define MOV_SIZE(SIZE)        (SIZE) == 8 ?   "movq"  : (SIZE) == 4 ?   "movl"  : (SIZE) == 2 ?   "movw"  :  "movb" 
 #define INST_SIZE(INST, SIZE) (SIZE) == 8 ?  INST"q"  : (SIZE) == 4 ?   INST"l" : (SIZE) == 2 ?   INST"w" :  INST"b" 
@@ -126,6 +129,13 @@ void gnu_asm::compileFunction(Func func) {
                 Variable var2 = std::any_cast<Variable>(inst.args[1]);
 
                 if (var1.type != Type::String_lit) {
+                    //TODO: add this to parser as warning
+                    //if (var2.size < var1.size){
+                    //    WARNING("trying to assign a variable of size {} to a variable of size {} \n"
+                    //            "  shrunk the bigger variable to fit into the smaller one",
+                    //            var1.size, var2.size);
+                    //    var1.size = var2.size;
+                    //}
                     deref_var_to_reg(var1, Rax);
                     move_reg_to_var(Rax, var2);
                 } else {

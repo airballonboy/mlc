@@ -335,8 +335,6 @@ Func Parser::parseFunction(){
 
     parseBlock();
 
-    //while (m_currentLexar->peek()->type != TokenType::CCurly && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-    //}
 
     func.stack_size = max_locals_offset;
     max_locals_offset = 8;
@@ -345,7 +343,6 @@ Func Parser::parseFunction(){
 
 }
 void Parser::parseStatement(){
-    //m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID, TokenType::OCurly, TokenType::Return});
     switch ((*tkn)->type) {
         case TokenType::SemiColon: { }break;
         case TokenType::OCurly: {
@@ -400,30 +397,17 @@ void Parser::parseStatement(){
         
         }break;//TokenType::ID
         case TokenType::Return: {
-            m_currentLexar->getAndExpectNext({TokenType::IntLit, TokenType::ID, TokenType::SemiColon});
             Variable return_value;
+            m_currentLexar->getNext();
+
             if ((*tkn)->type == TokenType::SemiColon) {
                 if (m_currentFunc->return_type != Type::Void_t) TODO("error on no return");
                 return_value = {.type = Type::Int_lit, .name = "IntLit", .value = 0, .size = 4};
                 m_currentLexar->currentToken--;
-            } else if ((*tkn)->type == TokenType::IntLit) {
-                // TODO: type checker
-                // it should have a map to functions called cast and take and give the type expected and
-                //  if the current type has a cast to the other type then they are compatible types
-                if (m_currentFunc->return_type == Type::Int8_t  || 
-                    m_currentFunc->return_type == Type::Int16_t || 
-                    m_currentFunc->return_type == Type::Int32_t || 
-                    m_currentFunc->return_type == Type::Int64_t 
-                )
-                    return_value = {.type = Type::Int_lit, .name = "IntLit", .value = (*tkn)->int_value, .size = 4};
-                else if(m_currentFunc->return_type == Type::Void_t) {
-                    ERROR((*tkn)->loc, "void can't return");
-                }
-            } else if ((*tkn)->type == TokenType::ID) {
-                if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
-                    return_value = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
-                }
+            } else {
+                return_value = parseExpression();
             }
+
             m_currentFunc->body.push_back({Op::RETURN, {return_value}});
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
         }break;//TokenType::Return
