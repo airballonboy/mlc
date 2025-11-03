@@ -2,7 +2,7 @@
 
 mlang is a small programming lanuage aimed at making console programs and games,
 It's currently just a project for me to learn how programming languages work,
-But if you wan't to use it feel free.
+But if you want to use it feel free to do so.
 
 ## Build Guide
 To build and use the mlang compiler (mlc) you need to have cmake and gcc and a build system (make, ninja, msvc)
