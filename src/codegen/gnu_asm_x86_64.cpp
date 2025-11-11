@@ -166,8 +166,19 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
+                //TODO: reseting registers
+                //Variable zero = {.type = Type::Int_lit, .value = (int64_t)0, .size = 8};
+                //move_var_to_reg(zero , Rax);
+                //move_var_to_reg(zero , Rbx);
+
                 move_var_to_reg(lhs, Rax);
                 move_var_to_reg(rhs, Rbx);
+
+                if (lhs.size != rhs.size) {
+                    lhs.size = result.size;
+                    rhs.size = result.size;
+                }
+
                 output.appendf("    {} {}, {}\n", INST_SIZE("add", result.size), REG_SIZE(Rbx, rhs.size), REG_SIZE(Rax, lhs.size));
                 move_reg_to_var(Rax, result);
             } break;

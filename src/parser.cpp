@@ -348,54 +348,6 @@ void Parser::parseStatement(){
         case TokenType::OCurly: {
             parseBlock();
         }break;//TokenType::OCurly
-        case TokenType::ID: {
-            parsePrimaryExpression();
-            auto peek_type = m_currentLexar->peek()->type;
-
-            if (peek_type == TokenType::Eq || peek_type == TokenType::PlusEq || peek_type == TokenType::MinusEq || peek_type == TokenType::MulEq) {
-                auto var1 = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
-                m_currentLexar->getNext();
-                eq = true;
-                m_currentLexar->getNext();
-                auto var2 = parseExpression();
-
-                switch (peek_type) {
-                case TokenType::Eq:
-                    m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var1}});
-                    break;
-                case TokenType::PlusEq:
-                    m_currentFunc->body.push_back({Op::ADD, {var1, var2, var1}});
-                    break;
-                case TokenType::MinusEq:
-                    m_currentFunc->body.push_back({Op::SUB, {var1, var2, var1}});
-                    break;
-                case TokenType::MulEq:
-                    m_currentFunc->body.push_back({Op::MUL, {var1, var2, var1}});
-                    break;
-                default: TODO("unsupported Token found");
-                }
-
-                eq = false;
-            } else if (peek_type == TokenType::PlusPlus || peek_type == TokenType::MinusMinus) {
-                auto var1 = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
-                m_currentLexar->getNext();
-                
-                // TODO: Add Word Size for pointers
-                Variable amount = {.type = Type::Int_lit, .name = "Int_literal", .value = (int64_t)1, .size = 4};
-
-                switch (peek_type) {
-                case TokenType::PlusPlus:
-                    m_currentFunc->body.push_back({Op::ADD, {var1, amount, var1}});
-                    break;
-                case TokenType::MinusMinus:
-                    m_currentFunc->body.push_back({Op::SUB, {var1, amount, var1}});
-                    break;
-                }
-            }
-
-            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-        
-        }break;//TokenType::ID
         case TokenType::Return: {
             Variable return_value;
             m_currentLexar->getNext();
@@ -405,7 +357,7 @@ void Parser::parseStatement(){
                 return_value = {.type = Type::Int_lit, .name = "IntLit", .value = 0, .size = 4};
                 m_currentLexar->currentToken--;
             } else {
-                return_value = parseExpression();
+                return_value = std::get<0>(parseExpression());
             }
 
             m_currentFunc->body.push_back({Op::RETURN, {return_value}});
@@ -422,7 +374,7 @@ void Parser::parseStatement(){
             if (m_currentLexar->peek()->type == TokenType::Eq) {
                 m_currentLexar->getAndExpectNext(TokenType::Eq);
                 m_currentLexar->getNext();
-                auto var2 = parseExpression();
+                auto var2 = std::get<0>(parseExpression());
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
             } else if (var.type != Type::String_t) {
                 Variable default_val;
@@ -437,8 +389,41 @@ void Parser::parseStatement(){
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
         }break;//TokenType::TypeID
         default: {
-            ERROR(m_currentLexar->currentToken->loc, "unsupported token");
-            exit(1);
+            auto data = parsePrimaryExpression();
+            auto &[lhs, lvalue] = data;
+            auto peek_type = m_currentLexar->peek()->type;
+
+            if (lvalue) {
+                if (peek_type == TokenType::Eq || peek_type == TokenType::PlusEq || peek_type == TokenType::MinusEq || peek_type == TokenType::MulEq) {
+                    m_currentLexar->getNext();
+                    eq = true;
+                    m_currentLexar->getNext();
+                    auto rhs = std::get<0>(parseExpression());
+
+                    switch (peek_type) {
+                    case TokenType::Eq:
+                        m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, lhs}});
+                        break;
+                    case TokenType::PlusEq:
+                        m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, lhs}});
+                        break;
+                    case TokenType::MinusEq:
+                        m_currentFunc->body.push_back({Op::SUB, {lhs, rhs, lhs}});
+                        break;
+                    case TokenType::MulEq:
+                        m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, lhs}});
+                        break;
+                    default: TODO("unsupported Token found");
+                    }
+
+                    eq = false;
+                }
+            }
+
+            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+        
+            //ERROR(m_currentLexar->currentToken->loc, "unsupported token");
+            //exit(1);
         }
     }
 }
@@ -460,10 +445,12 @@ void Parser::parseBlock(){
 
 }
 
-Variable Parser::parsePrimaryExpression(){
+std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
+    // will need it later
+    std::tuple<Variable, bool> data;
     tkn = &m_currentLexar->currentToken;
     Variable var;
-    int64_t deref = 0;
+    bool ret_lvalue = false;
 
     //m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
 
@@ -474,23 +461,54 @@ Variable Parser::parsePrimaryExpression(){
             m_program.var_storage.push_back(var);
             m_currentLexar->getAndExpectNext(TokenType::DQoute);
         }
-        return var;
+        return {var, ret_lvalue};
     }
 
     if ((*tkn)->type == TokenType::IntLit) {
         var = {.type = Type::Int_lit, .name = "Int_Lit", .value = (*tkn)->int_value, .size = 4};
-        return var;
+        return {var, ret_lvalue};
     }
     
+    if ((*tkn)->type == TokenType::PlusPlus) {
+        auto loc = (*tkn)->loc;
+        m_currentLexar->getNext();
+        size_t add_loc = m_currentFunc->body.size();
+        m_currentFunc->body.push_back({Op::ADD, {}});
+        data = parsePrimaryExpression();
+        auto &[var, lvalue] = data;
+        if (!lvalue) ERROR(loc, "cannot pre-increment a non lvalue");
+        Variable amount = {.type = Type::Int_lit, .name = "Int_literal", .value = (int64_t)1, .size = 4};
+        m_currentFunc->body[add_loc].args = {var, amount, var};
+        ret_lvalue = true;
+        return {var, ret_lvalue};
+    }
+    if ((*tkn)->type == TokenType::MinusMinus) {
+        auto loc = (*tkn)->loc;
+        m_currentLexar->getNext();
+        size_t add_loc = m_currentFunc->body.size();
+        m_currentFunc->body.push_back({Op::SUB, {}});
+        data = parsePrimaryExpression();
+        auto &[var, lvalue] = data;
+        if (!lvalue) ERROR(loc, "cannot pre-decrement a non lvalue");
+        Variable amount = {.type = Type::Int_lit, .name = "Int_literal", .value = (int64_t)1, .size = 4};
+        m_currentFunc->body[add_loc].args = {var, amount, var};
+        ret_lvalue = true;
+        return {var, ret_lvalue};
+    }
     if ((*tkn)->type == TokenType::Mul) { 
         m_currentLexar->getNext();
-        auto var = parsePrimaryExpression();
+        data = parsePrimaryExpression();
+        auto &[var, lvalue] = data;
         var.deref_count++;
-        return var;
+        ret_lvalue = true;
+        return {var, ret_lvalue};
     }
     if ((*tkn)->type == TokenType::And) {
-        deref = -1;
         m_currentLexar->getNext();
+        data = parsePrimaryExpression();
+        auto &[var, lvalue] = data;
+        var.deref_count -= 1;
+        return {var, ret_lvalue};
     }
     current_module_prefix = "";
     if (m_currentLexar->peek()->type == TokenType::ColonColon) {
@@ -508,15 +526,15 @@ Variable Parser::parsePrimaryExpression(){
             var.offset = current_offset + var.size;
             if (eq)
                 m_currentFunc->body.push_back({Op::STORE_RET, {var}});
-            return var;
+            return {var, ret_lvalue};
         }
         if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
             TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
-            return var;
+            return {var, true};
         }else if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
             var = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
-            var.deref_count = deref;
-            return var;
+            ret_lvalue = true;
+            return {var, ret_lvalue};
         } else {
             TODO(f("ERROR: variable `{}` at {}:{}:{} wasn't found", (*tkn)->string_value, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
         }
@@ -525,42 +543,43 @@ Variable Parser::parsePrimaryExpression(){
     // Paranthesis
     if ((*tkn)->type == TokenType::OParen) {
         m_currentLexar->getNext(); 
-        Variable inside = parseExpression();
+        data = parseExpression();
+        auto &[var, lvalue] = data;
         m_currentLexar->getAndExpectNext(TokenType::CParen);
-        return inside;
+        return {var, ret_lvalue};
     }
 
     ERROR((*tkn)->loc, f("unexpected token of type {}", printableToken.at((*tkn)->type)));
 
-    return var;
+    return {var, false};
 }
-Variable Parser::parseUnaryExpression(){
+std::tuple<Variable, bool> Parser::parseUnaryExpression(){
     tkn = &m_currentLexar->currentToken;
 
     if ((*tkn)->type == TokenType::Minus) {
         m_currentLexar->getNext();
-        auto rhs = parseUnaryExpression();
+        auto rhs = std::get<0>(parseUnaryExpression());
         auto type = (rhs.type == Type::Int_lit ? Type::Int32_t : rhs.type);
-        Variable result {.type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
-        Variable zero = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
+        Variable result = {.type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
+        Variable zero   = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
         m_currentFunc->body.push_back({Op::SUB, {zero, rhs, result}});
-        return result;
+        return {result, false};
     }
     if ((*tkn)->type == TokenType::Not) {
         m_currentLexar->getNext();
-        auto rhs = parseUnaryExpression();
+        auto rhs = std::get<0>(parseUnaryExpression());
         auto type = (rhs.type == Type::Int_lit ? Type::Int32_t : rhs.type);
-        Variable result {.type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
-        Variable zero = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
+        Variable result = {.type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
+        Variable zero   = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
         m_currentFunc->body.push_back({Op::EQ, {rhs, zero, result}});
-        return result;
+        return {result, false};
     }
 
     return parsePrimaryExpression();
 }
-Variable Parser::parseMultiplicativeExpression(){
+std::tuple<Variable, bool> Parser::parseMultiplicativeExpression(){
     tkn = &m_currentLexar->currentToken;
-    auto lhs = parseUnaryExpression();
+    auto lhs = std::get<0>(parseUnaryExpression());
 
     while ((*tkn)->type != TokenType::EndOfFile) {
         auto peek = m_currentLexar->peek()->type;
@@ -569,10 +588,10 @@ Variable Parser::parseMultiplicativeExpression(){
         m_currentLexar->getNext();
         auto op_type = (*tkn)->type;
         m_currentLexar->getNext();
-        auto rhs = parseUnaryExpression();
+        auto rhs = std::get<0>(parseUnaryExpression());
 
         auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
-        Variable result { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type) };
+        Variable result = { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type) };
 
         if (op_type == TokenType::Mul) {
             m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
@@ -585,11 +604,11 @@ Variable Parser::parseMultiplicativeExpression(){
         lhs = result;
     }
 
-    return lhs;
+    return {lhs, false};
 }
-Variable Parser::parseAdditiveExpression(){
+std::tuple<Variable, bool> Parser::parseAdditiveExpression(){
     tkn = &m_currentLexar->currentToken;
-    auto lhs = parseMultiplicativeExpression();
+    auto lhs = std::get<0>(parseMultiplicativeExpression());
 
     while ((*tkn)->type != TokenType::EndOfFile) {
         TokenType peek = m_currentLexar->peek()->type;
@@ -598,11 +617,11 @@ Variable Parser::parseAdditiveExpression(){
         m_currentLexar->getNext();
         TokenType op_type = (*tkn)->type;
         m_currentLexar->getNext();
-        auto rhs = parseMultiplicativeExpression();
+        auto rhs = std::get<0>(parseMultiplicativeExpression());
 
 
         auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
-        Variable result { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type) };
+        Variable result = { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type) };
         if (op_type == TokenType::Plus) {
             m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
         }else {
@@ -612,11 +631,12 @@ Variable Parser::parseAdditiveExpression(){
         lhs = result;
     }
 
-    return lhs;
+    return {lhs, false};
 }
-Variable Parser::parseCondition(int min_prec){
+std::tuple<Variable, bool> Parser::parseCondition(int min_prec){
     tkn = &m_currentLexar->currentToken;
-    auto lhs = parseAdditiveExpression();
+    auto data = parseAdditiveExpression();
+    auto &[lhs, lvalue] = data;
 
     while ((*tkn)->type != TokenType::EndOfFile) {
         auto peek = m_currentLexar->peek()->type;
@@ -635,13 +655,13 @@ Variable Parser::parseCondition(int min_prec){
             case TokenType::AndAnd:    op = Op::LAND; break;
             case TokenType::OrOr:      op = Op::LOR;  break;
             default:
-                return lhs;
+                return {lhs, lvalue};
         }
         // consume operator
         m_currentLexar->getNext();
         m_currentLexar->getNext();
 
-        Variable rhs = parseCondition(prec + 1);
+        Variable rhs = std::get<0>(parseCondition(prec + 1));
 
         auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
         Variable result { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
@@ -652,9 +672,9 @@ Variable Parser::parseCondition(int min_prec){
 
     }
 
-    return lhs;
+    return {lhs, false};
 }
-Variable Parser::parseExpression(){
+std::tuple<Variable, bool> Parser::parseExpression(){
     return parseCondition(0);
 }
 
@@ -669,10 +689,10 @@ void Parser::parseFuncCall(){
     while (m_currentLexar->peek()->type != TokenType::CParen) {
         m_currentLexar->getNext();
         if (eq) {
-            args.push_back(parseExpression());
+            args.push_back(std::get<0>(parseExpression()));
         } else {
             eq = true;
-            args.push_back(parseExpression());
+            args.push_back(std::get<0>(parseExpression()));
             eq = false;
         }
         if (m_currentLexar->peek()->type != TokenType::CParen) {
