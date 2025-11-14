@@ -571,7 +571,7 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
     if ((*tkn)->type == TokenType::Not) {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
-        auto type = (rhs.type == Type::Int_lit ? Type::Int32_t : rhs.type);
+        auto type = Type::Bool_t;
         Variable result = {.type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
         Variable zero   = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
         m_currentFunc->body.push_back({Op::EQ, {rhs, zero, result}});
@@ -667,8 +667,7 @@ std::tuple<Variable, bool> Parser::parseCondition(int min_prec){
 
         Variable rhs = std::get<0>(parseCondition(prec + 1));
 
-        auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
-        Variable result { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
+        Variable result { .type = Type::Bool_t, .offset = current_offset + variable_size_bytes(Type::Bool_t), .size = variable_size_bytes(Type::Bool_t)};
 
         m_currentFunc->body.push_back({ op, { lhs, rhs, result } });
 
