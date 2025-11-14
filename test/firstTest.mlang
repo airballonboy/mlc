@@ -11,5 +11,6 @@ func shift_args(int* argc, string** argv) -> string {
 }
 
 func main(int argc, string* argv) {
-    c_std::printf("program_name: %s\n", shift_args(&argc, &argv));
+    if(1)
+        c_std::printf("program_name: %s\n", shift_args(&argc, &argv));
 }

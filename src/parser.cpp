@@ -23,6 +23,7 @@ int stringLiteralCount = 0;
 int stringCount = 0;
 size_t current_offset = 0;
 size_t max_locals_offset = 8;
+size_t statement_count = 0;
 std::string current_module_prefix{};
 std::vector<std::string> included_files;
 
@@ -345,6 +346,7 @@ Func Parser::parseFunction(){
 
 }
 void Parser::parseStatement(){
+    statement_count++;
     switch ((*tkn)->type) {
         case TokenType::SemiColon: { }break;
         case TokenType::OCurly: {
@@ -365,6 +367,20 @@ void Parser::parseStatement(){
             m_currentFunc->body.push_back({Op::RETURN, {return_value}});
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
         }break;//TokenType::Return
+        case TokenType::If: {
+            m_currentLexar->getAndExpectNext(TokenType::OParen);
+            m_currentLexar->getNext();
+            auto expr = std::get<0>(parseExpression());
+            m_currentLexar->getAndExpectNext(TokenType::CParen);
+
+            m_currentLexar->getNext();
+            size_t jmp_if_not = m_currentFunc->body.size();
+            m_currentFunc->body.push_back({Op::JUMP_IF_NOT, {"", expr}});
+            parseStatement();
+            std::string label = std::format("{:06x}", statement_count++);
+            m_currentFunc->body.push_back({Op::LABEL, {label}});
+            m_currentFunc->body[jmp_if_not].args[0] = label;
+        }break;//TokenType::If
         case TokenType::TypeID: {
             auto var = parseVariable();
 
@@ -581,6 +597,7 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
 }
 std::tuple<Variable, bool> Parser::parseMultiplicativeExpression(){
     tkn = &m_currentLexar->currentToken;
+    // TODO: fix this it should return lvalue not false
     auto lhs = std::get<0>(parseUnaryExpression());
 
     while ((*tkn)->type != TokenType::EndOfFile) {

@@ -77,6 +77,12 @@ enum class Op {
     LT, LE, GT, GE, EQ, NE,
     // Logical AND/OR
     LAND, LOR,
+    // LABEL(label)
+    LABEL,
+    // JUMP(label)
+    JUMP,
+    // JUMP_IF_NOT(label, variable)
+    JUMP_IF_NOT,
 };
 
 

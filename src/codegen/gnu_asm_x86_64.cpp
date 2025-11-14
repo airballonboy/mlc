@@ -161,6 +161,18 @@ void gnu_asm::compileFunction(Func func) {
                 call_func(func_name, args);
 
             }break;
+            case Op::JUMP_IF_NOT: {
+                std::string label = std::any_cast<std::string>(inst.args[0]);
+                Variable    expr = std::any_cast<Variable>(inst.args[1]);
+                deref_var_to_reg(expr, Rax);
+                output.appendf("    testq {}, {}\n", Rax._64, Rax._64);
+                output.appendf("    jz L{}\n", label);
+            }break;
+            case Op::LABEL: {
+                std::string label = std::any_cast<std::string>(inst.args[0]);
+
+                output.appendf("L{}:\n", label);
+            }break;
             case Op::ADD: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
