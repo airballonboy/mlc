@@ -382,7 +382,9 @@ void Parser::parseStatement(){
             if (m_currentLexar->peek()->type == TokenType::Eq) {
                 m_currentLexar->getAndExpectNext(TokenType::Eq);
                 m_currentLexar->getNext();
+                eq = true;
                 auto var2 = std::get<0>(parseExpression());
+                eq = false;
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
             } else if (var.type != Type::String_t) {
                 Variable default_val;
