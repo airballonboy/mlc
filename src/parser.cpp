@@ -329,6 +329,9 @@ Func Parser::parseFunction(){
     return func;
 }
 void Parser::parseStatement(){
+    // TODO:
+    // TODO: I have to make a function to make a new temp_variable because currently it does not work correctly
+    // TODO:
     statement_count++;
     switch ((*tkn)->type) {
         case TokenType::SemiColon: { }break;
@@ -344,7 +347,9 @@ void Parser::parseStatement(){
                 return_value = {.type = Type::Int_lit, .name = "IntLit", .value = 0, .size = 4};
                 m_currentLexar->currentToken--;
             } else {
+                eq = true;
                 return_value = std::get<0>(parseExpression());
+                eq = false;
             }
 
             m_currentFunc->body.push_back({Op::RETURN, {return_value}});
