@@ -93,7 +93,7 @@ Program* Parser::parse() {
     while ((*tkn)->type != TokenType::EndOfFile) {
         switch((*tkn)->type) {
             case TokenType::Func:{
-                m_program.func_storage.push_back(parseFunction());
+                parseFunction();
                 m_currentLexar->getNext();
                 
             }break;//TokenType::Func
@@ -314,36 +314,19 @@ Func Parser::parseFunction(){
         func.return_type = TypeIds.at((*tkn)->string_value);
     }
                 
-
-    /*
-    for (auto& var : func.arguments) {
-        Variable default_val;
-        if (var.type == Type::String_t)
-            default_val.type = Type::String_lit;
-        else 
-            default_val.type = Type::Int_lit;
-        default_val.name = "def_value";
-        default_val.value = variable_default_value(var.type);
-        if (default_val.type == Type::String_lit) {
-            std::string var_name = f("{}_{}", var.name, var.offset);
-            m_program.var_storage.push_back({.type = Type::String_t, .name = var_name, .value = std::string(""), .size = 8});
-        } else 
-            m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
-    }
-    */
-
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
-
+    // For recursion
+    auto func_index = m_program.func_storage.size();
+    m_program.func_storage.push_back(func);
 
     parseBlock();
 
-
     func.stack_size = max_locals_offset;
     max_locals_offset = 8;
+    m_program.func_storage[func_index] = func;
 
     return func;
-
 }
 void Parser::parseStatement(){
     statement_count++;

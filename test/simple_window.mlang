@@ -1,6 +1,5 @@
 #include <raylib.mlang>
 
-#extern func loop();
 func loop() {
     rl::begin_drawing();
         rl::clear_background(rl::get_color(0xffaaaaff));
@@ -14,5 +13,4 @@ func main() {
     rl::init_window(1200, 675, "hello raylib");
     loop();
     rl::close_window();
-
 }
