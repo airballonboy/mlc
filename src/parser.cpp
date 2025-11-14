@@ -328,10 +328,23 @@ Func Parser::parseFunction(){
 
     return func;
 }
+size_t temp_offset = 0;
+Variable make_temp_var(Type type, size_t size, Variable old = {}) {
+    Variable var;
+    var.type = type;
+    var.size = size;
+    var.offset = current_offset + temp_offset + size;
+    temp_offset += size;
+    var.name = "temporery variable";
+    //var.deref_count = old.deref_count;
+    //var.value = old.value;
+    return var;
+}
+void delete_temp_vars() {
+    temp_offset = 0;
+}
+
 void Parser::parseStatement(){
-    // TODO:
-    // TODO: I have to make a function to make a new temp_variable because currently it does not work correctly
-    // TODO:
     statement_count++;
     switch ((*tkn)->type) {
         case TokenType::SemiColon: { }break;
@@ -344,16 +357,16 @@ void Parser::parseStatement(){
 
             if ((*tkn)->type == TokenType::SemiColon) {
                 if (m_currentFunc->return_type != Type::Void_t) TODO("error on no return");
-                return_value = {.type = Type::Int_lit, .name = "IntLit", .value = 0, .size = 4};
-                m_currentLexar->currentToken--;
-            } else {
-                eq = true;
-                return_value = std::get<0>(parseExpression());
-                eq = false;
+                return_value = {.type = Type::Int_lit, .name = "IntLit", .value = (int64_t)0, .size = 4};
+                m_currentFunc->body.push_back({Op::RETURN, {return_value}});
+                break;
             }
-
+            eq = true;
+            return_value = std::get<0>(parseExpression());
+            eq = false;
             m_currentFunc->body.push_back({Op::RETURN, {return_value}});
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+
         }break;//TokenType::Return
         case TokenType::If: {
             m_currentLexar->getAndExpectNext(TokenType::OParen);
@@ -436,6 +449,7 @@ void Parser::parseStatement(){
             //exit(1);
         }
     }
+    delete_temp_vars();
 }
 
 void Parser::parseBlock(){
@@ -454,7 +468,6 @@ void Parser::parseBlock(){
     current_offset = offset;
 
 }
-
 std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
     // will need it later
     std::tuple<Variable, bool> data;
@@ -530,10 +543,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
             auto& func = get_func_from_name(name, m_program.func_storage);
             parseFuncCall();
-            // temp variable
-            var.type = func.return_type;
-            var.size = variable_size_bytes(var.type);
-            var.offset = current_offset + var.size;
+            var = make_temp_var(func.return_type, variable_size_bytes(func.return_type));
             if (eq)
                 m_currentFunc->body.push_back({Op::STORE_RET, {var}});
             return {var, ret_lvalue};
@@ -570,7 +580,7 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
         auto type = (rhs.type == Type::Int_lit ? Type::Int32_t : rhs.type);
-        Variable result = {.type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
+        Variable result = make_temp_var(type, variable_size_bytes(type));
         Variable zero   = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
         m_currentFunc->body.push_back({Op::SUB, {zero, rhs, result}});
         return {result, false};
@@ -579,7 +589,7 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
         auto type = Type::Bool_t;
-        Variable result = {.type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type)};
+        Variable result = make_temp_var(type, variable_size_bytes(type));
         Variable zero   = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
         m_currentFunc->body.push_back({Op::EQ, {rhs, zero, result}});
         return {result, false};
@@ -602,7 +612,7 @@ std::tuple<Variable, bool> Parser::parseMultiplicativeExpression(){
         auto rhs = std::get<0>(parseUnaryExpression());
 
         auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
-        Variable result = { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type) };
+        Variable result = make_temp_var(type, variable_size_bytes(type));
 
         if (op_type == TokenType::Mul) {
             m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
@@ -632,7 +642,7 @@ std::tuple<Variable, bool> Parser::parseAdditiveExpression(){
 
 
         auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
-        Variable result = { .type = type, .offset = current_offset + variable_size_bytes(type), .size = variable_size_bytes(type) };
+        Variable result = make_temp_var(type, variable_size_bytes(type));
         if (op_type == TokenType::Plus) {
             m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
         }else {
@@ -674,7 +684,7 @@ std::tuple<Variable, bool> Parser::parseCondition(int min_prec){
 
         Variable rhs = std::get<0>(parseCondition(prec + 1));
 
-        Variable result { .type = Type::Bool_t, .offset = current_offset + variable_size_bytes(Type::Bool_t), .size = variable_size_bytes(Type::Bool_t)};
+        Variable result = make_temp_var(Type::Bool_t, variable_size_bytes(Type::Bool_t));
 
         m_currentFunc->body.push_back({ op, { lhs, rhs, result } });
 
@@ -785,7 +795,7 @@ size_t Parser::variable_size_bytes(Type t) {
         case Type::Void_t:   return 0; break;
 
         default: 
-            TODO(f("type {} doesn't have default", (int)t));
+            TODO(f("type {} doesn't have size", (int)t));
     }
     return 0;
 }

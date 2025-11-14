@@ -9,17 +9,18 @@ func shift_args(int* argc, string** argv) -> string {
 func fibo(int n) -> int {
     if (n == 0) return 0;
     if (n == 1) return 1;
-    int last = fibo(n-1);
-    return (last + fibo(n-2));
+    return fibo(n-1) + fibo(n-2);
 }
 
+func loop (int n){
+    c_std::printf("%d -> %d\n", n, fibo(n));
+
+    n += 1;
+    if (n <= 30)
+        loop(n);
+}
 func main(int argc, string* argv) {
-    c_std::printf("fibo 12: %d\n", fibo(1));
-    c_std::printf("fibo 12: %d\n", fibo(2));
-    c_std::printf("fibo 12: %d\n", fibo(3));
-    c_std::printf("fibo 12: %d\n", fibo(4));
-    c_std::printf("fibo 12: %d\n", fibo(5));
-    c_std::printf("fibo 12: %d\n", fibo(6));
+    loop(0);
     if(argc > 0) {
         c_std::printf("%s\n", shift_args(&argc, &argv));
     }

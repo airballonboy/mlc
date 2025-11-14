@@ -113,6 +113,7 @@ void gnu_asm::compileFunction(Func func) {
     }
 
     for (auto& inst : func.body) {
+        returned = false;
         //output.appendf(".op_{}:\n", op++);
         switch (inst.op) {
             case Op::RETURN: {
@@ -266,8 +267,8 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rax);
-                deref_var_to_reg(rhs, Rbx);
+                deref_var_to_reg(lhs, Rbx);
+                deref_var_to_reg(rhs, Rax);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setl %al\n");
                 output.appendf("    movzbq %al, %rax\n");
