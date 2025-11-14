@@ -57,8 +57,10 @@ Variable Parser::parseVariable(){
     var.type = TypeIds.at(m_currentLexar->currentToken->string_value);
     var.size = variable_size_bytes(var.type);
 
-    while (m_currentLexar->peek()->type == TokenType::Mul)
+    while (m_currentLexar->peek()->type == TokenType::Mul) {
         m_currentLexar->getAndExpectNext(TokenType::Mul);
+        var.size = 8;
+    }
 
     m_currentLexar->getAndExpectNext(TokenType::ID);
 

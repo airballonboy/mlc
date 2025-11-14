@@ -4,14 +4,12 @@ func add(int a, int b, int c) -> int {
     return a + b + c;
 }
 func shift_args(int* argc, string** argv) -> string {
-    string ret = *argv;
-    *argc -= 1;    
-    *argv = (*argv + 8);
+    string ret = **argv;
+    *argc -= 1;
+    *argv += 8;
     return ret;
 }
 
 func main(int argc, string* argv) {
-    c_std::printf("%s\n", shift_args(argc, &argv));
-    c_std::printf("%s\n", shift_args(argc, &argv));
-    c_std::printf("%d\n", add(4, 12, 12));
+    c_std::printf("program_name: %s\n", shift_args(&argc, &argv));
 }
