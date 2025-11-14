@@ -370,7 +370,9 @@ void Parser::parseStatement(){
         case TokenType::If: {
             m_currentLexar->getAndExpectNext(TokenType::OParen);
             m_currentLexar->getNext();
+            eq = true;
             auto expr = std::get<0>(parseExpression());
+            eq = false;
             m_currentLexar->getAndExpectNext(TokenType::CParen);
 
             m_currentLexar->getNext();

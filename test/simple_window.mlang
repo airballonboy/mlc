@@ -6,7 +6,8 @@ func loop() {
         rl::clear_background(rl::get_color(0xffaaaaff));
     rl::end_drawing();
 
-    loop();
+    if(!rl::window_should_close())
+        loop();
 }
 
 func main() {

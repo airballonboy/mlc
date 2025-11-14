@@ -165,7 +165,7 @@ void gnu_asm::compileFunction(Func func) {
                 std::string label = std::any_cast<std::string>(inst.args[0]);
                 Variable    expr = std::any_cast<Variable>(inst.args[1]);
                 deref_var_to_reg(expr, Rax);
-                output.appendf("    testq {}, {}\n", Rax._64, Rax._64);
+                output.appendf("    testb {}, {}\n", Rax._8, Rax._8);
                 output.appendf("    jz L{}\n", label);
             }break;
             case Op::LABEL: {
@@ -244,7 +244,7 @@ void gnu_asm::compileFunction(Func func) {
 
                 deref_var_to_reg(lhs, Rax);
                 deref_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setl %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
@@ -256,7 +256,7 @@ void gnu_asm::compileFunction(Func func) {
 
                 deref_var_to_reg(lhs, Rax);
                 deref_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    sete %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
@@ -268,7 +268,7 @@ void gnu_asm::compileFunction(Func func) {
 
                 deref_var_to_reg(lhs, Rax);
                 deref_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setne %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
@@ -280,7 +280,7 @@ void gnu_asm::compileFunction(Func func) {
 
                 deref_var_to_reg(lhs, Rax);
                 deref_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setle %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
@@ -292,7 +292,7 @@ void gnu_asm::compileFunction(Func func) {
 
                 deref_var_to_reg(lhs, Rax);
                 deref_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setg %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
@@ -304,7 +304,7 @@ void gnu_asm::compileFunction(Func func) {
 
                 deref_var_to_reg(lhs, Rax);
                 deref_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setge %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
