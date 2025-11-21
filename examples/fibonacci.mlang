@@ -1,0 +1,27 @@
+#include <c_std.mlang>
+
+func fib_recursive(int n) -> int {
+    if(n <= 1)
+        return n;
+    return fib_recursive(n-1) + fib_recursive(n-2);
+}
+func fib(int n) -> int64 {
+    int64 a = 0;
+    int64 b = 1;
+
+    if (n <= 1) return n;
+    int i = 2;
+    while(i <= n) {
+        int64 temp = a + b;
+        a = b;
+        b = temp;
+        ++i;
+    }
+
+    return b;
+}
+
+func main() {
+    c_std::printf("fib(32) = %ld\n", fib(32));
+}
+

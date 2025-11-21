@@ -17,12 +17,12 @@ public:
     void     parseExtern();
     void     parseStatement();
     void     parseBlock();
-    Variable parsePrimaryExpression();
-    Variable parseUnaryExpression();
-    Variable parseMultiplicativeExpression();
-    Variable parseAdditiveExpression();
-    Variable parseCondition(int min_prec);
-    Variable parseExpression();
+    std::tuple<Variable, bool> parsePrimaryExpression();
+    std::tuple<Variable, bool> parseUnaryExpression();
+    std::tuple<Variable, bool> parseMultiplicativeExpression();
+    std::tuple<Variable, bool> parseAdditiveExpression();
+    std::tuple<Variable, bool> parseCondition(int min_prec);
+    std::tuple<Variable, bool> parseExpression();
     void     parseFuncCall();
     void     parseHash();
 

@@ -18,6 +18,9 @@ int op = 0;
 size_t current_string_count = 0;
 
 
+#define WARNING(...) std::println("\nWarning: {}\n", f(__VA_ARGS__))
+
+
 #define REG_SIZE(REG, SIZE)   (SIZE) == 8 ? (REG)._64 : (SIZE) == 4 ? (REG)._32 : (SIZE) == 2 ? (REG)._16 : (REG)._8 
 #define MOV_SIZE(SIZE)        (SIZE) == 8 ?   "movq"  : (SIZE) == 4 ?   "movl"  : (SIZE) == 2 ?   "movw"  :  "movb" 
 #define INST_SIZE(INST, SIZE) (SIZE) == 8 ?  INST"q"  : (SIZE) == 4 ?   INST"l" : (SIZE) == 2 ?   INST"w" :  INST"b" 
@@ -110,6 +113,7 @@ void gnu_asm::compileFunction(Func func) {
     }
 
     for (auto& inst : func.body) {
+        returned = false;
         //output.appendf(".op_{}:\n", op++);
         switch (inst.op) {
             case Op::RETURN: {
@@ -126,6 +130,13 @@ void gnu_asm::compileFunction(Func func) {
                 Variable var2 = std::any_cast<Variable>(inst.args[1]);
 
                 if (var1.type != Type::String_lit) {
+                    //TODO: add this to parser as warning
+                    //if (var2.size < var1.size){
+                    //    WARNING("trying to assign a variable of size {} to a variable of size {} \n"
+                    //            "  shrunk the bigger variable to fit into the smaller one",
+                    //            var1.size, var2.size);
+                    //    var1.size = var2.size;
+                    //}
                     deref_var_to_reg(var1, Rax);
                     move_reg_to_var(Rax, var2);
                 } else {
@@ -151,13 +162,40 @@ void gnu_asm::compileFunction(Func func) {
                 call_func(func_name, args);
 
             }break;
+            case Op::JUMP_IF_NOT: {
+                std::string label = std::any_cast<std::string>(inst.args[0]);
+                Variable    expr = std::any_cast<Variable>(inst.args[1]);
+                deref_var_to_reg(expr, Rax);
+                output.appendf("    testb {}, {}\n", Rax._8, Rax._8);
+                output.appendf("    jz L{}\n", label);
+            }break;
+            case Op::JUMP: {
+                std::string label = std::any_cast<std::string>(inst.args[0]);
+                output.appendf("    jmp L{}\n", label);
+            }break;
+            case Op::LABEL: {
+                std::string label = std::any_cast<std::string>(inst.args[0]);
+
+                output.appendf("L{}:\n", label);
+            }break;
             case Op::ADD: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
+                //TODO: reseting registers
+                //Variable zero = {.type = Type::Int_lit, .value = (int64_t)0, .size = 8};
+                //move_var_to_reg(zero , Rax);
+                //move_var_to_reg(zero , Rbx);
+
+                deref_var_to_reg(lhs, Rax);
+                deref_var_to_reg(rhs, Rbx);
+
+                if (lhs.size != rhs.size) {
+                    lhs.size = result.size;
+                    rhs.size = result.size;
+                }
+
                 output.appendf("    {} {}, {}\n", INST_SIZE("add", result.size), REG_SIZE(Rbx, rhs.size), REG_SIZE(Rax, lhs.size));
                 move_reg_to_var(Rax, result);
             } break;
@@ -166,8 +204,8 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
+                deref_var_to_reg(lhs, Rax);
+                deref_var_to_reg(rhs, Rbx);
                 output.appendf("    subq %rbx, %rax\n");
                 move_reg_to_var(Rax, result);
             } break;
@@ -176,8 +214,8 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
+                deref_var_to_reg(lhs, Rax);
+                deref_var_to_reg(rhs, Rbx);
                 output.appendf("    imulq %rbx, %rax\n"); // signed multiply
                 move_reg_to_var(Rax, result);
             } break;
@@ -186,9 +224,9 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
+                deref_var_to_reg(lhs, Rax);
                 output.appendf("    cqto\n");
-                move_var_to_reg(rhs, Rbx);
+                deref_var_to_reg(rhs, Rbx);
                 output.appendf("    idivq %rbx\n");
                 move_reg_to_var(Rax, result);
             } break;
@@ -197,23 +235,11 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
+                deref_var_to_reg(lhs, Rax);
                 output.appendf("    cqto\n");
-                move_var_to_reg(rhs, Rbx);
+                deref_var_to_reg(rhs, Rbx);
                 output.appendf("    idivq %rbx\n");
                 output.appendf("    movq %rdx, %rax\n");
-                move_reg_to_var(Rax, result);
-            } break;
-            case Op::LT: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
-
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
-                output.appendf("    setl %al\n");
-                output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
             } break;
             case Op::EQ: {
@@ -221,9 +247,9 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                deref_var_to_reg(lhs, Rax);
+                deref_var_to_reg(rhs, Rbx);
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    sete %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
@@ -233,10 +259,22 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                deref_var_to_reg(lhs, Rax);
+                deref_var_to_reg(rhs, Rbx);
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setne %al\n");
+                output.appendf("    movzbq %al, %rax\n");
+                move_reg_to_var(Rax, result);
+            } break;
+            case Op::LT: {
+                Variable lhs = std::any_cast<Variable>(inst.args[0]);
+                Variable rhs = std::any_cast<Variable>(inst.args[1]);
+                Variable result = std::any_cast<Variable>(inst.args[2]);
+
+                deref_var_to_reg(lhs, Rbx);
+                deref_var_to_reg(rhs, Rax);
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
+                output.appendf("    setl %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
             } break;
@@ -245,9 +283,9 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                deref_var_to_reg(lhs, Rbx);
+                deref_var_to_reg(rhs, Rax);
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setle %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
@@ -257,9 +295,9 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                deref_var_to_reg(lhs, Rbx);
+                deref_var_to_reg(rhs, Rax);
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setg %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
@@ -269,9 +307,9 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
-                output.appendf("    cmpq %rbx, %rax\n");
+                deref_var_to_reg(lhs, Rbx);
+                deref_var_to_reg(rhs, Rax);
+                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setge %al\n");
                 output.appendf("    movzbq %al, %rax\n");
                 move_reg_to_var(Rax, result);
@@ -281,8 +319,8 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
+                deref_var_to_reg(lhs, Rax);
+                deref_var_to_reg(rhs, Rbx);
                 output.appendf("    andq %rbx, %rax\n");
                 output.appendf("    cmpq $0, %rax\n");
                 output.appendf("    setne %al\n");
@@ -294,8 +332,8 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                move_var_to_reg(lhs, Rax);
-                move_var_to_reg(rhs, Rbx);
+                deref_var_to_reg(lhs, Rax);
+                deref_var_to_reg(rhs, Rbx);
                 output.appendf("    orq %rbx, %rax\n");
                 output.appendf("    cmpq $0, %rax\n");
                 output.appendf("    setne %al\n");
@@ -360,8 +398,16 @@ void gnu_asm::move_reg_to_var(Register reg, Variable arg) {
     else if (arg.type == Type::Void_t) {
         std::println("reg {}, var {}", REG_SIZE(reg, arg.size), arg.name);
         TODO("can't move reg to void");
-    }else 
+    } else if (arg.deref_count > 0) {
+        move_var_to_reg(arg, Rbx);
+        while (arg.deref_count > 1) {
+            output.appendf("    movq ({}), {}", Rbx._64, Rbx._64);
+            arg.deref_count--;
+        }
+        output.appendf("    {} {}, ({})\n", MOV_SIZE(arg.size), REG_SIZE(reg, arg.size), REG_SIZE(Rbx, arg.size));
+    } else {
         output.appendf("    {} {}, -{}(%rbp)\n", MOV_SIZE(arg.size), REG_SIZE(reg, arg.size), arg.offset);
+    }
 }
 void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
     move_var_to_reg(arg1, Rax);

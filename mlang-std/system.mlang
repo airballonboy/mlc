@@ -2,9 +2,10 @@ module sys;
 
 #include <c_std.mlang>
 
-func sys::run_command(string command) -> int {
+func sys::cmd(string command) -> int {
     c_std::printf("Running `%s`\n", command);
     c_std::system(command);
+    // TODO: make this return the return of the program
     return 0;
 }
 func sys::exit(int code) { c_std::exit(code); }

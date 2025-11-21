@@ -9,6 +9,7 @@
 #include <filesystem>
 #include "codegen/gnu_asm_x86_64.h"
 #include "context.h"
+#include "flag.h"
 #include "parser.h"
 #include "types.h"
 #include "tools/file.h"
@@ -48,6 +49,14 @@ char* shift_args(int *argc, char ***argv) {
     (*argc) -= 1;
     return result;
 }
+std::string_view shift_args(std::vector<std::string_view>& args) {
+    assert("no more args" && args.size() > 0);
+    std::string_view result = args[0];
+    
+    args.erase(args.begin());
+
+    return result;
+}
 
 template<typename... _Args>
 int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
@@ -61,6 +70,25 @@ int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
     #endif
 
 }
+std::string programName;
+std::string output_path;
+
+void print_help_message() {
+    mlog::error("PROGRAM: ", "incorrect usage");
+    mlog::error("PROGRAM: ", "correct usage is");
+    mlog::log("   ", mlog::Blue, f("{} input.mlang [options]", programName).c_str());
+    println("\noptions:");
+    for (auto& flag: FLAG_BASE::flags) {
+        if (flag->name == "--help") continue;
+        println("  {}", flag->desc);
+    }
+}
+
+Flag<bool>        help_flag2   ("--help", "");
+Flag<bool>        help_flag1   ("-h"    , "[-h] [--help]   prints this message");
+Flag<bool>        run_flag     ("-run"  , "[-run]          runs the program after compilation");
+Flag<std::string> output_flag  ("-o"    , "[-o executable] outputs the program into the name provided");
+Flag<std::string> platform_flag("-t"    , "[-t platform]   chooses which platform to compile to");
 
 // should save token id in the token
 
@@ -68,14 +96,18 @@ int main(int argc, char* argv[])
 {
     bool run = false;
     Platform platform = Platform::gnu_asm_86_64;
-    std::string programName = shift_args(&argc, &argv);
+    programName = shift_args(&argc, &argv);
+    auto args = FLAG_BASE::parse_flags(argc, argv);
     if (argc == 0) {
-        mlog::error("PROGRAM: ", "incorrect usage");
-        mlog::error("PROGRAM: ", "correct usage is");
-        mlog::log("   ", mlog::Blue, f("{} input.mlang [-run [-a arg0 arg1 arg2 ...]]", programName).c_str());
-        return 1;
+        print_help_message();
+        exit(1);
     }
-    std::string inputFile = shift_args(&argc, &argv);
+    if (help_flag1.exists || help_flag2.exists) {
+        print_help_message();
+        exit(1);
+    }
+
+    std::string inputFile = std::string(shift_args(args));
 
     std::filesystem::path inputFilePath(inputFile);
     input_no_extention = inputFilePath.stem().string();
@@ -85,7 +117,7 @@ int main(int argc, char* argv[])
     std::string output_path = build_path+"\\output";
     #else
     build_path = input_path+"/.build";
-    std::string output_path = build_path+"/output";
+    output_path = build_path+"/output";
     #endif
     // Should add the libmlang path to here
     ctx.includePaths.push_back(".");
@@ -110,39 +142,31 @@ int main(int argc, char* argv[])
         println("Directory already exists: {}", build_path);
     }
 
-    std::vector<std::string_view> args;
-    while (argc > 0) {
-        args.push_back(shift_args(&argc, &argv));
+    if (run_flag.exists) {
+        run = *run_flag.value;
+    }
+    if (output_flag.exists) {
+        output_path = *output_flag.value;
+    }
+    if (platform_flag.exists) {
+        if(*platform_flag.value == "gnu_x86_64") platform = Platform::gnu_asm_86_64;
+        if(*platform_flag.value == "ir")         platform = Platform::ir;
     }
 
-    for (int i = 0; i < args.size(); i++) {
-        if (args[i] == "-o") {
-            if (i+1 < args.size())
-                output_path = args[++i];
-            else {
-                println(stderr, "-o requires output path after it");
-                exit(1);
-            }
-        }else if (args[i] == "-I") {
-            if (i+1 < args.size()) {
-                ctx.includePaths.push_back(args[++i]);
-            }else {
-                println(stderr, "-I requires search path for includes, imports, libs and binarys after it");
-                exit(1);
-            }
-        }else if (args[i] == "-t") {
-            if (i+1 < args.size()) {
-                std::string_view plat_name = args[++i];
-                if(plat_name == "gnu_x86_64") { platform = Platform::gnu_asm_86_64; continue; }
-                if(plat_name == "ir")         { platform = Platform::ir;            continue; }
-            }else {
-                println(stderr, "-t requires platform name after it");
-                exit(1);
-            }
-        }else if (args[i] == "-run") {
-            run = true;
-        }
-    }
+    //    }else if (args[i] == "-I") {
+    //        if (i+1 < args.size()) {
+    //            ctx.includePaths.push_back(args[++i]);
+    //        }else {
+    //            println(stderr, "-I requires search path for includes, imports, libs and binarys after it");
+    //            exit(1);
+    //        }
+    //    }else if (args[i] == "-t") {
+    //        if (i+1 < args.size()) {
+    //            std::string_view plat_name = args[++i];
+    //        }else {
+    //            println(stderr, "-t requires platform name after it");
+    //            exit(1);
+    //        }
 
 	auto lexar = Lexar(readFileToString(inputFile), inputFile);
 

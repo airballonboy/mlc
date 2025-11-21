@@ -78,6 +78,12 @@ enum class Op {
     LT, LE, GT, GE, EQ, NE,
     // Logical AND/OR
     LAND, LOR,
+    // LABEL(label)
+    LABEL,
+    // JUMP(label)
+    JUMP,
+    // JUMP_IF_NOT(label, variable)
+    JUMP_IF_NOT,
 };
 
 
@@ -92,6 +98,18 @@ inline std::unordered_map<std::string, Type> TypeIds = {
     {"float" , Type::Float_t},
     {"usize" , Type::Size_t},
     {"bool"  , Type::Bool_t}
+};
+inline std::unordered_map<Type, std::string> printableTypeIds = {
+    {Type::Void_t  , "void"  },
+    {Type::Int16_t , "int16" },
+    {Type::Int32_t , "int"   },
+    {Type::Int32_t , "int32" },
+    {Type::Int64_t , "int64" },
+    {Type::Int64_t , "long"  },
+    {Type::String_t, "string"},
+    {Type::Float_t , "float" },
+    {Type::Size_t  , "usize" },
+    {Type::Bool_t  , "bool"  },
 };
 
 
