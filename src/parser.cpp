@@ -384,6 +384,25 @@ void Parser::parseStatement(){
             m_currentFunc->body.push_back({Op::LABEL, {label}});
             m_currentFunc->body[jmp_if_not].args[0] = label;
         }break;//TokenType::If
+        case TokenType::While: {
+            m_currentLexar->getAndExpectNext(TokenType::OParen);
+            m_currentLexar->getNext();
+            std::string pre_label = std::format("{:06x}", statement_count++);
+            m_currentFunc->body.push_back({Op::LABEL, {pre_label}});
+            eq = true;
+            auto expr = std::get<0>(parseExpression());
+            eq = false;
+            m_currentLexar->getAndExpectNext(TokenType::CParen);
+
+            m_currentLexar->getNext();
+            size_t jmp_if_not = m_currentFunc->body.size();
+            m_currentFunc->body.push_back({Op::JUMP_IF_NOT, {"", expr}});
+            parseStatement();
+            m_currentFunc->body.push_back({Op::JUMP, {pre_label}});
+            std::string label = std::format("{:06x}", statement_count++);
+            m_currentFunc->body.push_back({Op::LABEL, {label}});
+            m_currentFunc->body[jmp_if_not].args[0] = label;
+        }break;//TokenType::While
         case TokenType::TypeID: {
             auto var = parseVariable();
 

@@ -7,21 +7,17 @@ func shift_args(int* argc, string** argv) -> string {
     return ret;
 }
 func fibo(int n) -> int {
-    if (n == 0) return 0;
-    if (n == 1) return 1;
+    if (n == 0 || n == 1) 
+        return n;
     return fibo(n-1) + fibo(n-2);
 }
-
-func loop (int n){
-    c_std::printf("%d -> %d\n", n, fibo(n));
-
-    n += 1;
-    if (n <= 30)
-        loop(n);
-}
 func main(int argc, string* argv) {
-    loop(0);
-    if(argc > 0) {
-        c_std::printf("%s\n", shift_args(&argc, &argv));
+    int i = 0;
+    while (i <= 30) {
+        c_std::printf("%d\n", fibo(i));
+        i += 1;
     }
+    //if(argc > 0) {
+    //    c_std::printf("%s\n", shift_args(&argc, &argv));
+    //}
 }

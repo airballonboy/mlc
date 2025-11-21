@@ -169,6 +169,10 @@ void gnu_asm::compileFunction(Func func) {
                 output.appendf("    testb {}, {}\n", Rax._8, Rax._8);
                 output.appendf("    jz L{}\n", label);
             }break;
+            case Op::JUMP: {
+                std::string label = std::any_cast<std::string>(inst.args[0]);
+                output.appendf("    jmp L{}\n", label);
+            }break;
             case Op::LABEL: {
                 std::string label = std::any_cast<std::string>(inst.args[0]);
 
