@@ -295,6 +295,7 @@ struct Variable {
     int64_t     deref_count = 0;
     size_t      offset;
     size_t      size;
+    std::string _type_name;
 };
 typedef std::vector<Variable> VariableStorage;
 
@@ -328,6 +329,7 @@ struct Module {
 typedef std::unordered_map<std::string, Module> ModuleStorage;
 
 struct Struct {
+    size_t id = 0;
     std::string name{};
     VariableStorage var_storage;
     size_t size;

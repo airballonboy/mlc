@@ -1,12 +1,22 @@
 #include <c_std.mlang>
 
-struct ctx {
+struct vec3 {
     int x;
     int y;
+    int z;
+    int zz;
+    int zzz;
+}
+func pos(vec3* ve) {
+    vec3 vec = *ve;
+    
+    c_std::printf(" x = %d\n y = %d\n z = %d\n", vec.x, vec.y, vec.z);
 }
 func main() {
-    ctx CTX;
-    CTX.x = 12;
-    CTX.y = 131;
-    c_std::printf("x = %d, y = %d\n", CTX.x, CTX.y);
+    vec3 vec;
+    vec.x = 11221;
+    vec.y = 11231;
+    vec.z = 11241;
+    pos(&vec);
+    c_std::printf(" x = %d\n y = %d\n z = %d\n", vec.x, vec.y, vec.z);
 }

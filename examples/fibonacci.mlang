@@ -22,6 +22,11 @@ func fib(int n) -> int64 {
 }
 
 func main() {
-    c_std::printf("fib(32) = %ld\n", fib(32));
+    // stress test
+    int i = 9999900;
+    while (i <= 10000000) {
+        c_std::printf("fib(%d) = %ld\n", i, fib(i));
+        i += 1;
+    }
 }
 

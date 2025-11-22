@@ -137,8 +137,9 @@ void gnu_asm::compileFunction(Func func) {
                     //            var1.size, var2.size);
                     //    var1.size = var2.size;
                     //}
-                    deref_var_to_reg(var1, Rax);
-                    move_reg_to_var(Rax, var2);
+                    move_var_to_var(var1, var2);
+                    //deref_var_to_reg(var1, Rax);
+                    //move_reg_to_var(Rax, var2);
                 } else {
                     move_var_to_reg(var2, arg_register[0]);
                     move_var_to_reg(var1, arg_register[1]);
@@ -410,7 +411,49 @@ void gnu_asm::move_reg_to_var(Register reg, Variable arg) {
     }
 }
 void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
-    move_var_to_reg(arg1, Rax);
-    move_reg_to_var(Rax, arg2);
+    if (arg1.type == Type::Int_lit) {
+        if (arg2.deref_count > 0) {
+            move_var_to_reg(arg2, Rbx);
+            while (arg2.deref_count > 1) {
+                output.appendf("    movq ({}), {}", Rbx._64, Rbx._64);
+                arg2.deref_count--;
+            }
+            output.appendf("    {} ${}, ({})\n", MOV_SIZE(arg2.size), std::any_cast<int64_t>(arg1.value), REG_SIZE(Rbx, arg2.size));
+        } else {
+            output.appendf("    {} ${}, -{}(%rbp)\n",  MOV_SIZE(arg2.size), std::any_cast<int64_t>(arg1.value), arg2.offset);
+        }
+    } else if (arg1.type == Type::Struct_t || arg2.type == Type::Struct_t) {
+        if (arg1._type_name != arg2._type_name) TODO(f("error trying assigning different structers to each other, {} {}", arg1._type_name, arg2._type_name));
+        Struct real_struct{};
+        bool found = false;
+        for (auto& strct : m_program->struct_storage) {
+            if (strct.name == arg1._type_name) {
+                real_struct = strct;
+                found = true;
+                break;
+            }
+            std::println("{} {}", strct.name, arg1._type_name);
+        }
+        if (!found) TODO("struct not found");
+        if (arg1.deref_count > 0)
+            output.appendf("    movq -{}(%rbp), %rsi\n", arg1.offset);
+        else 
+            output.appendf("    lea  -{}(%rbp), %rsi\n", arg1.offset);
+        if (arg2.deref_count > 0)
+            output.appendf("    movq -{}(%rbp), %rdi\n", arg2.offset);
+        else 
+            output.appendf("    lea  -{}(%rbp), %rdi\n", arg2.offset);
+        output.appendf("    movq ${}, %rcx\n", real_struct.size);
+        output.appendf("    rep movsb\n");
+        //for (auto& member : real_struct.var_storage) {
+        //    move_var_to_var(
+        //        {.type = member.type, .offset = arg1.offset - member.offset, .size = member.size},
+        //        {.type = member.type, .offset = arg2.offset - member.offset, .size = member.size}
+        //    );
+        //}
+    } else {
+        deref_var_to_reg(arg1, Rax);
+        move_reg_to_var(Rax, arg2);
+    }
 }
 
