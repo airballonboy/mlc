@@ -1,13 +1,12 @@
-#include <io.mlang>
+#include <c_std.mlang>
 
 struct ctx {
-    int num = 12;
-    func init() {
-        // do some initializing
-        io::println("success init ctx");
-    }
-};
+    int x;
+    int y;
+}
 func main() {
     ctx CTX;
-    CTX.init();
+    CTX.x = 12;
+    CTX.y = 131;
+    c_std::printf("x = %d, y = %d\n", CTX.x, CTX.y);
 }

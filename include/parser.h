@@ -9,7 +9,7 @@ public:
     Parser(Lexar* lexar);
     Program* parse();
     Func parseFunction();
-    Variable parseVariable();
+    Variable parseVariable(VariableStorage& var_store);
     Variable parseArgument();
     void     parseModuleDeclaration();
     void     parseStructDeclaration();
@@ -17,6 +17,7 @@ public:
     void     parseExtern();
     void     parseStatement();
     void     parseBlock();
+    void initStruct(std::string type_name, std::string struct_name);
     std::tuple<Variable, bool> parsePrimaryExpression();
     std::tuple<Variable, bool> parseUnaryExpression();
     std::tuple<Variable, bool> parseMultiplicativeExpression();

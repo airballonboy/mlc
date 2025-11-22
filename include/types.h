@@ -51,6 +51,7 @@ enum class TokenType {
 };
 enum class Type : int {
     Void_t = 0, 
+    Struct_t,
     Int8_t, Int16_t, 
     Int32_t, Int64_t, 
     String_t, Char_t,
@@ -329,6 +330,7 @@ typedef std::unordered_map<std::string, Module> ModuleStorage;
 struct Struct {
     std::string name{};
     VariableStorage var_storage;
+    size_t size;
 };
 typedef std::vector<Struct> StructStorage;
 

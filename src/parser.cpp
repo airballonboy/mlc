@@ -51,7 +51,7 @@ int get_cond_precedence(TokenType tt) {
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
 }
-Variable Parser::parseVariable(){
+Variable Parser::parseVariable(VariableStorage& var_store){
     Variable var;
     if (m_currentLexar->currentToken->type != TokenType::TypeID)
         m_currentLexar->getAndExpectNext(TokenType::TypeID);
@@ -65,7 +65,7 @@ Variable Parser::parseVariable(){
 
     m_currentLexar->getAndExpectNext(TokenType::ID);
 
-    if (variable_exist_in_storage(m_currentLexar->currentToken->string_value, m_currentFunc->local_variables)) 
+    if (variable_exist_in_storage(m_currentLexar->currentToken->string_value, var_store)) 
         ERROR(m_currentLexar->currentToken->loc, f("redifinition of {}", m_currentLexar->currentToken->string_value));
     else 
         var.name = m_currentLexar->currentToken->string_value;    
@@ -80,7 +80,7 @@ Variable Parser::parseVariable(){
         m_currentLexar->getAndExpectNext(TokenType::CBracket);
         TODO("support for arrays");   
     }
-    m_currentFunc->local_variables.push_back(var);
+    var_store.push_back(var);
 
 
     return var;
@@ -119,20 +119,43 @@ Program* Parser::parse() {
     return &m_program;
 
 }
+void Parser::initStruct(std::string type_name, std::string struct_name) {
+    //default
+    int strct_offset = 0;
+    Struct& strct = m_program.struct_storage[0];
+    
+    for (auto& strct_ : m_program.struct_storage) {
+        if (strct_.name == type_name) strct = strct_;
+    }
+    current_offset += strct.size;
+        m_currentFunc->local_variables.push_back({.type = Type::Struct_t, .name = struct_name, .size = strct.size});
+    for (auto& var : strct.var_storage) {
+        var.offset = current_offset - strct_offset;
+        std::string orig = var.name;
+        var.name = struct_name + "___" + orig;
+        strct_offset += var.size;
+        m_currentFunc->local_variables.push_back(var);
+    }
+
+
+}
 void Parser::parseStructDeclaration() {
     tkn = &m_currentLexar->currentToken;
     std::string struct_name = "";
     Struct current_struct{};
     
-    m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::OParen});
+    m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::OCurly});
 
     if ((*tkn)->type == TokenType::ID) {
         struct_name = (*tkn)->string_value;
-        m_currentLexar->getAndExpectNext(TokenType::OParen);
+        m_currentLexar->getAndExpectNext(TokenType::OCurly);
     }
-    while ((*tkn)->type != TokenType::CParen) {
-        auto var = parseVariable();
-        current_struct.var_storage.push_back(var);
+    TypeIds.emplace(struct_name, Type::Struct_t);
+    while ((*tkn)->type != TokenType::CCurly) {
+        auto var = parseVariable(current_struct.var_storage);
+        current_struct.size += var.size;
+        m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+        m_currentLexar->getNext();
 
 #if 0 // TODO: setting the default value is currently unsupported should be added later
         if (var.type == Type::String_t) {
@@ -155,7 +178,7 @@ void Parser::parseStructDeclaration() {
 #endif
     }
     
-
+    m_program.struct_storage.push_back(current_struct);
 }
 void Parser::parseModuleDeclaration() {
     m_currentLexar->getAndExpectNext(TokenType::ID);
@@ -240,7 +263,7 @@ void Parser::parseExtern(){
             
             break;
         }else {
-            func.arguments.push_back(parseVariable());
+            parseVariable(func.arguments);
             func.arguments_count++;
         }
         // Process parameter(Local Variables)
@@ -336,7 +359,7 @@ Func Parser::parseFunction(){
 
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-        func.arguments.push_back(parseVariable());
+        parseVariable(func.arguments);
         func.arguments_count++;
 
         // Process parameter(Local Variables)
@@ -446,7 +469,7 @@ void Parser::parseStatement(){
             m_currentFunc->body[jmp_if_not].args[0] = label;
         }break;//TokenType::While
         case TokenType::TypeID: {
-            auto var = parseVariable();
+            auto var = parseVariable(m_currentFunc->local_variables);
 
             // TODO: factor out to a function
             if (var.type == Type::String_t) {
@@ -472,7 +495,17 @@ void Parser::parseStatement(){
 
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
         }break;//TokenType::TypeID
+        case TokenType::ID: {
+            if (TypeIds.find((*tkn)->string_value) != TypeIds.end()) {
+                std::string type_name = (*tkn)->string_value;
+                m_currentLexar->getAndExpectNext(TokenType::ID);
+                std::string struct_name = (*tkn)->string_value;
+                initStruct(type_name, struct_name);
+            }
+            goto defau;
+        }
         default: {
+        defau:
             auto data = parsePrimaryExpression();
             auto &[lhs, lvalue] = data;
             auto peek_type = m_currentLexar->peek()->type;
@@ -599,6 +632,12 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         parseModulePrefix();
         m_currentLexar->getAndExpectNext(TokenType::ID);
     }
+    if (m_currentLexar->peek()->type == TokenType::Dot) {
+        current_module_prefix += (*tkn)->string_value;
+        current_module_prefix += "___";
+        m_currentLexar->getAndExpectNext(TokenType::Dot);
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+    }
     std::string name = current_module_prefix + m_currentLexar->currentToken->string_value;
     if ((*tkn)->type == TokenType::ID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
@@ -610,10 +649,11 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             return {var, ret_lvalue};
         }
         if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
+            std::println("{}",(*tkn)->string_value);
             TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
             return {var, true};
-        }else if (variable_exist_in_storage((*tkn)->string_value, m_currentFunc->local_variables)) {
-            var = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
+        }else if (variable_exist_in_storage(name, m_currentFunc->local_variables)) {
+            var = get_var_from_name(name, m_currentFunc->local_variables);
             ret_lvalue = true;
             return {var, ret_lvalue};
         } else {
