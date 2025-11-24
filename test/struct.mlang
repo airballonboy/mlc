@@ -2,15 +2,15 @@
 
 struct CTX {
     int id;
-    int args;
-    func arg () {
-        CTX that = *this;
-        c_std::printf("called arg %d\n", that.id);
+    int count;
+    func member () {
+        c_std::printf("this.id = %d, this.count = %d\n", this.id, this.count);
     }
 }
 
 func main() {
     CTX ctx;
     ctx.id = 123;
-    ctx.arg();
+    ctx.count = 1222;
+    ctx.member();
 }

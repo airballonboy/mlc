@@ -9,7 +9,7 @@ public:
     Parser(Lexar* lexar);
     Program* parse();
     Func parseFunction(bool member = false, Struct parent = {});
-    Variable parseVariable(VariableStorage& var_store, bool member = false);
+    Variable& parseVariable(VariableStorage& var_store, bool member = false);
     Variable parseArgument();
     void     parseModuleDeclaration();
     void     parseStructDeclaration();
@@ -40,4 +40,5 @@ private:
     std::any  variable_default_value(Type t);
     size_t    variable_size_bytes(Type t);
     Variable& get_var_from_name(std::string_view name, VariableStorage& var_storage);
+    Struct& get_struct_from_name(std::string name);
 };

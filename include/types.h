@@ -66,6 +66,9 @@ enum class Op {
     // stores the return of the last function called
     // STORE_RET(variable)
     STORE_RET,
+    // deref a member of a struct at an offset to a variable
+    // DEREF_OFFSET(offset, struct_var, variable)
+    DEREF_OFFSET,
     // INIT_STRING(string)
     INIT_STRING,
     // RETURN(variable)
@@ -287,6 +290,12 @@ struct Instruction {
     std::vector<std::any> args;
 };
 
+struct Kind {
+    size_t pointer_count;
+    size_t array_count;
+    // TODO: add a vector of array data
+};
+
 struct Variable {
     Type        type;
     std::string name;
@@ -296,6 +305,7 @@ struct Variable {
     size_t      offset;
     size_t      size;
     std::string _type_name;
+    Kind kind;
 };
 typedef std::vector<Variable> VariableStorage;
 

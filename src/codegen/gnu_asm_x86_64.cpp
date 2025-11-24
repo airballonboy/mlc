@@ -150,6 +150,14 @@ void gnu_asm::compileFunction(Func func) {
                 Variable var = std::any_cast<Variable>(inst.args[0]);
                 move_reg_to_var(Rax, var);
             }break;
+            case Op::DEREF_OFFSET: {
+                size_t   offset = std::any_cast<size_t>  (inst.args[0]);
+                Variable strct  = std::any_cast<Variable>(inst.args[1]);
+                Variable var    = std::any_cast<Variable>(inst.args[2]);
+                move_var_to_reg(strct, Rax);
+                output.appendf("    {} {}({}), {}\n", INST_SIZE("mov", var.size), offset, REG_SIZE(Rax, strct.size), REG_SIZE(Rax, var.size));
+                move_reg_to_var(Rax, var);
+            }break;
             case Op::INIT_STRING: {
                 Variable str = std::any_cast<Variable>(inst.args[0]);
                 auto storage_offset = current_string_count++*MAX_STRING_SIZE;

@@ -51,7 +51,7 @@ int get_cond_precedence(TokenType tt) {
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
 }
-Variable Parser::parseVariable(VariableStorage& var_store, bool member){
+Variable& Parser::parseVariable(VariableStorage& var_store, bool member){
     Variable var{};
     std::string type_name;
     bool strct = false;
@@ -69,12 +69,13 @@ Variable Parser::parseVariable(VariableStorage& var_store, bool member){
     while (m_currentLexar->peek()->type == TokenType::Mul) {
         m_currentLexar->getAndExpectNext(TokenType::Mul);
         var.size = 8;
+        var.kind.pointer_count++;
     }
     m_currentLexar->getAndExpectNext(TokenType::ID);
     if (strct) {
         std::string struct_name = (*tkn)->string_value;
         Variable new_var = initStruct(type_name, struct_name);
-        if (var.size == 8) new_var.size = 8;
+        if (var.kind.pointer_count > 0) new_var.size = 8;
         var = new_var;
     } else if (!member) {
         current_offset += var.size;
@@ -98,7 +99,7 @@ Variable Parser::parseVariable(VariableStorage& var_store, bool member){
     var_store.push_back(var);
 
 
-    return var;
+    return var_store[var_store.size() - 1];
 }
 Program* Parser::parse() {
     tkn = &m_currentLexar->currentToken;
@@ -134,14 +135,19 @@ Program* Parser::parse() {
     return &m_program;
 
 }
+Struct& Parser::get_struct_from_name(std::string name) {
+    for (auto& strct_ : m_program.struct_storage) {
+        if (strct_.name == name) return strct_;
+    }
+    TODO("struct not found");
+}
 Variable Parser::initStruct(std::string type_name, std::string struct_name) {
     //default
     int strct_offset = 0;
     Struct* strct = nullptr;
+
+    strct = &get_struct_from_name(type_name);
     
-    for (auto& strct_ : m_program.struct_storage) {
-        if (strct_.name == type_name) strct = &strct_;
-    }
     if (strct == nullptr) TODO("trying to access a struct that doesn't exist");
     Variable struct_var = {.type = Type::Struct_t, .name = struct_name, .size = strct->size, ._type_name = type_name};
     current_offset += strct->size;
@@ -186,7 +192,7 @@ void Parser::parseStructDeclaration() {
             m_currentLexar->getNext();
             continue;
         }
-        auto var = parseVariable(current_struct.var_storage, true);
+        auto& var = parseVariable(current_struct.var_storage, true);
         var.offset = current_struct.size;
         current_struct.size += var.size;
         m_currentLexar->getAndExpectNext(TokenType::SemiColon);
@@ -656,10 +662,12 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         return {var, ret_lvalue};
     }
     if ((*tkn)->type == TokenType::And) {
+        Loc loc = (*tkn)->loc;
         m_currentLexar->getNext();
         data = parsePrimaryExpression();
         auto &[var, lvalue] = data;
-        var.deref_count -= 1;
+        if (!lvalue) ERROR(loc, "cannot refernce a non lvalue");
+        var.deref_count = -1;
         return {var, ret_lvalue};
     }
     current_module_prefix = "";
@@ -678,6 +686,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         struct_func_prefix += "___";
         this_ptr = strct;
         this_ptr.deref_count = -1;
+        this_ptr.kind.pointer_count += 1;
 
         m_currentLexar->getAndExpectNext(TokenType::Dot);
         m_currentLexar->getAndExpectNext(TokenType::ID);
@@ -698,12 +707,19 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             std::println("{}",(*tkn)->string_value);
             TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
             return {var, true};
+
         }else if (variable_exist_in_storage(name, m_currentFunc->local_variables)) {
             var = get_var_from_name(name, m_currentFunc->local_variables);
             ret_lvalue = true;
             return {var, ret_lvalue};
+        }else if (this_ptr.type != Type::Void_t) {
+            auto strct = get_struct_from_name(this_ptr._type_name);
+            auto var_ = get_var_from_name((*tkn)->string_value, strct.var_storage);
+            auto temp = make_temp_var(var_.type, var_.size);
+            m_currentFunc->body.push_back({Op::DEREF_OFFSET, {var_.offset, this_ptr, temp}});
+            return {temp, false};
         } else {
-            TODO(f("ERROR: variable `{}` at {}:{}:{} wasn't found", (*tkn)->string_value, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
+            TODO(f("ERROR: variable `{}` at {}:{}:{} wasn't found", name, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
         }
     }
 
