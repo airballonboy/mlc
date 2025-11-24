@@ -137,14 +137,15 @@ Program* Parser::parse() {
 Variable Parser::initStruct(std::string type_name, std::string struct_name) {
     //default
     int strct_offset = 0;
-    Struct& strct = m_program.struct_storage[0];
+    Struct* strct = nullptr;
     
     for (auto& strct_ : m_program.struct_storage) {
-        if (strct_.name == type_name) strct = strct_;
+        if (strct_.name == type_name) strct = &strct_;
     }
-    Variable struct_var = {.type = Type::Struct_t, .name = struct_name, .size = strct.size, ._type_name = type_name};
-    current_offset += strct.size;
-    for (auto var : strct.var_storage) {
+    if (strct == nullptr) TODO("trying to access a struct that doesn't exist");
+    Variable struct_var = {.type = Type::Struct_t, .name = struct_name, .size = strct->size, ._type_name = type_name};
+    current_offset += strct->size;
+    for (auto var : strct->var_storage) {
         var.offset = current_offset - strct_offset;
         std::string orig = var.name;
         var.name = struct_name + "___" + orig;
@@ -159,7 +160,9 @@ static size_t current_struct_id = 1;
 void Parser::parseStructDeclaration() {
     tkn = &m_currentLexar->currentToken;
     std::string struct_name = "";
-    Struct current_struct{};
+    size_t struct_index = m_program.struct_storage.size();
+    m_program.struct_storage.push_back({});
+    Struct& current_struct = m_program.struct_storage[struct_index];
     current_struct.id = current_struct_id++;
     
     m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::OCurly});
@@ -171,6 +174,18 @@ void Parser::parseStructDeclaration() {
     TypeIds.emplace(struct_name, Type::Struct_t);
     current_struct.name = struct_name;
     while ((*tkn)->type != TokenType::CCurly) {
+        if ((*tkn)->type == TokenType::Func) {
+            size_t func_index = m_program.func_storage.size();
+            parseFunction(true, current_struct);
+            auto& member_func = m_program.func_storage[func_index];
+            member_func.name = struct_name + "___" + member_func.name;
+            Variable this_pointer = {.type = Type::Struct_t, .name = "this", .offset = 8, .size = 8, ._type_name = struct_name};
+            member_func.arguments.emplace(member_func.arguments.begin(), this_pointer);
+            member_func.arguments_count++;
+
+            m_currentLexar->getNext();
+            continue;
+        }
         auto var = parseVariable(current_struct.var_storage, true);
         var.offset = current_struct.size;
         current_struct.size += var.size;
@@ -198,7 +213,6 @@ void Parser::parseStructDeclaration() {
 #endif
     }
     
-    m_program.struct_storage.push_back(current_struct);
 }
 void Parser::parseModuleDeclaration() {
     m_currentLexar->getAndExpectNext(TokenType::ID);
@@ -363,7 +377,7 @@ void Parser::parseModulePrefix(){
         m_currentLexar->getAndExpectNext(TokenType::ColonColon);
     }
 }
-Func Parser::parseFunction(){
+Func Parser::parseFunction(bool member, Struct parent){
     tkn = &m_currentLexar->currentToken;
     current_offset = 0;
     Func func;
@@ -377,6 +391,10 @@ Func Parser::parseFunction(){
     func.name = current_module_prefix + m_currentLexar->currentToken->string_value;
     current_module_prefix = "";
 
+    if (member) {
+        func.local_variables.push_back({.type = Type::Struct_t, .name = "this", .offset = 8, .size = 8, ._type_name = parent.name});
+        current_offset += 8;
+    }
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
         func.local_variables.push_back(parseVariable(func.arguments));
@@ -649,17 +667,28 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         parseModulePrefix();
         m_currentLexar->getAndExpectNext(TokenType::ID);
     }
-    if (m_currentLexar->peek()->type == TokenType::Dot) {
-        current_module_prefix += (*tkn)->string_value;
-        current_module_prefix += "___";
+    Variable this_ptr = {.type = Type::Void_t};
+    std::string struct_prefix{};
+    std::string struct_func_prefix{};
+    while (m_currentLexar->peek()->type == TokenType::Dot) {
+        struct_prefix += (*tkn)->string_value;
+        struct_prefix += "___";
+        auto strct = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
+        struct_func_prefix += strct._type_name;
+        struct_func_prefix += "___";
+        this_ptr = strct;
+        this_ptr.deref_count = -1;
+
         m_currentLexar->getAndExpectNext(TokenType::Dot);
         m_currentLexar->getAndExpectNext(TokenType::ID);
     }
-    std::string name = current_module_prefix + m_currentLexar->currentToken->string_value;
+    std::string name      = current_module_prefix + struct_prefix      + m_currentLexar->currentToken->string_value;
+    std::string func_name = current_module_prefix + struct_func_prefix + m_currentLexar->currentToken->string_value;
     if ((*tkn)->type == TokenType::ID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
-            auto& func = get_func_from_name(name, m_program.func_storage);
-            parseFuncCall();
+            if (!function_exist_in_storage(func_name, m_program.func_storage)) {std::println("{}", func_name);TODO("func doesn't exist");}
+            auto& func = get_func_from_name(func_name, m_program.func_storage);
+            parseFuncCall(func, this_ptr);
             var = make_temp_var(func.return_type, variable_size_bytes(func.return_type));
             if (eq)
                 m_currentFunc->body.push_back({Op::STORE_RET, {var}});
@@ -816,14 +845,10 @@ std::tuple<Variable, bool> Parser::parseExpression(){
     return parseCondition(0);
 }
 
-void Parser::parseFuncCall(){
-    std::string func_name = current_module_prefix + m_currentLexar->currentToken->string_value;
-
-    // TODO: currently uncommented but not fully working because i don't have variadic functions
-    if (!function_exist_in_storage(func_name, m_program.func_storage)) {std::println("{}", func_name);TODO("func doesn't exist");}
-
+void Parser::parseFuncCall(Func func, Variable this_ptr){
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
+    if (this_ptr.type != Type::Void_t) args.push_back(this_ptr);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
         m_currentLexar->getNext();
         if (eq) {
@@ -838,7 +863,7 @@ void Parser::parseFuncCall(){
         }
     }
     m_currentLexar->getAndExpectNext(TokenType::CParen);
-    m_currentFunc->body.push_back({Op::CALL, {func_name, args}});
+    m_currentFunc->body.push_back({Op::CALL, {func.name, args}});
 
     m_currentFuncStorage = &m_program.func_storage;
     current_module_prefix = "";

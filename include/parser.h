@@ -8,7 +8,7 @@ class Parser {
 public:
     Parser(Lexar* lexar);
     Program* parse();
-    Func parseFunction();
+    Func parseFunction(bool member = false, Struct parent = {});
     Variable parseVariable(VariableStorage& var_store, bool member = false);
     Variable parseArgument();
     void     parseModuleDeclaration();
@@ -24,7 +24,7 @@ public:
     std::tuple<Variable, bool> parseAdditiveExpression();
     std::tuple<Variable, bool> parseCondition(int min_prec);
     std::tuple<Variable, bool> parseExpression();
-    void     parseFuncCall();
+    void     parseFuncCall(Func func, Variable this_ptr = {Type::Void_t});
     void     parseHash();
 
     Token** tkn;

@@ -1,22 +1,16 @@
 #include <c_std.mlang>
 
-struct vec3 {
-    int x;
-    int y;
-    int z;
-    int zz;
-    int zzz;
+struct CTX {
+    int id;
+    int args;
+    func arg () {
+        CTX that = *this;
+        c_std::printf("called arg %d\n", that.id);
+    }
 }
-func pos(vec3* ve) {
-    vec3 vec = *ve;
-    
-    c_std::printf(" x = %d\n y = %d\n z = %d\n", vec.x, vec.y, vec.z);
-}
+
 func main() {
-    vec3 vec;
-    vec.x = 11221;
-    vec.y = 11231;
-    vec.z = 11241;
-    pos(&vec);
-    c_std::printf(" x = %d\n y = %d\n z = %d\n", vec.x, vec.y, vec.z);
+    CTX ctx;
+    ctx.id = 123;
+    ctx.arg();
 }
