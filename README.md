@@ -13,7 +13,7 @@ $ mkdir build
 $ cd build
 $ cmake ..
 $ make     # or ninja
-$ ./mlc input.mlang [-o output.mlang] [-run]
+$ ./mlc --help
 ```
 ### Windows
 ```console
@@ -21,5 +21,5 @@ $ mkdir build
 $ cd build
 $ cmake ..
 $ ninja   # or open project in visual studio
-$ ./mlc.exe input.mlang [-o output.mlang] [-run]
+$ .\mlc.exe --help
 ```

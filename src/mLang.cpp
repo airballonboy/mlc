@@ -73,10 +73,18 @@ int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
 std::string programName;
 std::string output_path;
 
+std::unordered_map<std::string, Platform> PLATFORMS = {
+    {"gnu_x64_64", Platform::gnu_asm_86_64},
+    {"ir",         Platform::ir},
+};
+void print_platforms() {
+    std::println("platforms");
+    for (auto plat : PLATFORMS) {
+        std::println("  {:8}", plat.first);
+    }
+}
 void print_help_message() {
-    mlog::error("PROGRAM: ", "incorrect usage");
-    mlog::error("PROGRAM: ", "correct usage is");
-    mlog::log("   ", mlog::Blue, f("{} input.mlang [options]", programName).c_str());
+    mlog::log("Usage: ", mlog::Blue, f("{} input.mlang [options]", programName).c_str());
     println("\noptions:");
     for (auto& flag: FLAG_BASE::flags) {
         if (flag->name == "--help") continue;
@@ -84,13 +92,14 @@ void print_help_message() {
     }
 }
 
-Flag<bool>        help_flag2   ("--help", "");
-Flag<bool>        help_flag1   ("-h"    , "[-h] [--help]   prints this message");
-Flag<bool>        run_flag     ("-run"  , "[-run]          runs the program after compilation");
-Flag<std::string> output_flag  ("-o"    , "[-o executable] outputs the program into the name provided");
-Flag<std::string> platform_flag("-t"    , "[-t platform]   chooses which platform to compile to");
+Flag<bool>                     help_flag2    ("--help", "");
+Flag<bool>                     help_flag1    ("-h"    , "[-h] [--help]    prints this message");
+Flag<bool>                     run_flag      ("-run"  , "[-run]           runs the program after compilation");
+Flag<std::string>              output_flag   ("-o"    , "[-o executable]  outputs the program into the name provided");
+Flag<std::string>              platform_flag ("-t"    , "[-t platform]    chooses which platform to compile to");
+Flag<std::vector<std::string>> include_flag  ("-I"    , "[-I include_dir] add a directory to included directories");
 
-// should save token id in the token
+// TODO: should save token id in the token
 
 int main(int argc, char* argv[])
 {
@@ -98,15 +107,41 @@ int main(int argc, char* argv[])
     Platform platform = Platform::gnu_asm_86_64;
     programName = shift_args(&argc, &argv);
     auto args = FLAG_BASE::parse_flags(argc, argv);
+
     if (argc == 0) {
-        print_help_message();
-        exit(1);
-    }
-    if (help_flag1.exists || help_flag2.exists) {
+        mlog::error("PROGRAM: ", "incorrect usage");
+        mlog::error("PROGRAM: ", "correct usage is");
         print_help_message();
         exit(1);
     }
 
+    if (help_flag1.exists || help_flag2.exists) {
+        print_help_message();
+        exit(1);
+    }
+    if (run_flag.exists) {
+        run = *run_flag.value;
+    }
+    if (output_flag.exists) {
+        output_path = *output_flag.value;
+    }
+    if (platform_flag.exists) {
+        if (*platform_flag.value == "list") {
+            print_platforms();
+            exit(0);
+        } else if (PLATFORMS.contains(*platform_flag.value)) {
+            platform = PLATFORMS.at(*platform_flag.value);
+        } else {
+            mlog::error("PROGRAM: ", "platform wasn't found");
+            exit(1);
+        }
+    }
+    if (include_flag.exists) {
+        for (auto& path : *include_flag.value) {
+            ctx.includePaths.push_back(path);
+        }
+    }
+    
     std::string inputFile = std::string(shift_args(args));
 
     std::filesystem::path inputFilePath(inputFile);
@@ -121,6 +156,7 @@ int main(int argc, char* argv[])
     #endif
     // Should add the libmlang path to here
     ctx.includePaths.push_back(".");
+
     #ifdef WIN32
     ctx.includePaths.push_back("D:\\ahmed\\dev\\cpp\\mlc\\test");
     ctx.includePaths.push_back("D:\\ahmed\\dev\\cpp\\mlc\\mlang-std");
@@ -128,6 +164,7 @@ int main(int argc, char* argv[])
     ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/test");
     ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/mlang-std");
     #endif
+
     if (!std::filesystem::exists(build_path)) {
         if (std::filesystem::create_directory(build_path)) {
             println("Directory created: {}", build_path);
@@ -142,31 +179,6 @@ int main(int argc, char* argv[])
         println("Directory already exists: {}", build_path);
     }
 
-    if (run_flag.exists) {
-        run = *run_flag.value;
-    }
-    if (output_flag.exists) {
-        output_path = *output_flag.value;
-    }
-    if (platform_flag.exists) {
-        if(*platform_flag.value == "gnu_x86_64") platform = Platform::gnu_asm_86_64;
-        if(*platform_flag.value == "ir")         platform = Platform::ir;
-    }
-
-    //    }else if (args[i] == "-I") {
-    //        if (i+1 < args.size()) {
-    //            ctx.includePaths.push_back(args[++i]);
-    //        }else {
-    //            println(stderr, "-I requires search path for includes, imports, libs and binarys after it");
-    //            exit(1);
-    //        }
-    //    }else if (args[i] == "-t") {
-    //        if (i+1 < args.size()) {
-    //            std::string_view plat_name = args[++i];
-    //        }else {
-    //            println(stderr, "-t requires platform name after it");
-    //            exit(1);
-    //        }
 
 	auto lexar = Lexar(readFileToString(inputFile), inputFile);
 
