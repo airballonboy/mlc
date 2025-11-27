@@ -291,8 +291,9 @@ struct Instruction {
 };
 
 struct Kind {
-    size_t pointer_count;
-    size_t array_count;
+    size_t  pointer_count = 0;
+    int64_t deref_offset  = -1;
+    size_t  array_count   = 0;
     // TODO: add a vector of array data
 };
 

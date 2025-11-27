@@ -1,16 +1,47 @@
 #include <c_std.mlang>
 
 struct CTX {
-    int id;
-    int count;
+    int i1;
+    int i2;
+    int i3;
+    int i4;
+    int i5;
+    int i6;
+    int i7;
+    int i8;
     func member () {
-        c_std::printf("this.id = %d, this.count = %d\n", this.id, this.count);
+        c_std::printf("%d %d %d %d\n", this.i1, this.i2, this.i3, this.i4);
+        c_std::printf("%d %d %d %d\n", this.i5, this.i6, this.i7, this.i8);
     }
+}
+struct vec4 {
+    int x;
+    int y;
+    int w;
+    int h;
+    int z;
+    int zz;
+}
+func vec_add(vec4 v) {
+    c_std::printf("x = %d, y = %d, w = %d, h = %d, zz = %d\n", v.x, v.y, v.w, v.h, v.zz);
 }
 
 func main() {
     CTX ctx;
-    ctx.id = 123;
-    ctx.count = 1222;
-    ctx.member();
+    ctx.i1 = 1;
+    ctx.i2 = 2;
+    ctx.i3 = 3;
+    ctx.i4 = 4;
+    ctx.i5 = 5;
+    ctx.i6 = 6;
+    ctx.i7 = 7;
+    ctx.i8 = 8;
+    vec4 vec;
+    vec.x = 12;
+    vec.y = 234;
+    vec.w = 1233;
+    vec.h = 8233;
+    vec.zz = 833267;
+    vec_add(vec);
+    //ctx.member();
 }

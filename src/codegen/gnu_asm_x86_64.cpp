@@ -98,17 +98,14 @@ void gnu_asm::compileFunction(Func func) {
     output.appendf("{}:\n", func.name);
     output.appendf("    pushq %rbp\n");
     output.appendf("    movq %rsp, %rbp\n");
+    output.appendf("    pushq %rbx\n");
+    output.appendf("    pushq %r15\n");
     func.stack_size = ((func.stack_size + 15) & ~15) + 32;
     output.appendf("    subq ${}, %rsp\n", func.stack_size);
 
     for (int i = 0; i < func.arguments_count; i++) {
         if (i < std::size(arg_register)) {
-            //if (func.arguments[i].type == Type::Int32_t)
             move_reg_to_var(arg_register[i], func.arguments[i]);       
-            //else {
-            //    move_reg_to_reg(arg_register[i]._64, Rax);
-            //    move_reg_to_var(Rax, func.arguments[i]);
-            //}
         }
     }
 
@@ -120,6 +117,8 @@ void gnu_asm::compileFunction(Func func) {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
                 Variable arg = std::any_cast<Variable>(inst.args[0]);
                 move_var_to_reg(arg, Rax);
+                output.appendf("    popq %r15\n");
+                output.appendf("    popq %rbx\n");
                 output.appendf("    movq %rbp, %rsp\n");
                 output.appendf("    popq %rbp\n");
                 output.appendf("    ret\n");
@@ -155,7 +154,7 @@ void gnu_asm::compileFunction(Func func) {
                 Variable strct  = std::any_cast<Variable>(inst.args[1]);
                 Variable var    = std::any_cast<Variable>(inst.args[2]);
                 move_var_to_reg(strct, Rax);
-                output.appendf("    {} {}({}), {}\n", INST_SIZE("mov", var.size), offset, REG_SIZE(Rax, strct.size), REG_SIZE(Rax, var.size));
+                output.appendf("    {} {}({}), {}\n", INST_SIZE("mov", var.size), offset, Rax._64, REG_SIZE(Rax, var.size));
                 move_reg_to_var(Rax, var);
             }break;
             case Op::INIT_STRING: {
@@ -353,6 +352,8 @@ void gnu_asm::compileFunction(Func func) {
     }
     if (!returned) {
         move_var_to_reg({.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 8}, Rax);
+        output.appendf("    popq %r15\n");
+        output.appendf("    popq %rbx\n");
         output.appendf("    movq %rbp, %rsp\n");
         output.appendf("    popq %rbp\n");
         output.appendf("    ret\n");
@@ -362,12 +363,27 @@ void gnu_asm::compileFunction(Func func) {
 void gnu_asm::call_func(std::string func_name, VariableStorage args) {
     if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
 
-    for (size_t i = 0; i < args.size() && i < std::size(arg_register); i++) {
-        if (args[i].type == Type::Int32_t)
-            deref_var_to_reg(args[i], arg_register[i]);
-        else 
-            deref_var_to_reg(args[i], arg_register[i]);
-
+    for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register); i++, j++) {
+        if (args[i].type == Type::Struct_t) {
+            if (args[i].size <= 8) {
+                deref_var_to_reg(args[i], arg_register[j]);
+            } else if (args[i].size <= 16) {
+                size_t orig_size = args[i].size;
+                args[i].size = 8;
+                deref_var_to_reg(args[i], arg_register[j++]);
+                args[i].size = orig_size-8;
+                args[i].offset -= 8;
+                deref_var_to_reg(args[i], arg_register[j]);
+            } else {
+                args[i].deref_count = -1;
+                deref_var_to_reg(args[i], arg_register[j]);
+            }
+        } else {
+            if (args[i].deref_count == 0)
+                move_var_to_reg(args[i], arg_register[j]);
+            else 
+                deref_var_to_reg(args[i], arg_register[j]);
+        }
     }
 
     output.appendf("    call {}\n", func_name);
@@ -377,6 +393,7 @@ void gnu_asm::deref_var_to_reg(Variable arg, Register reg) {
         output.appendf("    leaq -{}(%rbp), {}\n", arg.offset, reg._64);
         return;
     }
+    arg.kind = {};
     move_var_to_reg(arg, reg);
     while (arg.deref_count > 0) {
         output.appendf("    movq ({}), {}\n", reg._64, reg._64);
@@ -394,9 +411,22 @@ void gnu_asm::move_var_to_reg(Variable arg, Register reg) {
         output.appendf("    leaq {}(%rip), {}\n", arg.name, reg_name);
     else if (arg.type == Type::Int_lit)
         output.appendf("    {} ${}, {}\n", MOV_SIZE(arg.size), std::any_cast<int64_t>(arg.value), reg_name);
-    else if (arg.type == Type::Void_t)
+    else if (arg.type == Type::Void_t) {
         output.appendf("    movq $0, {}\n", reg._64);
-    else 
+    } else if (arg.kind.deref_offset != -1) {
+        arg.deref_count = arg.kind.pointer_count - 1;
+        size_t orig_size = arg.size;
+        arg.size = 8;
+        if (reg._64 != Rbx._64) {
+            deref_var_to_reg(arg, Rbx);
+            arg.size = orig_size;
+            output.appendf("    {} {}({}), {}\n", INST_SIZE("mov", arg.size), arg.kind.deref_offset, Rbx._64, reg_name);
+        }else { 
+            deref_var_to_reg(arg, Rax);
+            arg.size = orig_size;
+            output.appendf("    {} {}({}), {}\n", INST_SIZE("mov", arg.size), arg.kind.deref_offset, Rax._64, reg_name);
+        }
+    } else 
         output.appendf("    {} -{}(%rbp), {}\n", MOV_SIZE(arg.size), arg.offset, reg_name);
 }
 void gnu_asm::move_reg_to_var(Register reg, Variable arg) {
@@ -407,28 +437,50 @@ void gnu_asm::move_reg_to_var(Register reg, Variable arg) {
     else if (arg.type == Type::Void_t) {
         std::println("reg {}, var {}", REG_SIZE(reg, arg.size), arg.name);
         TODO("can't move reg to void");
+    } else if (arg.kind.deref_offset != -1) {
+        arg.deref_count = arg.kind.pointer_count - 1;
+        size_t orig_size = arg.size;
+        arg.size = 8;
+        if (reg._64 != Rbx._64) {
+            deref_var_to_reg(arg, Rbx);
+            arg.size = orig_size;
+            output.appendf("    {} {}, {}({})\n", INST_SIZE("mov", arg.size), REG_SIZE(reg, arg.size), arg.kind.deref_offset, Rbx._64);
+        }else { 
+            deref_var_to_reg(arg, Rax);
+            arg.size = orig_size;
+            output.appendf("    {} {}, {}({})\n", INST_SIZE("mov", arg.size), REG_SIZE(reg, arg.size), arg.kind.deref_offset, Rax._64);
+        }
     } else if (arg.deref_count > 0) {
         move_var_to_reg(arg, Rbx);
         while (arg.deref_count > 1) {
             output.appendf("    movq ({}), {}", Rbx._64, Rbx._64);
             arg.deref_count--;
         }
-        output.appendf("    {} {}, ({})\n", MOV_SIZE(arg.size), REG_SIZE(reg, arg.size), REG_SIZE(Rbx, arg.size));
+        output.appendf("    {} {}, ({})\n", MOV_SIZE(arg.size), REG_SIZE(reg, arg.size), Rbx._64);
     } else {
         output.appendf("    {} {}, -{}(%rbp)\n", MOV_SIZE(arg.size), REG_SIZE(reg, arg.size), arg.offset);
     }
 }
 void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
     if (arg1.type == Type::Int_lit) {
-        if (arg2.deref_count > 0) {
+        int64_t int_val = std::any_cast<int64_t>(arg1.value);
+        if (arg2.kind.deref_offset != -1) {
+            //asm("int3");
+            arg2.deref_count = arg2.kind.pointer_count - 1;
+            size_t orig_size = arg2.size;
+            arg2.size = 8;
+            deref_var_to_reg(arg2, Rbx);
+            arg2.size = orig_size;
+            output.appendf("    {} ${}, {}({})\n", INST_SIZE("mov", arg2.size), int_val, arg2.kind.deref_offset, Rbx._64);
+        } else if (arg2.deref_count > 0) {
             move_var_to_reg(arg2, Rbx);
             while (arg2.deref_count > 1) {
                 output.appendf("    movq ({}), {}", Rbx._64, Rbx._64);
                 arg2.deref_count--;
             }
-            output.appendf("    {} ${}, ({})\n", MOV_SIZE(arg2.size), std::any_cast<int64_t>(arg1.value), REG_SIZE(Rbx, arg2.size));
+            output.appendf("    {} ${}, ({})\n", MOV_SIZE(arg2.size), int_val, REG_SIZE(Rbx, arg2.size));
         } else {
-            output.appendf("    {} ${}, -{}(%rbp)\n",  MOV_SIZE(arg2.size), std::any_cast<int64_t>(arg1.value), arg2.offset);
+            output.appendf("    {} ${}, -{}(%rbp)\n",  MOV_SIZE(arg2.size), int_val, arg2.offset);
         }
     } else if (arg1.type == Type::Struct_t || arg2.type == Type::Struct_t) {
         if (arg1._type_name != arg2._type_name) TODO(f("error trying assigning different structers to each other, {} {}", arg1._type_name, arg2._type_name));
@@ -440,7 +492,6 @@ void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
                 found = true;
                 break;
             }
-            std::println("{} {}", strct.name, arg1._type_name);
         }
         if (!found) TODO("struct not found");
         if (arg1.deref_count > 0)
@@ -453,12 +504,16 @@ void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
             output.appendf("    lea  -{}(%rbp), %rdi\n", arg2.offset);
         output.appendf("    movq ${}, %rcx\n", real_struct.size);
         output.appendf("    rep movsb\n");
-        //for (auto& member : real_struct.var_storage) {
-        //    move_var_to_var(
-        //        {.type = member.type, .offset = arg1.offset - member.offset, .size = member.size},
-        //        {.type = member.type, .offset = arg2.offset - member.offset, .size = member.size}
-        //    );
-        //}
+    } else if (arg2.kind.deref_offset != -1) {
+        //asm("int3");
+        deref_var_to_reg(arg1, Rax);
+        auto temp = arg2;
+        temp.deref_count = arg2.kind.pointer_count - 1;
+        size_t orig_size = arg2.size;
+        arg2.size = 8;
+        deref_var_to_reg(temp, Rbx);
+        arg2.size = orig_size;
+        output.appendf("    {} {}, {}({})\n", INST_SIZE("mov", arg2.size), REG_SIZE(Rax, arg2.size), arg2.kind.deref_offset, Rbx._64);
     } else {
         deref_var_to_reg(arg1, Rax);
         move_reg_to_var(Rax, arg2);
