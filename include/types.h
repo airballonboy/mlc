@@ -93,6 +93,8 @@ enum class Op {
 
 inline std::unordered_map<std::string, Type> TypeIds = {
     {"void"  , Type::Void_t},
+    {"char"  , Type::Char_t},
+    {"int8"  , Type::Int8_t},
     {"int16" , Type::Int16_t},
     {"int"   , Type::Int32_t},
     {"int32" , Type::Int32_t},
