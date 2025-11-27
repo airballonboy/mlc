@@ -465,7 +465,6 @@ void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
     if (arg1.type == Type::Int_lit) {
         int64_t int_val = std::any_cast<int64_t>(arg1.value);
         if (arg2.kind.deref_offset != -1) {
-            //asm("int3");
             arg2.deref_count = arg2.kind.pointer_count - 1;
             size_t orig_size = arg2.size;
             arg2.size = 8;
@@ -505,7 +504,6 @@ void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
         output.appendf("    movq ${}, %rcx\n", real_struct.size);
         output.appendf("    rep movsb\n");
     } else if (arg2.kind.deref_offset != -1) {
-        //asm("int3");
         deref_var_to_reg(arg1, Rax);
         auto temp = arg2;
         temp.deref_count = arg2.kind.pointer_count - 1;

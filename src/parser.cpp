@@ -53,17 +53,27 @@ Parser::Parser(Lexar* lexar){
 }
 Variable& Parser::parseVariable(VariableStorage& var_store, bool member){
     Variable var{};
-    std::string type_name;
+    std::string type_name{};
     bool strct = false;
-    if (TypeIds.find((*tkn)->string_value) == TypeIds.end()) {
+    if ((*tkn)->type != TokenType::ID && (*tkn)->type != TokenType::TypeID) {
         m_currentLexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
     }
-    if (TypeIds.find((*tkn)->string_value) != TypeIds.end() && TypeIds.at((*tkn)->string_value) == Type::Struct_t) {
-        type_name = (*tkn)->string_value;
-        strct = true;
+    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        current_module_prefix = "";
+        parseModulePrefix();
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+        type_name = current_module_prefix + m_currentLexar->currentToken->string_value;
+        current_module_prefix = "";
     } else {
-        var.type = TypeIds.at(m_currentLexar->currentToken->string_value);
+        type_name = (*tkn)->string_value;
+    }
+    if (TypeIds.contains(type_name) && TypeIds.at(type_name) == Type::Struct_t) {
+        strct = true;
+    } else if (TypeIds.contains((*tkn)->string_value)) {
+        var.type = TypeIds.at((*tkn)->string_value);
         var.size = variable_size_bytes(var.type);
+    } else {
+        ERROR((*tkn)->loc, "type was not found");
     }
 
     while (m_currentLexar->peek()->type == TokenType::Mul) {
@@ -127,7 +137,8 @@ Program* Parser::parse() {
                 m_currentLexar->getNext();
             }break;//TokenType::Struct
             default: {
-                std::println(stderr, "unimplemented type of {} at {}:{}:{}", printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
+                std::println(stderr, "unimplemented type of {} at {}:{}:{}",
+                             printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
                 m_currentLexar->getNext();
 
             }break;
@@ -165,19 +176,22 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name) {
 }
 static size_t current_struct_id = 1;
 void Parser::parseStructDeclaration() {
+    m_currentLexar->getAndExpectNext(TokenType::ID);
     tkn = &m_currentLexar->currentToken;
-    std::string struct_name = "";
+    current_module_prefix = "";
+    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        parseModulePrefix();
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+    }
+    std::string struct_name = current_module_prefix + m_currentLexar->currentToken->string_value;
+    current_module_prefix = "";
     size_t struct_index = m_program.struct_storage.size();
     m_program.struct_storage.push_back({});
     Struct& current_struct = m_program.struct_storage[struct_index];
     current_struct.id = current_struct_id++;
     
-    m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::OCurly});
+    m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
-    if ((*tkn)->type == TokenType::ID) {
-        struct_name = (*tkn)->string_value;
-        m_currentLexar->getAndExpectNext(TokenType::OCurly);
-    }
     TypeIds.emplace(struct_name, Type::Struct_t);
     current_struct.name = struct_name;
     while ((*tkn)->type != TokenType::CCurly) {
@@ -574,7 +588,20 @@ void Parser::parseStatement(){
         }break;//TokenType::While
         case TokenType::ID:
         case TokenType::TypeID: {
-            if (TypeIds.find((*tkn)->string_value) == TypeIds.end()) goto defau;
+            std::string type_name = (*tkn)->string_value;
+            size_t current_point = m_currentLexar->currentTokenIndex;
+            if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+                current_module_prefix = "";
+                parseModulePrefix();
+                m_currentLexar->getAndExpectNext(TokenType::ID);
+                type_name = current_module_prefix + m_currentLexar->currentToken->string_value;
+                current_module_prefix = "";
+            }
+            m_currentLexar->currentTokenIndex = current_point - 1;
+            m_currentLexar->getNext();
+            if (!TypeIds.contains(type_name)) {
+                goto defau;
+            }
             auto var = parseVariable(m_currentFunc->local_variables);
 
             // TODO: factor out to a function
@@ -740,7 +767,6 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         auto strct = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
         struct_func_prefix += strct._type_name;
         struct_func_prefix += "___";
-        //asm("int3");
         this_ptr = strct;
         this_ptr.deref_count = -1;
         this_ptr.kind.pointer_count += 1;

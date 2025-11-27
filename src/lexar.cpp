@@ -179,7 +179,7 @@ Lexar::Lexar(const std::string& source, const std::string& path){
 
     m_tokens.push_back({.type = TokenType::EndOfFile, .loc = m_currentLoc});
 
-    currentToken = &m_tokens.at(m_currentTokenIndex);
+    currentToken = &m_tokens.at(currentTokenIndex);
     //for (const auto& tkn : m_tokens) {
     //    if (tkn.type == TokenType::IntLit)
     //        std::println("{}:{:03}:{:03} {:^10} => {}", tkn.loc.inputPath, tkn.loc.line, tkn.loc.offset, tokenToString(tkn), tkn.int_value);
@@ -207,7 +207,7 @@ void Lexar::skipSpaces(){
 void Lexar::pushtokensaftercurrent(Lexar* l){
     if (l->m_tokens.back().type == TokenType::EndOfFile)
         l->m_tokens.pop_back();
-    this->pushTokensAt(m_currentTokenIndex+1, l);    
+    this->pushTokensAt(currentTokenIndex+1, l);    
 }
 void Lexar::pushTokensAt(size_t index, Lexar* l) {
     if (index > this->m_tokens.size()) TODO("ERROR: trying to push a vector of tokens at invalid index");
@@ -216,7 +216,7 @@ void Lexar::pushTokensAt(size_t index, Lexar* l) {
     for (auto& t : l->m_tokens) ts.push_back(t); 
     for (;index < m_tokens.size(); index++) ts.push_back(m_tokens[index]); 
     m_tokens = ts;
-    currentToken = &m_tokens.at(m_currentTokenIndex);
+    currentToken = &m_tokens.at(currentTokenIndex);
 }
 std::vector<Token> Lexar::getTokens() {
     return m_tokens;
@@ -227,8 +227,8 @@ void Lexar::getNext(){
         std::println("EndOfFile REACHED");
         return;
     }
-    m_currentTokenIndex++;
-    currentToken = &m_tokens.at(m_currentTokenIndex);// = &m_tokens.at(++m_currentTokenIndex);
+    currentTokenIndex++;
+    currentToken = &m_tokens.at(currentTokenIndex);// = &m_tokens.at(++m_currentTokenIndex);
 }
 void Lexar::expectNext(TokenType tt){
     if (peek()->type == tt) {
@@ -300,9 +300,9 @@ void Lexar::getAndExpectNext(std::vector<TokenType> tts){
 Token* Lexar::peek(){
     if (currentToken->type == TokenType::EndOfFile) {
         std::println("EndOfFile REACHED");
-        return &m_tokens[m_currentTokenIndex];
+        return &m_tokens[currentTokenIndex];
     }
-    return &m_tokens[m_currentTokenIndex+1];
+    return &m_tokens[currentTokenIndex+1];
 }
 
 
