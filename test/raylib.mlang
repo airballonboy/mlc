@@ -16,6 +16,6 @@ struct rl::Color {
 #extern func rl::set_target_fps()                    [link_name = "SetTargetFPS"];
 #extern func rl::draw_fps(int x, int y)              [link_name = "DrawFPS"];
 #extern func rl::clear_background(rl::Color color)   [link_name = "ClearBackground"];
-#extern func rl::get_color(int hex) -> rl::Color     [link_name = "GetColor"];
+#extern func rl::get_color(int hex) -> int           [link_name = "GetColor"];
 #extern func rl::draw_rectangle(int x, int y, int width, int height, int color) [link_name = "DrawRectangle"];
 #extern func rl::draw_circle(int x, int y, int radius, int color) [link_name = "DrawCircle"];

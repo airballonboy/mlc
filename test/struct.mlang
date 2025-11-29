@@ -1,47 +1,16 @@
 #include <c_std.mlang>
 
-struct CTX {
-    int i1;
-    int i2;
-    int i3;
-    int i4;
-    int i5;
-    int i6;
-    int i7;
-    int i8;
-    func member () {
-        c_std::printf("%d %d %d %d\n", this.i1, this.i2, this.i3, this.i4);
-        c_std::printf("%d %d %d %d\n", this.i5, this.i6, this.i7, this.i8);
-    }
+struct vec3 {
+    int x = 0;
+    int y = 0;
+    int z = 0;
 }
-struct vec4 {
-    int x;
-    int y;
-    int w;
-    int h;
-    int z;
-    int zz;
-}
-func vec_add(vec4 v) {
-    c_std::printf("x = %d, y = %d, w = %d, h = %d, zz = %d\n", v.x, v.y, v.w, v.h, v.zz);
+func vec_print(vec3 v) {
+    c_std::printf("x = %d, y = %d, z = %d\n", v.x, v.y, v.z);
 }
 
 func main() {
-    CTX ctx;
-    ctx.i1 = 1;
-    ctx.i2 = 2;
-    ctx.i3 = 3;
-    ctx.i4 = 4;
-    ctx.i5 = 5;
-    ctx.i6 = 6;
-    ctx.i7 = 7;
-    ctx.i8 = 8;
-    vec4 vec;
-    vec.x = 12;
-    vec.y = 234;
-    vec.w = 1233;
-    vec.h = 8233;
-    vec.zz = 833267;
-    vec_add(vec);
-    //ctx.member();
+    vec3 vec;
+    vec.x = 13;
+    vec_print(vec);
 }

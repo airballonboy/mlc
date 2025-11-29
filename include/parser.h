@@ -17,7 +17,7 @@ public:
     void     parseExtern();
     void     parseStatement();
     void     parseBlock();
-    Variable initStruct(std::string type_name, std::string struct_name);
+    Variable initStruct(VariableStorage& var_store, std::string type_name, std::string struct_name, bool member = false);
     std::tuple<Variable, bool> parsePrimaryExpression();
     std::tuple<Variable, bool> parseUnaryExpression();
     std::tuple<Variable, bool> parseMultiplicativeExpression();
@@ -32,6 +32,7 @@ private:
     Lexar* m_currentLexar;
     Program m_program;
     Func*   m_currentFunc;
+    VariableStorage* m_current_var_store;
     FunctionStorage* m_currentFuncStorage;
 
     bool variable_exist_in_storage(std::string_view varName, const VariableStorage&);
@@ -40,5 +41,5 @@ private:
     std::any  variable_default_value(Type t);
     size_t    variable_size_bytes(Type t);
     Variable& get_var_from_name(std::string_view name, VariableStorage& var_storage);
-    Struct& get_struct_from_name(std::string name);
+    Struct& get_struct_from_name(std::string& name);
 };

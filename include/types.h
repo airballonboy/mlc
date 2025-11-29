@@ -345,6 +345,7 @@ struct Struct {
     size_t id = 0;
     std::string name{};
     VariableStorage var_storage;
+    std::unordered_map<int, Variable> defaults;
     size_t size;
 };
 typedef std::vector<Struct> StructStorage;

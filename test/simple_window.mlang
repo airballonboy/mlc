@@ -4,9 +4,9 @@
 func main() {
     rl::init_window(1200, 675, "hello raylib");
     rl::Color c;
-    c.r = 0xff;
-    c.g = 0x15;
-    c.b = 0x15;
+    c.r = 0x18;
+    c.g = 0x18;
+    c.b = 0x18;
     c.a = 0xff;
     while (!rl::window_should_close()) {
         rl::begin_drawing();

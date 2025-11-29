@@ -92,6 +92,7 @@ void gnu_asm::compileProgram() {
 }
 void gnu_asm::compileFunction(Func func) {
     // if the function doesn't return you make it return 0
+    //asm("int3");
     bool returned = false;
 
     output.appendf(".global {}\n", func.name);
@@ -128,6 +129,7 @@ void gnu_asm::compileFunction(Func func) {
                 Variable var1 = std::any_cast<Variable>(inst.args[0]);
                 Variable var2 = std::any_cast<Variable>(inst.args[1]);
 
+                //asm("int3");
                 if (var1.type != Type::String_lit) {
                     //TODO: add this to parser as warning
                     //if (var2.size < var1.size){
@@ -463,6 +465,7 @@ void gnu_asm::move_reg_to_var(Register reg, Variable arg) {
 }
 void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
     if (arg1.type == Type::Int_lit) {
+        //asm("int3");
         int64_t int_val = std::any_cast<int64_t>(arg1.value);
         if (arg2.kind.deref_offset != -1) {
             arg2.deref_count = arg2.kind.pointer_count - 1;
