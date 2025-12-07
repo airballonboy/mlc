@@ -85,18 +85,11 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member){
     if (strct) {
         std::string struct_name = (*tkn)->string_value;
         Variable new_var{};
-        if (var.kind.pointer_count == 0) {
-            new_var = initStruct(var_store, type_name, struct_name, member);
-            new_var.kind = var.kind;
-        } else {
-            new_var = {
-                .type = Type::Struct_t,
-                .name = struct_name,
-                .size = 8,
-                ._type_name = type_name,
-                .kind = var.kind
-            };
-            current_offset += 8;
+        new_var = initStruct(type_name, struct_name, member);
+        new_var.kind = var.kind;
+        if (var.kind.pointer_count != 0) {
+            current_offset -= new_var.size - 8;
+            new_var.size = 8;
         }
         var = new_var;
     } else {
@@ -164,7 +157,7 @@ Struct& Parser::get_struct_from_name(std::string& name) {
     }
     TODO("struct not found");
 }
-Variable Parser::initStruct(VariableStorage& var_store, std::string type_name, std::string struct_name, bool member) {
+Variable Parser::initStruct(std::string type_name, std::string struct_name, bool member) {
     //default
     int strct_offset = 0;
     Struct* strct = nullptr;
@@ -172,7 +165,8 @@ Variable Parser::initStruct(VariableStorage& var_store, std::string type_name, s
     strct = &get_struct_from_name(type_name); 
 
     if (strct == nullptr) TODO("trying to access a struct that doesn't exist");
-    Variable struct_var = {.type = Type::Struct_t, .name = struct_name, .size = strct->size, ._type_name = type_name};
+    Variable* struct_var = new Variable;
+    *struct_var = {.type = Type::Struct_t, .name = struct_name, .size = strct->size, ._type_name = type_name};
 
     //std::println("struct {} size {}", strct->name, strct->size);
     //std::println("current offset {}", current_offset);
@@ -182,17 +176,18 @@ Variable Parser::initStruct(VariableStorage& var_store, std::string type_name, s
 
     for (size_t i = 0; i < strct->var_storage.size(); i++) {
         auto var = strct->var_storage[i];
-        if (!member)
-            var.offset = current_offset - strct_offset;
-        else 
-            var.offset = current_offset + strct_offset;
-        std::string orig = var.name;
-        var.name = struct_name + "___" + orig;
         if (var.type == Type::Struct_t)
             void(0);//asm("int3");
         else 
             strct_offset += var.size;
-        var_store.push_back(var);
+        if (var.type == Type::Struct_t) {
+            auto strct_ = initStruct(var._type_name, var.name);
+            strct_.parent = new Variable{};
+            *strct_.parent = *struct_var;
+            //wmemcpy((wchar_t*)strct_.parent, (wchar_t*)struct_var, 8);
+            struct_var->members.push_back(strct_);
+        } else
+            struct_var->members.push_back(var);
         //std::println("{} .off {} .size {}", var.name, var.offset, var.size);
 
         if (strct->defaults.contains(i)) {
@@ -208,7 +203,7 @@ Variable Parser::initStruct(VariableStorage& var_store, std::string type_name, s
     if (member)
         current_offset += strct->size;
 
-    return struct_var;
+    return *struct_var;
 }
 static size_t current_struct_id = 1;
 void Parser::parseStructDeclaration() {
@@ -242,10 +237,11 @@ void Parser::parseStructDeclaration() {
                 .type       = Type::Struct_t,
                 .name       = "this", .offset = 8,
                 .size       = 8,
+                .members    = current_struct.var_storage,
                 ._type_name = struct_name,
                 .kind       = {
                     .pointer_count = 1
-                }
+                },
             };
             member_func.arguments.emplace(member_func.arguments.begin(), this_pointer);
             member_func.arguments_count++;
@@ -468,6 +464,7 @@ Func Parser::parseFunction(bool member, Struct parent){
             .type       = Type::Struct_t,
             .name       = "this", .offset = 8,
             .size       = 8,
+            .members    = parent.var_storage,
             ._type_name = parent.name,
             .kind       = {
                 .pointer_count=1
@@ -498,7 +495,7 @@ Func Parser::parseFunction(bool member, Struct parent){
                 continue;
             }
             if (var.size <= 8) {
-                i -= get_struct_from_name(var._type_name).var_storage.size();
+                //i -= get_struct_from_name(var._type_name).var_storage.size();
                 func.arguments.push_back(var);
                 func.local_variables.push_back(var);
                 func.arguments_count++;
@@ -516,7 +513,7 @@ Func Parser::parseFunction(bool member, Struct parent){
                 func.local_variables.push_back(var2);
                 func.arguments_count += 2;
             } else {
-                i -= get_struct_from_name(var._type_name).var_storage.size();
+                //i -= get_struct_from_name(var._type_name).var_storage.size();
                 auto var_ptr = var;
                 var_ptr.kind.pointer_count = 1;
                 var_ptr.size = 8;
@@ -819,7 +816,9 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         m_currentLexar->getAndExpectNext(TokenType::ID);
     }
     Variable this_ptr = {.type = Type::Void_t};
-    std::string struct_prefix{};
+    Variable this_    = {.type = Type::Void_t};
+    size_t this_offset = 0;
+    //std::string struct_prefix{};
     std::string struct_func_prefix{};
     // -----------------------
     //  |             |   |x1|
@@ -829,25 +828,27 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         Variable strct;
         if (this_ptr.type == Type::Void_t) {
             strct = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
-            struct_func_prefix += strct._type_name;
+            struct_func_prefix = strct._type_name;
             struct_func_prefix += "___";
             this_ptr = strct;
+            this_    = strct;
             this_ptr.deref_count = -1;
             this_ptr.kind.pointer_count += 1;
         } else {
-            strct = get_var_from_name((*tkn)->string_value, get_struct_from_name(this_ptr._type_name).var_storage);
+            strct = get_var_from_name((*tkn)->string_value, this_.members);
+            strct.parent = new Variable;
+            *strct.parent = this_;
+            this_    = strct;
+            struct_func_prefix = strct._type_name;
+            struct_func_prefix += "___";
             //struct_prefix += (*tkn)->string_value;
             //struct_prefix += "___";
-            struct_prefix += (*tkn)->string_value;
-            struct_prefix += "___";
-            struct_func_prefix += strct._type_name;
-            struct_func_prefix += "___";
         }
 
         m_currentLexar->getAndExpectNext(TokenType::Dot);
         m_currentLexar->getAndExpectNext(TokenType::ID);
     }
-    std::string name      = current_module_prefix + struct_prefix      + m_currentLexar->currentToken->string_value;
+    std::string name      = current_module_prefix + m_currentLexar->currentToken->string_value;
     std::string func_name = current_module_prefix + struct_func_prefix + m_currentLexar->currentToken->string_value;
     if ((*tkn)->type == TokenType::ID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
@@ -869,18 +870,20 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             ret_lvalue = true;
             return {var, ret_lvalue};
         }else if (this_ptr.type != Type::Void_t) {
-            auto strct = get_struct_from_name(this_ptr._type_name);
-            auto var_ = get_var_from_name(name, strct.var_storage);
-            this_ptr.size = var_.size;
-            this_ptr.type = var_.type;
-            this_ptr.name = var_.name;
-            this_ptr.deref_count = 0;
-            this_ptr.kind.deref_offset = var_.offset;
-            this_ptr.kind.pointer_count -= 1;
-            print_var(this_ptr);
+            //auto strct = get_struct_from_name(this_._type_name);
+            auto var_ = get_var_from_name(name, this_.members);
+            var_.parent = new Variable;
+            *var_.parent = this_;
+            //this_ptr.size = var_.size;
+            //this_ptr.type = var_.type;
+            //this_ptr.name = var_.name;
+            //this_ptr.deref_count = 0;
+            //this_ptr.kind.deref_offset = var_.offset;
+            //this_ptr.kind.pointer_count -= 1;
+            //print_var(this_ptr);
             
 
-            return {this_ptr, true};
+            return {var_, true};
 
             //auto strct = get_struct_from_name(this_ptr._type_name);
             //auto var_ = get_var_from_name((*tkn)->string_value, strct.var_storage);
@@ -1081,8 +1084,8 @@ Variable& Parser::get_var_from_name(std::string_view name, VariableStorage& var_
     for (auto& var : var_storage) {
         if (var.name == name) return var;
     }
-    //asm("int3");
-    std::println("   var.name {}", name);
+    asm("int3");
+    std::println("{} was not found", name);
     ERROR((*tkn)->loc, "");
     TODO("var doesn't exist");
 }

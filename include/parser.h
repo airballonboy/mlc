@@ -17,7 +17,7 @@ public:
     void     parseExtern();
     void     parseStatement();
     void     parseBlock();
-    Variable initStruct(VariableStorage& var_store, std::string type_name, std::string struct_name, bool member = false);
+    Variable initStruct(std::string type_name, std::string struct_name, bool member = false);
     std::tuple<Variable, bool> parsePrimaryExpression();
     std::tuple<Variable, bool> parseUnaryExpression();
     std::tuple<Variable, bool> parseMultiplicativeExpression();

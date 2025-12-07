@@ -292,6 +292,10 @@ struct Instruction {
     std::vector<std::any> args;
 };
 
+// Forward Declared
+struct Variable;
+typedef std::vector<Variable> VariableStorage;
+
 struct Kind {
     size_t  pointer_count = 0;
     int64_t deref_offset  = -1;
@@ -300,17 +304,18 @@ struct Kind {
 };
 
 struct Variable {
-    Type        type;
-    std::string name;
-    std::any    value;
+    Type        type{};
+    std::string name{};
+    std::any    value{};
     // TODO: make this used and add pointers
     int64_t     deref_count = 0;
-    size_t      offset;
-    size_t      size;
+    size_t      offset = 0;
+    size_t      size = 0;
+    Variable* parent = nullptr;
+    VariableStorage members{};
     std::string _type_name;
-    Kind kind;
+    Kind kind{};
 };
-typedef std::vector<Variable> VariableStorage;
 
 struct Func {
     Type return_type = Type::Void_t;

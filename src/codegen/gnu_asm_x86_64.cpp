@@ -3,6 +3,7 @@
 #include "tools/logger.h"
 #include "types.h"
 #include "tools/format.h"
+#include <algorithm>
 #include <any>
 #include <cassert>
 #include <cstdint>
@@ -106,7 +107,7 @@ void gnu_asm::compileFunction(Func func) {
 
     for (int i = 0; i < func.arguments_count; i++) {
         if (i < std::size(arg_register)) {
-            move_reg_to_var(arg_register[i], func.arguments[i]);       
+            mov(arg_register[i], func.arguments[i]);       
         }
     }
 
@@ -117,7 +118,7 @@ void gnu_asm::compileFunction(Func func) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
                 Variable arg = std::any_cast<Variable>(inst.args[0]);
-                move_var_to_reg(arg, Rax);
+                mov(arg, Rax);
                 output.appendf("    popq %r15\n");
                 output.appendf("    popq %rbx\n");
                 output.appendf("    movq %rbp, %rsp\n");
@@ -138,32 +139,32 @@ void gnu_asm::compileFunction(Func func) {
                     //            var1.size, var2.size);
                     //    var1.size = var2.size;
                     //}
-                    move_var_to_var(var1, var2);
-                    //deref_var_to_reg(var1, Rax);
-                    //move_reg_to_var(Rax, var2);
+                    mov(var1, var2);
+                    //mov(var1, Rax);
+                    //mov(Rax, var2);
                 } else {
-                    move_var_to_reg(var2, arg_register[0]);
-                    move_var_to_reg(var1, arg_register[1]);
+                    mov(var2, arg_register[0]);
+                    mov(var1, arg_register[1]);
                     output.appendf("    call strcpy\n");
                 }
             }break;
             case Op::STORE_RET: {
                 Variable var = std::any_cast<Variable>(inst.args[0]);
-                move_reg_to_var(Rax, var);
+                mov(Rax, var);
             }break;
             case Op::DEREF_OFFSET: {
                 size_t   offset = std::any_cast<size_t>  (inst.args[0]);
                 Variable strct  = std::any_cast<Variable>(inst.args[1]);
                 Variable var    = std::any_cast<Variable>(inst.args[2]);
-                move_var_to_reg(strct, Rax);
+                mov(strct, Rax);
                 output.appendf("    {} {}({}), {}\n", INST_SIZE("mov", var.size), offset, Rax._64, REG_SIZE(Rax, var.size));
-                move_reg_to_var(Rax, var);
+                mov(Rax, var);
             }break;
             case Op::INIT_STRING: {
                 Variable str = std::any_cast<Variable>(inst.args[0]);
                 auto storage_offset = current_string_count++*MAX_STRING_SIZE;
                 output.appendf("    leaq {}+string_storage(%rip), {}\n", storage_offset, Rax._64);
-                move_reg_to_var(Rax, str);
+                mov(Rax, str);
             }break;
             case Op::CALL: {
                 std::string func_name = std::any_cast<std::string>(inst.args[0]);
@@ -175,7 +176,7 @@ void gnu_asm::compileFunction(Func func) {
             case Op::JUMP_IF_NOT: {
                 std::string label = std::any_cast<std::string>(inst.args[0]);
                 Variable    expr = std::any_cast<Variable>(inst.args[1]);
-                deref_var_to_reg(expr, Rax);
+                mov(expr, Rax);
                 output.appendf("    testb {}, {}\n", Rax._8, Rax._8);
                 output.appendf("    jz L{}\n", label);
             }break;
@@ -195,11 +196,11 @@ void gnu_asm::compileFunction(Func func) {
 
                 //TODO: reseting registers
                 //Variable zero = {.type = Type::Int_lit, .value = (int64_t)0, .size = 8};
-                //move_var_to_reg(zero , Rax);
-                //move_var_to_reg(zero , Rbx);
+                //mov(zero , Rax);
+                //mov(zero , Rbx);
 
-                deref_var_to_reg(lhs, Rax);
-                deref_var_to_reg(rhs, Rbx);
+                mov(lhs, Rax);
+                mov(rhs, Rbx);
 
                 if (lhs.size != rhs.size) {
                     lhs.size = result.size;
@@ -207,153 +208,153 @@ void gnu_asm::compileFunction(Func func) {
                 }
 
                 output.appendf("    {} {}, {}\n", INST_SIZE("add", result.size), REG_SIZE(Rbx, rhs.size), REG_SIZE(Rax, lhs.size));
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::SUB: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rax);
-                deref_var_to_reg(rhs, Rbx);
+                mov(lhs, Rax);
+                mov(rhs, Rbx);
                 output.appendf("    subq %rbx, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::MUL: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rax);
-                deref_var_to_reg(rhs, Rbx);
+                mov(lhs, Rax);
+                mov(rhs, Rbx);
                 output.appendf("    imulq %rbx, %rax\n"); // signed multiply
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::DIV: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rax);
+                mov(lhs, Rax);
                 output.appendf("    cqto\n");
-                deref_var_to_reg(rhs, Rbx);
+                mov(rhs, Rbx);
                 output.appendf("    idivq %rbx\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::MOD: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rax);
+                mov(lhs, Rax);
                 output.appendf("    cqto\n");
-                deref_var_to_reg(rhs, Rbx);
+                mov(rhs, Rbx);
                 output.appendf("    idivq %rbx\n");
                 output.appendf("    movq %rdx, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::EQ: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rax);
-                deref_var_to_reg(rhs, Rbx);
+                mov(lhs, Rax);
+                mov(rhs, Rbx);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    sete %al\n");
                 output.appendf("    movzbq %al, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::NE: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rax);
-                deref_var_to_reg(rhs, Rbx);
+                mov(lhs, Rax);
+                mov(rhs, Rbx);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setne %al\n");
                 output.appendf("    movzbq %al, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::LT: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rbx);
-                deref_var_to_reg(rhs, Rax);
+                mov(lhs, Rbx);
+                mov(rhs, Rax);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setl %al\n");
                 output.appendf("    movzbq %al, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::LE: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rbx);
-                deref_var_to_reg(rhs, Rax);
+                mov(lhs, Rbx);
+                mov(rhs, Rax);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setle %al\n");
                 output.appendf("    movzbq %al, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::GT: { 
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rbx);
-                deref_var_to_reg(rhs, Rax);
+                mov(lhs, Rbx);
+                mov(rhs, Rax);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setg %al\n");
                 output.appendf("    movzbq %al, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::GE: { 
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rbx);
-                deref_var_to_reg(rhs, Rax);
+                mov(lhs, Rbx);
+                mov(rhs, Rax);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(Rax, lhs.size), REG_SIZE(Rbx, lhs.size));
                 output.appendf("    setge %al\n");
                 output.appendf("    movzbq %al, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::LAND: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rax);
-                deref_var_to_reg(rhs, Rbx);
+                mov(lhs, Rax);
+                mov(rhs, Rbx);
                 output.appendf("    andq %rbx, %rax\n");
                 output.appendf("    cmpq $0, %rax\n");
                 output.appendf("    setne %al\n");
                 output.appendf("    movzbq %al, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
             case Op::LOR: {
                 Variable lhs = std::any_cast<Variable>(inst.args[0]);
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                deref_var_to_reg(lhs, Rax);
-                deref_var_to_reg(rhs, Rbx);
+                mov(lhs, Rax);
+                mov(rhs, Rbx);
                 output.appendf("    orq %rbx, %rax\n");
                 output.appendf("    cmpq $0, %rax\n");
                 output.appendf("    setne %al\n");
                 output.appendf("    movzbq %al, %rax\n");
-                move_reg_to_var(Rax, result);
+                mov(Rax, result);
             } break;
         }
     }
     if (!returned) {
-        move_var_to_reg({.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 8}, Rax);
+        mov({.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 8}, Rax);
         output.appendf("    popq %r15\n");
         output.appendf("    popq %rbx\n");
         output.appendf("    movq %rbp, %rsp\n");
@@ -368,23 +369,23 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
     for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register); i++, j++) {
         if (args[i].type == Type::Struct_t) {
             if (args[i].size <= 8) {
-                deref_var_to_reg(args[i], arg_register[j]);
+                mov(args[i], arg_register[j]);
             } else if (args[i].size <= 16) {
                 size_t orig_size = args[i].size;
                 args[i].size = 8;
-                deref_var_to_reg(args[i], arg_register[j++]);
+                mov(args[i], arg_register[j++]);
                 args[i].size = orig_size-8;
                 args[i].offset -= 8;
-                deref_var_to_reg(args[i], arg_register[j]);
+                mov(args[i], arg_register[j]);
             } else {
                 args[i].deref_count = -1;
-                deref_var_to_reg(args[i], arg_register[j]);
+                mov(args[i], arg_register[j]);
             }
         } else {
             if (args[i].deref_count == 0)
-                move_var_to_reg(args[i], arg_register[j]);
+                mov(args[i], arg_register[j]);
             else 
-                deref_var_to_reg(args[i], arg_register[j]);
+                mov(args[i], arg_register[j]);
         }
     }
 
@@ -519,5 +520,251 @@ void gnu_asm::move_var_to_var(Variable arg1, Variable arg2) {
         deref_var_to_reg(arg1, Rax);
         move_reg_to_var(Rax, arg2);
     }
+}
+
+void gnu_asm::mov(int64_t offset, Register src, Register dest, size_t size) {
+    if (offset == 0) {
+        output.appendf("    {} ({}), {}\n",
+                           INST_SIZE("mov", size),
+                           REG_SIZE(src, 8),
+                           REG_SIZE(dest, size)
+        );
+    } else { 
+        output.appendf("    {} {}({}), {}\n",
+                           INST_SIZE("mov", size),
+                           offset, REG_SIZE(src, 8),
+                           REG_SIZE(dest, size)
+        );
+    }
+}
+void gnu_asm::mov(Register src, int64_t offset, Register dest, size_t size) {
+    if (offset == 0) {
+        output.appendf("    {} {}, ({})\n",
+                           INST_SIZE("mov", size),
+                           REG_SIZE(src, size),
+                           REG_SIZE(dest, 8)
+        );
+    } else {
+        output.appendf("    {} {}, {}({})\n",
+                           INST_SIZE("mov", size),
+                           REG_SIZE(src, size),
+                           offset, REG_SIZE(dest, 8)
+        );
+    }
+}
+void gnu_asm::mov(Register src, Register dest, size_t size) {
+    output.appendf("    {} {}, {}\n",
+                       INST_SIZE("mov", size),
+                       REG_SIZE(src, size),
+                       REG_SIZE(dest, size)
+    );
+}
+void gnu_asm::mov(int64_t int_value, Register dest, size_t size) {
+    output.appendf("    {} ${}, {}\n",
+                       INST_SIZE("mov", size),
+                       int_value,
+                       REG_SIZE(dest, size)
+    );
+}
+void gnu_asm::mov(int64_t int_value, int64_t offset, Register dest, size_t size) {
+    if (offset == 0) {
+        output.appendf("    {} ${}, ({})\n",
+                           INST_SIZE("mov", size),
+                           int_value,
+                           REG_SIZE(dest, 8)
+        );
+    } else {
+        output.appendf("    {} ${}, {}({})\n",
+                           INST_SIZE("mov", size),
+                           int_value,
+                           offset, REG_SIZE(dest, 8)
+        );
+    }
+}
+void gnu_asm::mov(std::string global_label, Register src, Register dest, size_t size) {
+    assert(size <= 8);
+    output.appendf("    {} {}({}), {}\n",
+                       INST_SIZE("mov", size),
+                       global_label, REG_SIZE(src, 8),
+                       REG_SIZE(dest, size)
+    );
+}
+void gnu_asm::mov(Register src, std::string global_label, Register dest, size_t size) {
+    assert(size <= 8);
+    output.appendf("    {} {}, {}({})\n",
+                       INST_SIZE("mov", size),
+                       REG_SIZE(src, size),
+                       global_label, REG_SIZE(dest, 8)
+    );
+}
+void gnu_asm::mov(std::string global_label, Register src, Register dest) {
+    mov(global_label, src, dest, 8);
+}
+void gnu_asm::mov(Register src, std::string global_label, Register dest) {
+    mov(src, global_label, dest, 8);
+}
+void gnu_asm::mov(int64_t int_value, Register dest) {
+    mov(int_value, dest, 8);
+}
+void gnu_asm::mov(int64_t int_value, int64_t offset, Register dest) {
+    mov(int_value, offset, dest, 8);
+}
+void gnu_asm::mov(int64_t offset, Register src, Register dest) {
+    mov(offset, src, dest, 8);
+}
+void gnu_asm::mov(Register src, int64_t offset, Register dest) {
+    mov(src, offset, dest, 8);
+}
+void gnu_asm::mov(Register src, Register dest) {
+    mov(src, dest, 8);
+}
+void gnu_asm::mov_member(Variable src, Register dest) {
+    Variable current = src;
+    Variable* parent = src.parent;
+    //asm("int3");
+    bool in_rax = false;
+    size_t off = 0;
+    if (parent == nullptr)
+        off = current.offset;
+    while (parent != nullptr) {
+        parent = current.parent;
+        if (parent == nullptr) {
+            off = current.offset - off;
+            break;
+        }
+        if (current.kind.pointer_count == 0) {
+            off += current.offset;
+        } else {
+            current.deref_count = current.kind.pointer_count - 1;
+            //mov(*parent->parent, Rax);
+            mov_member(*parent, Rax);
+            mov(current.offset, Rax, Rax);
+            while (current.deref_count > 0) {
+                mov(0, Rax, Rax);
+                current.deref_count -= 1;
+            }
+            mov(off, Rax, dest);
+            return;
+        }
+        current = *current.parent;
+    }
+    mov(-off, Rbp, dest);
+}
+void gnu_asm::mov(Variable src, Register dest) {
+    //std::string_view& reg_name = REG_SIZE(dest, src.size);
+
+    if (src.type == Type::String_lit)
+        lea(src.name, Rip, dest);
+        //TODO("add lea func");
+        //output.appendf("    leaq {}(%rip), {}\n", src.name, reg_name);
+    else if (src.type == Type::Int_lit)
+        mov(std::any_cast<int64_t>(src.value), dest);
+    else if (src.type == Type::Void_t)
+        mov(0, dest);
+    else if (src.parent != nullptr) {
+        mov_member(src, dest);
+    } else if (src.deref_count > 0) {
+        mov(-src.offset, Rbp, dest, src.size);
+        while (src.deref_count > 0) {
+            mov(0, dest, dest);
+            src.deref_count -= 1;
+        }
+    } else if (src.deref_count == -1) {
+        lea(-src.offset, Rbp, dest);
+    } else
+        mov(-src.offset, Rbp, dest, src.size);
+}
+void gnu_asm::mov(Register src, Variable dest) {
+    if (dest.type == Type::Int_lit && dest.type == Type::String_lit) {
+        TODO("can't mov into literals");
+    } else if (dest.type == Type::Void_t) {
+        TODO("can't mov into Void");
+    } else if (dest.deref_count > 0) {
+        auto reg = Rax;
+        if (src._64 == Rax._64) reg = R15;//TODO("it will rewrite rax");
+        // TODO: should make a Vector of references to const Regsister& that tells you what registers are free to use and a helper function
+        dest.deref_count -= 1;
+        mov(dest, reg);
+        mov(src, 0, reg, dest.size);
+    } else {
+        if (dest.parent != nullptr) {
+            auto reg = Rax;
+            if (src._64 == Rax._64) reg = R15;//TODO("it will rewrite rax");
+            mov(src, reg, dest.size);
+            mov_var(reg, dest);
+            //Variable current = dest;
+            //Variable* parent = dest.parent;
+            //size_t off = 0;
+            //while (parent != nullptr) {
+            //    parent = current.parent;
+            //    if (parent->kind.pointer_count == 0) {
+            //        off += current.offset;
+            //    } else {
+            //        parent->deref_count = current.kind.pointer_count - 1;
+            //        mov(*parent, Rax);
+            //        mov(src, off, Rax);
+            //        break;
+            //    }
+            //    current = *current.parent;
+            //}
+            //mov(*dest.parent, Rax);
+            //mov(dest.offset, Rax, Rax);
+            //TODO("");
+        } else {
+            if (dest.kind.pointer_count) {
+                TODO("pointer");
+            } else {
+                mov(src, -dest.offset, Rbp, dest.size);
+            }
+        }
+    }
+
+}
+void gnu_asm::mov(Variable src, Variable dest) {
+    if (dest.type == Type::Int_lit && dest.type == Type::String_lit)
+        TODO("can't mov into literals");
+
+    if (src.type == Type::Int_lit && dest.parent != nullptr) {
+        if (dest.type == Type::Struct_t)
+            TODO(f("can't mov int literal into var of type {}", dest._type_name));
+        mov(std::any_cast<int64_t>(src.value), -dest.offset, Rbp);
+    } else if (src.type == Type::Struct_t || dest.type == Type::Struct_t) {
+        if (src._type_name != dest._type_name) TODO(f("error trying assigning different structers to each other, {} {}", src._type_name, dest._type_name));
+        Struct strct{};
+        bool found = false;
+        for (const auto& strct_ : m_program->struct_storage) {
+            if (strct_.name == src._type_name) {
+                found = true;
+                strct = strct_;
+                break;
+            }
+        }
+        if (!found) TODO(f("struct {} wasn't found", src._type_name));
+        if (src.deref_count > 0)
+            mov(-src.offset, Rbp, arg_register[1]);
+        else 
+            lea(-src.offset, Rbp, arg_register[1]);
+        if (dest.deref_count > 0)
+            mov(-dest.offset, Rbp, arg_register[1]);
+        else 
+            lea(-dest.offset, Rbp, arg_register[1]);
+        mov(strct.size, Rcx);
+        output.appendf("    rep movsb\n");
+
+    } else {
+        mov(src, Rax);
+        mov(Rax, dest);
+        
+    }
+}
+void gnu_asm::lea(Register src, Register dest) {
+    output.appendf("    lea {}, {}\n", src._64, dest._64);
+}
+void gnu_asm::lea(std::string label, Register src, Register dest) {
+    output.appendf("    lea {}({}), {}\n", label, src._64, dest._64);
+
+}
+void gnu_asm::lea(int64_t offset, Register src, Register dest) {
+    output.appendf("    lea {}({}), {}\n", offset, src._64, dest._64);
 }
 
