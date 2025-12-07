@@ -4,13 +4,22 @@ struct vec3 {
     int x = 0;
     int y = 0;
     int z = 0;
+    //func print() {
+    //    c_std::printf("x = %d, y = %d, z = %d\n", this.x, this.y, this.z);
+    //}
 }
 func vec_print(vec3 v) {
     c_std::printf("x = %d, y = %d, z = %d\n", v.x, v.y, v.z);
 }
+struct CTX {
+    vec3 vec;
+    vec3 vec2;
+    int64 i;
+}
 
 func main() {
-    vec3 vec;
-    vec.x = 13;
-    vec_print(vec);
+    CTX ctx;
+    ctx.vec.y = 13;
+    vec_print(ctx.vec);
+    //ctx.vec.print();
 }

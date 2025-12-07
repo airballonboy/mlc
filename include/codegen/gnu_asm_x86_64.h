@@ -55,6 +55,7 @@ public:
     void lea(std::string label, Register src      , Register dest);
     void lea(int64_t offset   , Register src      , Register dest);
     void mov_member(Variable src, Register dest);
+    void mov_member(Register src, Variable dest);
     void mov_to_deref  (Register src, Register dest);
     void mov_from_deref(Register src, Register dest);
 

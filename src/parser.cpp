@@ -165,25 +165,30 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
     strct = &get_struct_from_name(type_name); 
 
     if (strct == nullptr) TODO("trying to access a struct that doesn't exist");
+    // maybe shared pointers??
     Variable* struct_var = new Variable;
-    *struct_var = {.type = Type::Struct_t, .name = struct_name, .size = strct->size, ._type_name = type_name};
-
+    if (!member) {
+        current_offset += strct->size;
+        *struct_var = {.type = Type::Struct_t, .name = struct_name, .offset = current_offset, .size = strct->size, ._type_name = type_name};
+    } else {
+        *struct_var = {.type = Type::Struct_t, .name = struct_name, .offset = current_offset, .size = strct->size, ._type_name = type_name};
+        current_offset += strct->size;
+    }
     //std::println("struct {} size {}", strct->name, strct->size);
     //std::println("current offset {}", current_offset);
 
-    if (!member)
-        current_offset += strct->size;
 
     for (size_t i = 0; i < strct->var_storage.size(); i++) {
         auto var = strct->var_storage[i];
-        if (var.type == Type::Struct_t)
-            void(0);//asm("int3");
-        else 
-            strct_offset += var.size;
+        var.parent = struct_var;
+
         if (var.type == Type::Struct_t) {
-            auto strct_ = initStruct(var._type_name, var.name);
-            strct_.parent = new Variable{};
-            *strct_.parent = *struct_var;
+            size_t temp_offset = current_offset;
+            auto strct_ = initStruct(var._type_name, var.name, true);
+            current_offset = temp_offset;
+            //strct_.parent = new Variable{};
+            strct_.parent = struct_var;
+            strct_.offset = var.offset;
             //wmemcpy((wchar_t*)strct_.parent, (wchar_t*)struct_var, 8);
             struct_var->members.push_back(strct_);
         } else

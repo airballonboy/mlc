@@ -375,7 +375,7 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
                 args[i].size = 8;
                 mov(args[i], arg_register[j++]);
                 args[i].size = orig_size-8;
-                args[i].offset -= 8;
+                args[i].offset += 8;
                 mov(args[i], arg_register[j]);
             } else {
                 args[i].deref_count = -1;
@@ -618,10 +618,41 @@ void gnu_asm::mov(Register src, int64_t offset, Register dest) {
 void gnu_asm::mov(Register src, Register dest) {
     mov(src, dest, 8);
 }
+void gnu_asm::mov_member(Register src, Variable dest) {
+    Variable current = dest;
+    Variable* parent = dest.parent;
+    size_t off = 0;
+    Register reg = Rax;
+    if (reg._64 == src._64) reg = R15;
+    if (parent == nullptr)
+        off = current.offset;
+    while (parent != nullptr) {
+        parent = current.parent;
+        if (parent == nullptr) {
+            off = current.offset - off;
+            break;
+        }
+        off += current.offset;
+        if (parent->kind.pointer_count == 0) {
+        } else {
+            parent->deref_count = parent->kind.pointer_count - 1;
+            //mov(*parent->parent, reg);
+            mov_member(*parent, reg);
+            while (parent->deref_count > 0) {
+                mov(0, reg, reg);
+                parent->deref_count -= 1;
+            }
+            //mov(current.offset, reg, reg);
+            mov(src, off, reg, dest.size);
+            return;
+        }
+        current = *current.parent;
+    }
+    mov(src, -off, Rbp, dest.size);
+}
 void gnu_asm::mov_member(Variable src, Register dest) {
     Variable current = src;
     Variable* parent = src.parent;
-    //asm("int3");
     bool in_rax = false;
     size_t off = 0;
     if (parent == nullptr)
@@ -632,23 +663,23 @@ void gnu_asm::mov_member(Variable src, Register dest) {
             off = current.offset - off;
             break;
         }
-        if (current.kind.pointer_count == 0) {
-            off += current.offset;
+        off += current.offset;
+        if (parent->kind.pointer_count == 0) {
         } else {
-            current.deref_count = current.kind.pointer_count - 1;
+            parent->deref_count = parent->kind.pointer_count - 1;
             //mov(*parent->parent, Rax);
             mov_member(*parent, Rax);
-            mov(current.offset, Rax, Rax);
-            while (current.deref_count > 0) {
+            //mov(current.offset, Rax, Rax);
+            while (parent->deref_count > 0) {
                 mov(0, Rax, Rax);
-                current.deref_count -= 1;
+                parent->deref_count -= 1;
             }
-            mov(off, Rax, dest);
+            mov(off, Rax, dest, src.size);
             return;
         }
         current = *current.parent;
     }
-    mov(-off, Rbp, dest);
+    mov(-off, Rbp, dest, src.size);
 }
 void gnu_asm::mov(Variable src, Register dest) {
     //std::string_view& reg_name = REG_SIZE(dest, src.size);
@@ -687,11 +718,11 @@ void gnu_asm::mov(Register src, Variable dest) {
         mov(dest, reg);
         mov(src, 0, reg, dest.size);
     } else {
+        //asm("int3");
         if (dest.parent != nullptr) {
             auto reg = Rax;
             if (src._64 == Rax._64) reg = R15;//TODO("it will rewrite rax");
-            mov(src, reg, dest.size);
-            mov_var(reg, dest);
+            mov_member(src, dest);
             //Variable current = dest;
             //Variable* parent = dest.parent;
             //size_t off = 0;
@@ -711,8 +742,13 @@ void gnu_asm::mov(Register src, Variable dest) {
             //mov(dest.offset, Rax, Rax);
             //TODO("");
         } else {
-            if (dest.kind.pointer_count) {
-                TODO("pointer");
+            if (dest.deref_count > 0) {
+                dest.deref_count -= 1;
+                mov(-dest.offset, Rbp, Rax);
+                while (dest.deref_count > 0) {
+                    mov(0, Rax, Rax);
+                }
+                mov(src, 0, Rax, dest.size);
             } else {
                 mov(src, -dest.offset, Rbp, dest.size);
             }
@@ -724,7 +760,7 @@ void gnu_asm::mov(Variable src, Variable dest) {
     if (dest.type == Type::Int_lit && dest.type == Type::String_lit)
         TODO("can't mov into literals");
 
-    if (src.type == Type::Int_lit && dest.parent != nullptr) {
+    if (src.type == Type::Int_lit && dest.parent == nullptr) {
         if (dest.type == Type::Struct_t)
             TODO(f("can't mov int literal into var of type {}", dest._type_name));
         mov(std::any_cast<int64_t>(src.value), -dest.offset, Rbp);
@@ -741,14 +777,14 @@ void gnu_asm::mov(Variable src, Variable dest) {
         }
         if (!found) TODO(f("struct {} wasn't found", src._type_name));
         if (src.deref_count > 0)
-            mov(-src.offset, Rbp, arg_register[1]);
+            mov(-src.offset, Rbp, arg_register[0]);
         else 
-            lea(-src.offset, Rbp, arg_register[1]);
+            lea(-src.offset, Rbp, arg_register[0]);
         if (dest.deref_count > 0)
             mov(-dest.offset, Rbp, arg_register[1]);
         else 
             lea(-dest.offset, Rbp, arg_register[1]);
-        mov(strct.size, Rcx);
+        mov(strct.size, arg_register[2]);
         output.appendf("    rep movsb\n");
 
     } else {
