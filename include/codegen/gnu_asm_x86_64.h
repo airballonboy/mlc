@@ -1,6 +1,7 @@
 #pragma once 
 #include "codegen/base.h"
 #include "types.h"
+#include <unordered_set>
 
 struct Register {
     std::string_view _64;
@@ -81,3 +82,7 @@ const Register R12 = {"%r12", "%r12d", "%r12w", "%r12b"};
 const Register R13 = {"%r13", "%r13d", "%r13w", "%r13b"};
 const Register R14 = {"%r14", "%r14d", "%r14w", "%r14b"};
 const Register R15 = {"%r15", "%r15d", "%r15w", "%r15b"};
+const static std::unordered_set<std::string_view> REGS = {
+    Rip._64, Rax._64, Rbx._64, Rcx._64, Rdx._64, Rsi._64, Rdi._64, Rbp._64, Rsp._64, R8._64,
+    R9._64 , R10._64, R11._64, R12._64, R13._64, R14._64, R15._64
+};
