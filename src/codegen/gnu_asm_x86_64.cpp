@@ -27,7 +27,7 @@ static std::vector<std::pair<Register, bool>> available_reg = {
     {R15, true},
 };
 Register get_available_reg() {
-    if (available_reg.size() < 1) asm("int3");//TODO("no available Registers");
+    if (available_reg.size() < 1) TODO("no available Registers");
     Register reg;
     for (auto& [reg_, avail] : available_reg) {
         if (avail) {

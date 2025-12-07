@@ -1089,7 +1089,7 @@ Variable& Parser::get_var_from_name(std::string_view name, VariableStorage& var_
     for (auto& var : var_storage) {
         if (var.name == name) return var;
     }
-    asm("int3");
+    //asm("int3");
     std::println("{} was not found", name);
     ERROR((*tkn)->loc, "");
     TODO("var doesn't exist");
