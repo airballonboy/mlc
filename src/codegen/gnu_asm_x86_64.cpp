@@ -770,13 +770,15 @@ void gnu_asm::mov_member(Variable src, Register dest) {
         } else {
             parent->deref_count = parent->kind.pointer_count - 1;
             //mov(*parent->parent, Rax);
-            mov_member(*parent, Rax);
+            auto reg = get_available_reg();
+            mov_member(*parent, reg);
             //mov(current.offset, Rax, Rax);
             while (parent->deref_count > 0) {
-                mov(0, Rax, Rax);
+                mov(0, reg, reg);
                 parent->deref_count -= 1;
             }
-            mov(off, Rax, dest, src.size);
+            mov(off, reg, dest, src.size);
+            free_reg(reg);
             return;
         }
         current = *current.parent;
