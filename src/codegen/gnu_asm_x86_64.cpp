@@ -359,8 +359,8 @@ void gnu_asm::compileFunction(Func func) {
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
+                mov(lhs, reg2);
+                mov(rhs, reg1);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
                 output.appendf("    setl {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
@@ -375,8 +375,8 @@ void gnu_asm::compileFunction(Func func) {
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
+                mov(lhs, reg2);
+                mov(rhs, reg1);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
                 output.appendf("    setle {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
@@ -391,8 +391,8 @@ void gnu_asm::compileFunction(Func func) {
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
+                mov(lhs, reg2);
+                mov(rhs, reg1);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
                 output.appendf("    setg {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
@@ -407,8 +407,8 @@ void gnu_asm::compileFunction(Func func) {
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
-                mov(lhs, reg2);
-                mov(rhs, reg1);
+                mov(lhs, reg1);
+                mov(rhs, reg2);
                 output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
                 output.appendf("    setge {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
