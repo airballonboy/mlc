@@ -182,6 +182,7 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
         auto var = strct->var_storage[i];
         var.parent = struct_var;
 
+        // I think this should be removed
         if (var.type == Type::Struct_t) {
             size_t temp_offset = current_offset;
             auto strct_ = initStruct(var._type_name, var.name, true);

@@ -784,6 +784,7 @@ void gnu_asm::mov_member(Variable src, Register dest) {
         current = *current.parent;
     }
     mov(-off, Rbp, dest, src.size);
+    // TODO: check for deref
 }
 void gnu_asm::mov(Variable src, Register dest) {
     //std::string_view& reg_name = REG_SIZE(dest, src.size);
