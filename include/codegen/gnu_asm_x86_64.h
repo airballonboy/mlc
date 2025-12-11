@@ -57,8 +57,9 @@ public:
     void lea(int64_t offset   , Register src      , Register dest);
     void mov_member(Variable src, Register dest);
     void mov_member(Register src, Variable dest);
-    void mov_to_deref  (Register src, Register dest);
-    void mov_from_deref(Register src, Register dest);
+    void deref(Register, int64_t deref_count);
+
+    Struct& get_struct_from_name(std::string& name);
 
     void call_func(std::string func_name, VariableStorage args);
     void compileProgram() override;

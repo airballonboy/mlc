@@ -12,14 +12,15 @@ func vec_print(vec3 v) {
     c_std::printf("x = %d, y = %d, z = %d\n", v.x, v.y, v.z);
 }
 struct CTX {
-    vec3 vec;
-    vec3 vec2;
-    int64 i;
+    vec3* vec;
 }
 
 func main() {
     CTX ctx;
-    ctx.vec.y = 13;
-    vec_print(ctx.vec);
-    //ctx.vec.print();
+    vec3 v;
+    ctx.vec = &v;
+    ctx.vec.x = 1;
+    ctx.vec.y = 2;
+    ctx.vec.z = 3;
+    vec_print(*ctx.vec);
 }

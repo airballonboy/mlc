@@ -241,10 +241,6 @@ void gnu_asm::compileFunction(Func func) {
                 Variable rhs = std::any_cast<Variable>(inst.args[1]);
                 Variable result = std::any_cast<Variable>(inst.args[2]);
 
-                //TODO: reseting registers
-                //Variable zero = {.type = Type::Int_lit, .value = (int64_t)0, .size = 8};
-                //mov(zero , Rax);
-                //mov(zero , Rbx);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -469,15 +465,26 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
 
     for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register); i++, j++) {
         if (args[i].type == Type::Struct_t) {
+            if (args[i].deref_count > 0) {
+                if (args[i].kind.pointer_count == args[i].deref_count)
+                    args[i].size = get_struct_from_name(args[i]._type_name).size;
+            }
             if (args[i].size <= 8) {
                 mov(args[i], arg_register[j]);
             } else if (args[i].size <= 16) {
                 size_t orig_size = args[i].size;
                 args[i].size = 8;
                 mov(args[i], arg_register[j++]);
-                args[i].size = orig_size-8;
-                args[i].offset += 8;
-                mov(args[i], arg_register[j]);
+                if (args[i].deref_count == 0) {
+                    args[i].size = orig_size-8;
+                    args[i].offset -= 8;
+                    mov(args[i], arg_register[j]);
+                } else {
+                    args[i].deref_count -= 1;
+                    mov(args[i], arg_register[j]);
+                    mov(8, arg_register[j], arg_register[j], orig_size-8);
+
+                }
             } else {
                 args[i].deref_count = -1;
                 mov(args[i], arg_register[j]);
@@ -623,6 +630,12 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
 //    }
 //}
 
+Struct& gnu_asm::get_struct_from_name(std::string& name) {
+    for (auto& strct_ : m_program->struct_storage) {
+        if (strct_.name == name) return strct_;
+    }
+    TODO("struct not found");
+}
 void gnu_asm::mov(int64_t offset, Register src, Register dest, size_t size) {
     if (offset == 0) {
         output.appendf("    {} ({}), {}\n",
@@ -735,13 +748,10 @@ void gnu_asm::mov_member(Register src, Variable dest) {
         off += current.offset;
         if (parent->kind.pointer_count == 0) {
         } else {
-            parent->deref_count = parent->kind.pointer_count - 1;
             //mov(*parent->parent, reg);
             mov_member(*parent, reg);
-            while (parent->deref_count > 0) {
-                mov(0, reg, reg);
-                parent->deref_count -= 1;
-            }
+            parent->deref_count = parent->kind.pointer_count - 1;
+            deref(reg, parent->deref_count);
             //mov(current.offset, reg, reg);
             mov(src, off, reg, dest.size);
             free_reg(reg);
@@ -749,7 +759,14 @@ void gnu_asm::mov_member(Register src, Variable dest) {
         }
         current = *current.parent;
     }
-    mov(src, -off, Rbp, dest.size);
+    if (dest.deref_count > 0) {
+        dest.deref_count -= 1;
+        mov(-off, Rbp, reg);
+        deref(reg, dest.deref_count);
+        mov(src, 0, reg, dest.size);
+    } else {
+        mov(src, -off, Rbp, dest.size);
+    }
     free_reg(reg);
 }
 void gnu_asm::mov_member(Variable src, Register dest) {
@@ -765,18 +782,18 @@ void gnu_asm::mov_member(Variable src, Register dest) {
             off = current.offset - off;
             break;
         }
+        //asm("int3");
+        //std::println("curr {}, par {}", current.name, parent->name);
         off += current.offset;
         if (parent->kind.pointer_count == 0) {
         } else {
-            parent->deref_count = parent->kind.pointer_count - 1;
+            //std::println("deref => curr {}, par {}", current.name, parent->name);
             //mov(*parent->parent, Rax);
             auto reg = get_available_reg();
             mov_member(*parent, reg);
+            parent->deref_count = parent->kind.pointer_count - 1;
             //mov(current.offset, Rax, Rax);
-            while (parent->deref_count > 0) {
-                mov(0, reg, reg);
-                parent->deref_count -= 1;
-            }
+            deref(reg, parent->deref_count);
             mov(off, reg, dest, src.size);
             free_reg(reg);
             return;
@@ -784,7 +801,10 @@ void gnu_asm::mov_member(Variable src, Register dest) {
         current = *current.parent;
     }
     mov(-off, Rbp, dest, src.size);
-    // TODO: check for deref
+    if (src.deref_count > 0) {
+        deref(dest, src.deref_count);
+    }
+    // TODO: check for dere;f
 }
 void gnu_asm::mov(Variable src, Register dest) {
     //std::string_view& reg_name = REG_SIZE(dest, src.size);
@@ -801,13 +821,18 @@ void gnu_asm::mov(Variable src, Register dest) {
         mov_member(src, dest);
     } else if (src.deref_count > 0) {
         mov(-src.offset, Rbp, dest, src.size);
-        while (src.deref_count > 0) {
-            mov(0, dest, dest);
-            src.deref_count -= 1;
-        }
+        deref(dest, src.deref_count);
     } else if (src.deref_count == -1) {
         lea(-src.offset, Rbp, dest);
-    } else
+    //} else if (src.size > 8) {
+    //    size_t temp_size = 0;
+    //    size_t off = 0;
+    //    while (src.size > 0) {
+    //        temp_size = 8;
+    //        mov(-src.offset, Rbp, dest, temp_size);
+    //        src.offset += 8;
+    //    }
+    } else 
         mov(-src.offset, Rbp, dest, src.size);
 }
 void gnu_asm::mov(Register src, Variable dest) {
@@ -817,7 +842,6 @@ void gnu_asm::mov(Register src, Variable dest) {
         TODO("can't mov into Void");
     } else if (dest.deref_count > 0) {
         Register reg = get_available_reg();
-        // TODO: should make a Vector of references to const Regsister& that tells you what registers are free to use and a helper function
         dest.deref_count -= 1;
         mov(dest, reg);
         mov(src, 0, reg, dest.size);
@@ -848,9 +872,7 @@ void gnu_asm::mov(Register src, Variable dest) {
             if (dest.deref_count > 0) {
                 dest.deref_count -= 1;
                 mov(-dest.offset, Rbp, Rax);
-                while (dest.deref_count > 0) {
-                    mov(0, Rax, Rax);
-                }
+                deref(Rax, dest.deref_count);
                 mov(src, 0, Rax, dest.size);
             } else {
                 mov(src, -dest.offset, Rbp, dest.size);
@@ -862,6 +884,9 @@ void gnu_asm::mov(Register src, Variable dest) {
 void gnu_asm::mov(Variable src, Variable dest) {
     if (dest.type == Type::Int_lit && dest.type == Type::String_lit)
         TODO("can't mov into literals");
+
+    int64_t src_real_ptr_count = (src.kind.pointer_count-src.deref_count);
+    int64_t dest_real_ptr_count = (dest.kind.pointer_count-dest.deref_count);
 
     if (src.type == Type::Int_lit && dest.parent == nullptr) {
         if (dest.type == Type::Struct_t)
@@ -879,23 +904,61 @@ void gnu_asm::mov(Variable src, Variable dest) {
             }
         }
         if (!found) TODO(f("struct {} wasn't found", src._type_name));
-        if (src.deref_count > 0)
-            mov(-src.offset, Rbp, arg_register[0]);
-        else 
-            lea(-src.offset, Rbp, arg_register[0]);
-        if (dest.deref_count > 0)
-            mov(-dest.offset, Rbp, arg_register[1]);
-        else 
-            lea(-dest.offset, Rbp, arg_register[1]);
-        mov(strct.size, arg_register[2]);
-        output.appendf("    rep movsb\n");
+        if (dest.kind.pointer_count > 0) {
+            auto reg1 = get_available_reg();
+            auto reg2 = get_available_reg();
+            
+            if (src_real_ptr_count != dest_real_ptr_count) TODO(f("trying to move Variable {} into {}, but kind is not the same", src.name, dest.name));
+            if (dest_real_ptr_count == 0) {
+                dest.deref_count -= 1;
+                mov(dest, Rdi);
 
+                if (src.kind.pointer_count > 0) {
+                    src.deref_count -= 1;
+                    mov(src, reg2);
+                    mov(src, Rsi);
+                } else {
+                    lea(-src.offset, Rbp, Rsi);
+                }
+
+                mov(strct.size, Rcx);
+                output.appendf("    rep movsb\n");
+            } else if (dest_real_ptr_count > 0) {
+                // this should be like call_func
+                mov(src, reg1);
+                mov(reg1, dest);
+            } else 
+                TODO("trying to store into a non lvalue");
+            free_reg(reg1);
+            free_reg(reg2);
+        } else {
+            if (src.deref_count > 0)
+                mov(src, Rdi);
+            else 
+                lea(-src.offset, Rbp, Rdi);
+            if (dest.deref_count > 0)
+                mov(dest, Rsi);
+            else 
+                lea(-dest.offset, Rbp, Rsi);
+            mov(strct.size, Rcx);
+            output.appendf("    rep movsb\n");
+        }
     } else {
         auto reg = get_available_reg();
         mov(src, reg);
         mov(reg, dest);
         
         free_reg(reg);
+    }
+}
+void gnu_asm::deref(Register reg, int64_t deref_count) {
+    if (deref_count == -1) {
+        lea(reg, reg);
+        return;
+    } 
+    while (deref_count > 0) {
+        mov(0, reg, reg);
+        deref_count -= 1;
     }
 }
 void gnu_asm::lea(Register src, Register dest) {

@@ -91,6 +91,11 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member){
             current_offset -= new_var.size - 8;
             new_var.size = 8;
         }
+        void(0);
+        for (auto& v : new_var.members) {
+            v.parent->kind = new_var.kind;
+            v.parent->size = new_var.size;
+        }
         var = new_var;
     } else {
         current_offset += var.size;
@@ -185,11 +190,22 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
         // I think this should be removed
         if (var.type == Type::Struct_t) {
             size_t temp_offset = current_offset;
+            std::vector<Instruction> body = m_currentFunc->body;
+            
             auto strct_ = initStruct(var._type_name, var.name, true);
+
+            if (var.kind.pointer_count > 0) {
+                m_currentFunc->body = body;
+            }
+
             current_offset = temp_offset;
             //strct_.parent = new Variable{};
             strct_.parent = struct_var;
+            strct_.kind = var.kind;
             strct_.offset = var.offset;
+            strct_.size = var.size;
+            if (strct_.members[0].parent)
+                *strct_.members[0].parent = strct_;
             //wmemcpy((wchar_t*)strct_.parent, (wchar_t*)struct_var, 8);
             struct_var->members.push_back(strct_);
         } else
