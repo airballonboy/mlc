@@ -35,6 +35,7 @@ private:
     VariableStorage* m_current_var_store;
     FunctionStorage* m_currentFuncStorage;
 
+    size_t align(size_t current_offset, Type type, std::string type_name = "");
     bool variable_exist_in_storage(std::string_view varName, const VariableStorage&);
     bool function_exist_in_storage(std::string_view funcName, const FunctionStorage&);
     Func& get_func_from_name(std::string_view name, FunctionStorage& func_storage);

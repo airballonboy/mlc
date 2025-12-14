@@ -464,6 +464,10 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
     if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
 
     for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register); i++, j++) {
+        {
+            auto v = args[i];        
+            std::println("name {:5} size {:02} type {:02} offset {:02} deref {:02}", v.name, v.size, (int)v.type, v.offset, v.deref_count);
+        }
         if (args[i].type == Type::Struct_t) {
             if (args[i].deref_count > 0) {
                 if (args[i].kind.pointer_count == args[i].deref_count)
@@ -794,17 +798,28 @@ void gnu_asm::mov_member(Variable src, Register dest) {
             parent->deref_count = parent->kind.pointer_count - 1;
             //mov(current.offset, Rax, Rax);
             deref(reg, parent->deref_count);
-            mov(off, reg, dest, src.size);
+
+            if (src.deref_count == -1) {
+                lea(off, reg, dest);
+            } else {
+                mov(off, reg, dest, src.size);
+                if (src.deref_count > 0) {
+                    deref(dest, src.deref_count);
+                }
+            }
             free_reg(reg);
             return;
         }
         current = *current.parent;
     }
-    mov(-off, Rbp, dest, src.size);
-    if (src.deref_count > 0) {
-        deref(dest, src.deref_count);
+    if (src.deref_count == -1) {
+        lea(-off, Rbp, dest);
+    } else {
+        mov(-off, Rbp, dest, src.size);
+        if (src.deref_count > 0) {
+            deref(dest, src.deref_count);
+        }
     }
-    // TODO: check for dere;f
 }
 void gnu_asm::mov(Variable src, Register dest) {
     //std::string_view& reg_name = REG_SIZE(dest, src.size);

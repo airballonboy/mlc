@@ -352,6 +352,7 @@ struct Struct {
     VariableStorage var_storage;
     std::unordered_map<int, Variable> defaults;
     size_t size;
+    size_t alignment;
 };
 typedef std::vector<Struct> StructStorage;
 

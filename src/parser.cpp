@@ -4,6 +4,7 @@
 #include "tools/file.h"
 #include "tools/logger.h"
 #include "types.h"
+#include <algorithm>
 #include <any>
 #include <cstdint>
 #include <print>
@@ -47,6 +48,15 @@ int get_cond_precedence(TokenType tt) {
         default:
             return -1;
     }
+}
+size_t Parser::align(size_t current_offset, Type type, std::string type_name) {
+    size_t alignment = 0;
+    if (type != Type::Struct_t) {
+        alignment = variable_size_bytes(type);
+    } else {
+        alignment = get_struct_from_name(type_name).alignment;
+    }
+    return (current_offset + alignment - 1) & ~(alignment-1);
 }
 Parser::Parser(Lexar* lexar){
     m_currentLexar = lexar;
@@ -107,6 +117,7 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member){
     else 
         var.name = m_currentLexar->currentToken->string_value;    
 
+    align(current_offset, var.type, type_name);
     var.offset = current_offset;
     // TODO: support arrays
     if (m_currentLexar->peek()->type == TokenType::OBracket) {
@@ -277,6 +288,12 @@ void Parser::parseStructDeclaration() {
         m_currentFunc = &temp_f;
         auto& var = parseVariable(current_struct.var_storage, true);
         int var_index = current_struct.var_storage.size()-1;
+        current_struct.size = align(current_struct.size, var.type, var._type_name);
+        if (var.type == Type::Struct_t) {
+            current_struct.alignment = std::max((int)current_struct.alignment, (int)get_struct_from_name(var._type_name).alignment);
+        } else {
+            current_struct.alignment = std::max((int)current_struct.alignment, (int)var.size);
+        }
         var.offset = current_struct.size;
         current_struct.size += var.size;
         m_currentFunc = last_func;
@@ -854,13 +871,18 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             struct_func_prefix += "___";
             this_ptr = strct;
             this_    = strct;
-            this_ptr.deref_count = -1;
-            this_ptr.kind.pointer_count += 1;
+            this_ptr.deref_count = this_ptr.kind.pointer_count - 1;
+            this_ptr.kind.pointer_count = 1;
+            this_ptr.size = 8;
         } else {
             strct = get_var_from_name((*tkn)->string_value, this_.members);
             strct.parent = new Variable;
             *strct.parent = this_;
             this_    = strct;
+            this_ptr = strct;
+            this_ptr.deref_count = this_ptr.kind.pointer_count - 1;
+            this_ptr.kind.pointer_count = 1;
+            this_ptr.size = 8;
             struct_func_prefix = strct._type_name;
             struct_func_prefix += "___";
             //struct_prefix += (*tkn)->string_value;
@@ -882,7 +904,13 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
                 m_currentFunc->body.push_back({Op::STORE_RET, {var}});
             return {var, ret_lvalue};
         }
-        if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
+        if (this_ptr.type != Type::Void_t) {
+            //auto strct = get_struct_from_name(this_._type_name);
+            auto var_ = get_var_from_name(name, this_.members);
+            var_.parent = new Variable;
+            *var_.parent = this_;
+            return {var_, true};
+        } else if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
             std::println("{}",(*tkn)->string_value);
             TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
             return {var, true};
@@ -891,27 +919,6 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             var = get_var_from_name(name, m_currentFunc->local_variables);
             ret_lvalue = true;
             return {var, ret_lvalue};
-        }else if (this_ptr.type != Type::Void_t) {
-            //auto strct = get_struct_from_name(this_._type_name);
-            auto var_ = get_var_from_name(name, this_.members);
-            var_.parent = new Variable;
-            *var_.parent = this_;
-            //this_ptr.size = var_.size;
-            //this_ptr.type = var_.type;
-            //this_ptr.name = var_.name;
-            //this_ptr.deref_count = 0;
-            //this_ptr.kind.deref_offset = var_.offset;
-            //this_ptr.kind.pointer_count -= 1;
-            //print_var(this_ptr);
-            
-
-            return {var_, true};
-
-            //auto strct = get_struct_from_name(this_ptr._type_name);
-            //auto var_ = get_var_from_name((*tkn)->string_value, strct.var_storage);
-            //auto temp = make_temp_var(var_.type, var_.size);
-            //m_currentFunc->body.push_back({Op::DEREF_OFFSET, {var_.offset, this_ptr, temp}});
-            //return {temp, false};
         } else {
             TODO(f("ERROR: variable `{}` at {}:{}:{} wasn't found", name, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
         }
