@@ -466,7 +466,7 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
     for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register); i++, j++) {
         {
             auto v = args[i];        
-            std::println("name {:5} size {:02} type {:02} offset {:02} deref {:02}", v.name, v.size, (int)v.type, v.offset, v.deref_count);
+            //std::println("name {:5} size {:02} type {:02} offset {:02} deref {:02}", v.name, v.size, (int)v.type, v.offset, v.deref_count);
         }
         if (args[i].type == Type::Struct_t) {
             if (args[i].deref_count > 0) {
