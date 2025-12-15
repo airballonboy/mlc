@@ -76,6 +76,7 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member){
         current_module_prefix = "";
     } else {
         type_name = (*tkn)->string_value;
+        var._type_name = type_name;
     }
     if (TypeIds.contains(type_name) && TypeIds.at(type_name) == Type::Struct_t) {
         strct = true;
