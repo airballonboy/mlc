@@ -99,7 +99,7 @@ void gnu_asm::compileProgram() {
 
     output.appendf(".section .rodata\n");
     for (const auto& var : m_program->var_storage) {
-        if (var.type == Type::String_lit)
+        if (var.kind.literal && var.type == Type::String_t)
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
     }
     if (current_string_count != 0) {
@@ -174,7 +174,7 @@ void gnu_asm::compileFunction(Func func) {
                 Variable var2 = std::any_cast<Variable>(inst.args[1]);
 
                 //asm("int3");
-                if (var1.type != Type::String_lit) {
+                if (var1.type != Type::String_t) {
                     //TODO: add this to parser as warning
                     //if (var2.size < var1.size){
                     //    WARNING("trying to assign a variable of size {} to a variable of size {} \n"
@@ -449,7 +449,7 @@ void gnu_asm::compileFunction(Func func) {
         }
     }
     if (!returned) {
-        mov({.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 8}, Rax);
+        mov({.type = Type::Int64_t, .name = "Int_lit", .value = (int64_t)0, .size = 8, .kind = {.literal = true}}, Rax);
         output.appendf("    popq %r15\n");
         output.appendf("    popq %r14\n");
         output.appendf("    popq %r13\n");
@@ -522,7 +522,7 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
 //}
 //void gnu_asm::move_var_to_reg(Variable arg, Register reg) {
 //    std::string_view& reg_name = REG_SIZE(reg, arg.size);
-//    if (arg.type == Type::String_lit)
+//    if (arg.literal && arg.type == Type::String_t)
 //        output.appendf("    leaq {}(%rip), {}\n", arg.name, reg_name);
 //    else if (arg.type == Type::Int_lit)
 //        output.appendf("    {} ${}, {}\n", MOV_SIZE(arg.size), std::any_cast<int64_t>(arg.value), reg_name);
@@ -545,7 +545,7 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
 //        output.appendf("    {} -{}(%rbp), {}\n", MOV_SIZE(arg.size), arg.offset, reg_name);
 //}
 //void gnu_asm::move_reg_to_var(Register reg, Variable arg) {
-//    if (arg.type == Type::String_lit)
+//    if (arg.literal && arg.type == Type::String_t)
 //        TODO("can't move reg to string lit");
 //    else if (arg.type == Type::Int_lit)
 //        TODO("can't move reg to int lit");
@@ -824,11 +824,11 @@ void gnu_asm::mov_member(Variable src, Register dest) {
 void gnu_asm::mov(Variable src, Register dest) {
     //std::string_view& reg_name = REG_SIZE(dest, src.size);
 
-    if (src.type == Type::String_lit)
+    if (src.kind.literal && src.type == Type::String_t)
         lea(src.name, Rip, dest);
         //TODO("add lea func");
         //output.appendf("    leaq {}(%rip), {}\n", src.name, reg_name);
-    else if (src.type == Type::Int_lit)
+    else if (src.kind.literal && src.type == Type::Int64_t)
         mov(std::any_cast<int64_t>(src.value), dest);
     else if (src.type == Type::Void_t)
         mov(0, dest);
@@ -851,7 +851,7 @@ void gnu_asm::mov(Variable src, Register dest) {
         mov(-src.offset, Rbp, dest, src.size);
 }
 void gnu_asm::mov(Register src, Variable dest) {
-    if (dest.type == Type::Int_lit && dest.type == Type::String_lit) {
+    if (dest.kind.literal) {
         TODO("can't mov into literals");
     } else if (dest.type == Type::Void_t) {
         TODO("can't mov into Void");
@@ -897,13 +897,13 @@ void gnu_asm::mov(Register src, Variable dest) {
 
 }
 void gnu_asm::mov(Variable src, Variable dest) {
-    if (dest.type == Type::Int_lit && dest.type == Type::String_lit)
+    if (dest.kind.literal)
         TODO("can't mov into literals");
 
     int64_t src_real_ptr_count = (src.kind.pointer_count-src.deref_count);
     int64_t dest_real_ptr_count = (dest.kind.pointer_count-dest.deref_count);
 
-    if (src.type == Type::Int_lit && dest.parent == nullptr) {
+    if (src.kind.literal && src.type == Type::Int64_t && dest.parent == nullptr) {
         if (dest.type == Type::Struct_t)
             TODO(f("can't mov int literal into var of type {}", dest._type_name));
         mov(std::any_cast<int64_t>(src.value), -dest.offset, Rbp, dest.size);

@@ -57,7 +57,6 @@ enum class Type : int {
     String_t, Char_t,
     Float_t, Size_t,
     Bool_t,
-    String_lit, Int_lit
 };
 enum class Op {
     // stores variable1 into variable2
@@ -122,11 +121,9 @@ inline std::unordered_map<Type, std::string> printableTypeIds = {
 inline std::unordered_map<Type, std::function<std::string(std::any)>> TypeToString = {
     {Type::Int8_t    , [](const std::any& val){ return std::to_string(std::any_cast<int8_t> (val)); }},
     {Type::Int16_t   , [](const std::any& val){ return std::to_string(std::any_cast<int16_t>(val)); }},
-    {Type::Int_lit   , [](const std::any& val){ return std::to_string(std::any_cast<int32_t>(val)); }},
     {Type::Int32_t   , [](const std::any& val){ return std::to_string(std::any_cast<int32_t>(val)); }},
     {Type::Int64_t   , [](const std::any& val){ return std::to_string(std::any_cast<int64_t>(val)); }},
     {Type::String_t  , [](const std::any& val){ return std::any_cast<std::string>(val);             }},
-    {Type::String_lit, [](const std::any& val){ return std::any_cast<std::string>(val);             }},
 };
 
 static const std::unordered_map<TokenType, std::string> printableToken = {
@@ -297,6 +294,7 @@ struct Variable;
 typedef std::vector<Variable> VariableStorage;
 
 struct Kind {
+    bool literal = false;
     size_t  pointer_count = 0;
     int64_t deref_offset  = -1;
     size_t  array_count   = 0;
@@ -313,7 +311,7 @@ struct Variable {
     size_t      size = 0;
     Variable* parent = nullptr;
     VariableStorage members{};
-    std::string _type_name;
+    std::string _type_name{};
     Kind kind{};
 };
 

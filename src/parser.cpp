@@ -310,7 +310,8 @@ void Parser::parseStructDeclaration() {
             current_struct.defaults.emplace(var_index, var2);
         } else if (var.type != Type::String_t && var.type != Type::Struct_t) {
             Variable default_val;
-            default_val.type = Type::Int_lit;
+            default_val.type = Type::Int64_t;
+            default_val.kind.literal = true;
 
             default_val.name = "def_value";
             default_val.value = std::any_cast<int64_t>(variable_default_value(var.type));
@@ -623,7 +624,7 @@ void Parser::parseStatement(){
 
             if ((*tkn)->type == TokenType::SemiColon) {
                 if (m_currentFunc->return_type != Type::Void_t) TODO("error on no return");
-                return_value = {.type = Type::Int_lit, .name = "IntLit", .value = (int64_t)0, .size = 4};
+                return_value = {.type = Type::Int64_t, .name = "IntLit", .value = (int64_t)0, .size = 8, .kind = {.literal = true}};
                 m_currentFunc->body.push_back({Op::RETURN, {return_value}});
                 break;
             }
@@ -705,8 +706,9 @@ void Parser::parseStatement(){
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
             } else if (var.type != Type::String_t && var.type != Type::Struct_t) {
                 Variable default_val;
-                default_val.type = Type::Int_lit;
-                default_val.size = 4;
+                default_val.type = Type::Int64_t;
+                default_val.kind.literal = true;
+                default_val.size = 8;
 
                 default_val.name = "def_value";
                 default_val.value = std::any_cast<int64_t>(variable_default_value(var.type));
@@ -795,7 +797,15 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
     if((*tkn)->type == TokenType::DQoute) {
         m_currentLexar->getAndExpectNext(TokenType::StringLit);
         if((*tkn)->type == TokenType::StringLit) {
-            var = {.type = Type::String_lit, .name = f("string_literal_{}", stringLiteralCount++), .value = (*tkn)->string_value, .size = 8};
+            var = {
+                .type = Type::String_t,
+                .name = f("string_literal_{}", stringLiteralCount++),
+                .value = (*tkn)->string_value,
+                .size = 8,
+                .kind = {
+                    .literal = true,
+                },
+            };
             m_program.var_storage.push_back(var);
             m_currentLexar->getAndExpectNext(TokenType::DQoute);
         }
@@ -803,7 +813,15 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
     }
 
     if ((*tkn)->type == TokenType::IntLit) {
-        var = {.type = Type::Int_lit, .name = "Int_Lit", .value = (*tkn)->int_value, .size = 4};
+        var = {
+            .type = Type::Int64_t,
+            .name = "Int_Lit",
+            .value = (*tkn)->int_value,
+            .size = 8,
+            .kind = {
+                .literal = true,
+            },
+        };
         return {var, ret_lvalue};
     }
     
@@ -815,7 +833,15 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         data = parsePrimaryExpression();
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-increment a non lvalue");
-        Variable amount = {.type = Type::Int_lit, .name = "Int_literal", .value = (int64_t)1, .size = 4};
+        Variable amount = {
+            .type = Type::Int64_t,
+            .name = "Int_Lit",
+            .value = (int64_t)1,
+            .size = 8,
+            .kind = {
+                .literal = true,
+            },
+        };
         m_currentFunc->body[add_loc].args = {var, amount, var};
         ret_lvalue = true;
         return {var, ret_lvalue};
@@ -828,7 +854,15 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         data = parsePrimaryExpression();
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-decrement a non lvalue");
-        Variable amount = {.type = Type::Int_lit, .name = "Int_literal", .value = (int64_t)1, .size = 4};
+        Variable amount = {
+            .type = Type::Int64_t,
+            .name = "Int_Lit",
+            .value = (int64_t)1,
+            .size = 8,
+            .kind = {
+                .literal = true,
+            },
+        };
         m_currentFunc->body[add_loc].args = {var, amount, var};
         ret_lvalue = true;
         return {var, ret_lvalue};
@@ -944,9 +978,16 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
     if ((*tkn)->type == TokenType::Minus) {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
-        auto type = (rhs.type == Type::Int_lit ? Type::Int32_t : rhs.type);
-        Variable result = make_temp_var(type, variable_size_bytes(type));
-        Variable zero   = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
+        Variable result = make_temp_var(rhs.type, variable_size_bytes(rhs.type));
+        Variable zero   = {
+            .type = Type::Int64_t,
+            .name = "Int_Lit",
+            .value = (int64_t)0,
+            .size = 8,
+            .kind = {
+                .literal = true,
+            },
+        };
         m_currentFunc->body.push_back({Op::SUB, {zero, rhs, result}});
         return {result, false};
     }
@@ -955,7 +996,15 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
         auto rhs = std::get<0>(parseUnaryExpression());
         auto type = Type::Bool_t;
         Variable result = make_temp_var(type, variable_size_bytes(type));
-        Variable zero   = {.type = Type::Int_lit, .name = "Int_lit", .value = (int64_t)0, .size = 4};
+        Variable zero   = {
+            .type = Type::Int64_t,
+            .name = "Int_Lit",
+            .value = (int64_t)0,
+            .size = 8,
+            .kind = {
+                .literal = true,
+            },
+        };
         m_currentFunc->body.push_back({Op::EQ, {rhs, zero, result}});
         return {result, false};
     }
@@ -976,8 +1025,7 @@ std::tuple<Variable, bool> Parser::parseMultiplicativeExpression(){
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
 
-        auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
-        Variable result = make_temp_var(type, variable_size_bytes(type));
+        Variable result = make_temp_var(lhs.type, variable_size_bytes(lhs.type));
 
         if (op_type == TokenType::Mul) {
             m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
@@ -1006,8 +1054,7 @@ std::tuple<Variable, bool> Parser::parseAdditiveExpression(){
         auto rhs = std::get<0>(parseMultiplicativeExpression());
 
 
-        auto type = (lhs.type == Type::Int_lit ? Type::Int32_t : lhs.type);
-        Variable result = make_temp_var(type, variable_size_bytes(type));
+        Variable result = make_temp_var(lhs.type, variable_size_bytes(lhs.type));
         if (op_type == TokenType::Plus) {
             m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
         }else {
@@ -1149,13 +1196,11 @@ size_t Parser::variable_size_bytes(Type t) {
         case Type::Int8_t:   return 1; break;
         case Type::Int16_t:  return 2; break;
         case Type::Int32_t:  return 4; break;
-        case Type::Int_lit:  return 4; break;
         case Type::Int64_t:  return 8; break;
         case Type::Size_t:   return 8; break;
         case Type::Float_t:  return 4; break;
 
         case Type::String_t:   return 8; break;
-        case Type::String_lit: return 8; break;
         case Type::Void_t:   return 0; break;
 
         default: 
