@@ -14,7 +14,7 @@
 #define nc m_source[m_currentCharIndex+1]
 
 bool ishex(char chr) {
-    return ((chr > 96 && chr < 103) || (chr > 47 && chr < 58));
+    return ((chr >= 'a' && chr <= 'f') || (chr >= 'A' && chr <= 'F') || (chr >= '0' && chr <= '9'));
 }
 int64_t hex_string_to_int64(std::string s) {
     int64_t total = 0;
@@ -36,6 +36,38 @@ int64_t string_to_int64(std::string s) {
         if (!std::isdigit(s[i])) { std::println(stderr, "ERROR: cannot convert non digit to int (the char is {} {})", j, i); exit(1); }
         total += std::stoi(std::string() + s[i]) * std::pow(10, j);
     }
+    return total;
+}
+double string_to_double(std::string s) {
+    double total = 0.0;
+    double frac_div = 1.0;
+    bool seen_dot = false;
+
+    for (size_t i = 0; i < s.size(); i++) {
+        char chr = s[i];
+
+        if (chr == '.') {
+            if (seen_dot) {
+                std::println(stderr, "ERROR: multiple decimal points");
+                std::exit(1);
+            }
+            seen_dot = true;
+            continue;
+        } else if (!std::isdigit(chr)) {
+            std::println(stderr, "ERROR: invalid character '{}' at index {}", chr, i);
+            std::exit(1);
+        }
+
+        int digit = chr - '0';
+
+        if (!seen_dot) {
+            total = total * 10.0 + digit;
+        } else {
+            frac_div *= 10.0;
+            total += digit / frac_div;
+        }
+    }
+
     return total;
 }
 
@@ -154,7 +186,7 @@ Lexar::Lexar(const std::string& source, const std::string& path){
                 int64_t intLit = hex_string_to_int64(lit);
                 m_tokens.push_back({.type = TokenType::IntLit, .loc = loc, .int_value = intLit});
 
-            }else {
+            } else {
                 lit.push_back(c);
                 m_currentLoc.offset++;
                 m_currentCharIndex++;
@@ -164,8 +196,23 @@ Lexar::Lexar(const std::string& source, const std::string& path){
                     m_currentLoc.offset++;
                     m_currentCharIndex++;
                 }
-                int64_t intLit = string_to_int64(lit);
-                m_tokens.push_back({.type = TokenType::IntLit, .loc = loc, .int_value = intLit});
+                // Float
+                if (c == '.') {
+                    lit.push_back(c);
+                    m_currentLoc.offset++;
+                    m_currentCharIndex++;
+                    while(isdigit(c)){
+                        lit.push_back(c);
+                        m_currentLoc.offset++;
+                        m_currentCharIndex++;
+                    }
+                    double doubleLit = string_to_double(lit);
+                    m_tokens.push_back({.type = TokenType::DoubleLit, .loc = loc, .double_value = doubleLit});
+                // Int
+                } else {
+                    int64_t intLit = string_to_int64(lit);
+                    m_tokens.push_back({.type = TokenType::IntLit, .loc = loc, .int_value = intLit});
+                }
             }
         // Skiping Spaces
         }else if(isspace(c)){

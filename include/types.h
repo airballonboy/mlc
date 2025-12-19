@@ -14,6 +14,7 @@ enum class TokenType {
     // Values
     ID, StringLit,
     CharLit, IntLit,
+    DoubleLit,
     // Puncts
     OCurly, CCurly, 
     OParen, CParen,
@@ -135,6 +136,7 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     {TokenType::StringLit  ,"string"},
     {TokenType::CharLit    ,"character"},
     {TokenType::IntLit     ,"integer literal"},
+    {TokenType::DoubleLit  ,"double literal"},
     // Puncts
     {TokenType::OCurly     ,"`{`"},
     {TokenType::CCurly     ,"`}`"},
