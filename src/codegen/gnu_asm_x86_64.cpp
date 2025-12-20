@@ -111,7 +111,7 @@ void gnu_asm::compileProgram() {
 
     output.appendf(".section .rodata\n");
     for (const auto& var : m_program->var_storage) {
-        if (var.kind.literal && var.type == Type::String_t)
+        if (var.kind.literal && var.type_info->type == Type::String_t)
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
     }
     if (current_string_count != 0) {
@@ -186,7 +186,7 @@ void gnu_asm::compileFunction(Func func) {
                 Variable var2 = std::any_cast<Variable>(inst.args[1]);
 
                 //asm("int3");
-                if (var1.type != Type::String_t) {
+                if (var1.type_info->type != Type::String_t) {
                     //TODO: add this to parser as warning
                     //if (var2.size < var1.size){
                     //    WARNING("trying to assign a variable of size {} to a variable of size {} \n"
@@ -461,7 +461,7 @@ void gnu_asm::compileFunction(Func func) {
         }
     }
     if (!returned) {
-        mov({.type = Type::Int8_t, .name = "Int_lit", .value = (int64_t)0, .size = 1, .kind = {.literal = true}}, Rax);
+        mov({.type_info = &type_infos.at("int8"), .name = "Int_lit", .value = (int64_t)0, .size = 1, .kind = {.literal = true}}, Rax);
         output.appendf("    popq %r15\n");
         output.appendf("    popq %r14\n");
         output.appendf("    popq %r13\n");
@@ -480,10 +480,10 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
             auto v = args[i];        
             //std::println("name {:5} size {:02} type {:02} offset {:02} deref {:02}", v.name, v.size, (int)v.type, v.offset, v.deref_count);
         }
-        if (args[i].type == Type::Struct_t) {
+        if (args[i].type_info->type == Type::Struct_t) {
             if (args[i].deref_count > 0) {
                 if (args[i].kind.pointer_count == args[i].deref_count)
-                    args[i].size = get_struct_from_name(args[i]._type_name).size;
+                    args[i].size = get_struct_from_name(args[i].type_info->name).size;
             }
             if (args[i].size <= 8) {
                 mov(args[i], arg_register[j]);
@@ -836,13 +836,13 @@ void gnu_asm::mov_member(Variable src, Register dest) {
 void gnu_asm::mov(Variable src, Register dest) {
     //std::string_view& reg_name = REG_SIZE(dest, src.size);
 
-    if (src.kind.literal && src.type == Type::String_t)
+    if (src.kind.literal && src.type_info->type == Type::String_t)
         lea(src.name, Rip, dest);
         //TODO("add lea func");
         //output.appendf("    leaq {}(%rip), {}\n", src.name, reg_name);
-    else if (src.kind.literal && is_int_type(src.type))
+    else if (src.kind.literal && is_int_type(src.type_info->type))
         mov(std::any_cast<int64_t>(src.value), dest);
-    else if (src.type == Type::Void_t)
+    else if (src.type_info->type == Type::Void_t)
         mov(0, dest);
     else if (src.parent != nullptr) {
         mov_member(src, dest);
@@ -865,7 +865,7 @@ void gnu_asm::mov(Variable src, Register dest) {
 void gnu_asm::mov(Register src, Variable dest) {
     if (dest.kind.literal) {
         TODO("can't mov into literals");
-    } else if (dest.type == Type::Void_t) {
+    } else if (dest.type_info->type == Type::Void_t) {
         TODO("can't mov into Void");
     } else if (dest.deref_count > 0) {
         Register reg = get_available_reg();
@@ -915,27 +915,29 @@ void gnu_asm::mov(Variable src, Variable dest) {
     int64_t src_real_ptr_count = (src.kind.pointer_count-src.deref_count);
     int64_t dest_real_ptr_count = (dest.kind.pointer_count-dest.deref_count);
 
-    if (src.kind.literal && is_int_type(src.type) && dest.parent == nullptr) {
-        if (dest.type == Type::Struct_t)
-            TODO(f("can't mov int literal into var of type {}", dest._type_name));
+    if (src.kind.literal && is_int_type(src.type_info->type) && dest.parent == nullptr) {
+        if (dest.type_info->type == Type::Struct_t)
+            TODO(f("can't mov int literal into var of type {}", dest.type_info->name));
         mov(std::any_cast<int64_t>(src.value), -dest.offset, Rbp, dest.size);
-    } else if (src.type == Type::Struct_t || dest.type == Type::Struct_t) {
-        if (src._type_name != dest._type_name) TODO(f("error trying assigning different structers to each other, {} {}", src._type_name, dest._type_name));
+    } else if (src.type_info->type == Type::Struct_t || dest.type_info->type == Type::Struct_t) {
+        if (src.type_info->name != dest.type_info->name) 
+            TODO(f("error trying assigning different structers to each other, {} {}", src.type_info->name, dest.type_info->name));
         Struct strct{};
         bool found = false;
         for (const auto& strct_ : m_program->struct_storage) {
-            if (strct_.name == src._type_name) {
+            if (strct_.name == src.type_info->name) {
                 found = true;
                 strct = strct_;
                 break;
             }
         }
-        if (!found) TODO(f("struct {} wasn't found", src._type_name));
+        if (!found) TODO(f("struct {} wasn't found", src.type_info->name));
         if (dest.kind.pointer_count > 0) {
             auto reg1 = get_available_reg();
             auto reg2 = get_available_reg();
             
-            if (src_real_ptr_count != dest_real_ptr_count) TODO(f("trying to move Variable {} into {}, but kind is not the same", src.name, dest.name));
+            if (src_real_ptr_count != dest_real_ptr_count)
+                TODO(f("trying to move Variable {} into {}, but kind is not the same", src.name, dest.name));
             if (dest_real_ptr_count == 0) {
                 dest.deref_count -= 1;
                 mov(dest, Rdi);

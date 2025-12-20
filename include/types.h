@@ -303,17 +303,39 @@ struct Kind {
     // TODO: add a vector of array data
 };
 
+struct TypeInfo {
+    size_t id = 0;
+    Type type = Type::Int32_t;
+    size_t size = 0;
+    std::string name{};
+    // TODO: add available cast functions to other types
+};
+
+inline std::unordered_map <std::string, TypeInfo> type_infos = {
+    {"void"  , {.id = 0 , .type = Type::Void_t  , .size = 1, .name = "void"}},
+    {"char"  , {.id = 1 , .type = Type::Char_t  , .size = 1, .name = "char"}},
+    {"int8"  , {.id = 2 , .type = Type::Int8_t  , .size = 1, .name = "int8"}},
+    {"int16" , {.id = 3 , .type = Type::Int16_t , .size = 2, .name = "int16"}},
+    {"int"   , {.id = 4 , .type = Type::Int32_t , .size = 4, .name = "int32"}},
+    {"int32" , {.id = 4 , .type = Type::Int32_t , .size = 4, .name = "int32"}},
+    {"int64" , {.id = 5 , .type = Type::Int64_t , .size = 8, .name = "int64"}},
+    {"long"  , {.id = 5 , .type = Type::Int64_t , .size = 8, .name = "int64"}},
+    {"string", {.id = 6 , .type = Type::String_t, .size = 8, .name = "string"}},
+    {"float" , {.id = 7 , .type = Type::Float_t , .size = 4, .name = "float"}},
+    {"usize" , {.id = 8 , .type = Type::Size_t  , .size = 8, .name = "uint64"}},
+    {"bool"  , {.id = 9 , .type = Type::Bool_t  , .size = 1, .name = "bool"}}
+};
+inline size_t current_typeid_max = 9;
+
 struct Variable {
-    Type        type{};
+    TypeInfo*   type_info = nullptr;
     std::string name{};
     std::any    value{};
-    // TODO: make this used and add pointers
     int64_t     deref_count = 0;
     size_t      offset = 0;
     size_t      size = 0;
     Variable* parent = nullptr;
     VariableStorage members{};
-    std::string _type_name{};
     Kind kind{};
 };
 

@@ -24,7 +24,7 @@ public:
     std::tuple<Variable, bool> parseAdditiveExpression();
     std::tuple<Variable, bool> parseCondition(int min_prec);
     std::tuple<Variable, bool> parseExpression();
-    void     parseFuncCall(Func func, Variable this_ptr = {Type::Void_t});
+    void     parseFuncCall(Func func, Variable this_ptr = {&type_infos.at("void")});
     void     parseHash();
 
     Token** tkn;
