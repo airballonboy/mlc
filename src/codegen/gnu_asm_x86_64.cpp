@@ -278,7 +278,7 @@ void gnu_asm::compileFunction(Func func) {
                 auto reg2 = get_available_reg();
                 mov(lhs, reg1);
                 mov(rhs, reg2);
-                output.appendf("    subq {}, {}\n", reg2._64, reg1._64);
+                output.appendf("    {} {}, {}\n", INST_SIZE("sub", result.size), REG_SIZE(reg2, result.size), REG_SIZE(reg1, result.size));
                 mov(reg1, result);
                 free_reg(reg1);
                 free_reg(reg2);
@@ -292,7 +292,7 @@ void gnu_asm::compileFunction(Func func) {
                 auto reg2 = get_available_reg();
                 mov(lhs, reg1);
                 mov(rhs, reg2);
-                output.appendf("    imulq {}, {}\n", reg2._64, reg1._64); // signed multiply
+                output.appendf("    {} {}, {}\n", INST_SIZE("imul", lhs.size), REG_SIZE(reg2, lhs.size), REG_SIZE(reg1, lhs.size)); // signed multiply
                 mov(reg1, result);
                 free_reg(reg1);
                 free_reg(reg2);
@@ -307,7 +307,7 @@ void gnu_asm::compileFunction(Func func) {
                 mov(lhs, reg1);
                 output.appendf("    cqto\n");
                 mov(rhs, reg2);
-                output.appendf("    idivq {}\n", reg2._64);
+                output.appendf("    {} {}, {}\n", INST_SIZE("idiv", lhs.size), REG_SIZE(reg2, lhs.size), REG_SIZE(reg1, lhs.size));
                 mov(reg1, result);
                 free_reg(reg1);
                 free_reg(reg2);

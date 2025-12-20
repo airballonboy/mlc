@@ -51,11 +51,11 @@ uint8_t size_of_unsigned_int (uint64_t i) {
 }
 TypeInfo* sized_int_type(int8_t size) {
     if (size == 1)
-        return &type_infos.at("int64");
+        return &type_infos.at("int8");
     if (size == 2)
-        return &type_infos.at("int64");
+        return &type_infos.at("int16");
     if (size == 4)
-        return &type_infos.at("int64");
+        return &type_infos.at("int32");
     if (size == 8)
         return &type_infos.at("int64");
     return &type_infos.at("void");
@@ -1023,7 +1023,7 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
     if ((*tkn)->type == TokenType::Minus) {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
-        Variable result = make_temp_var(rhs.type_info->type, variable_size_bytes(rhs.type_info->type));
+        Variable result = make_temp_var(rhs.type_info->type, 2);
         Variable zero   = {
             .type_info = &type_infos.at("int8"),
             .name = "Int_Lit",
