@@ -1023,17 +1023,22 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
     if ((*tkn)->type == TokenType::Minus) {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
-        Variable result = make_temp_var(rhs.type_info->type, 2);
-        Variable zero   = {
-            .type_info = &type_infos.at("int8"),
-            .name = "Int_Lit",
-            .value = (int64_t)0,
-            .size = 1,
-            .kind = {
-                .literal = true,
-            },
-        };
-        m_currentFunc->body.push_back({Op::SUB, {zero, rhs, result}});
+        Variable result = make_temp_var(rhs.type_info->type, 8);
+        if (rhs.kind.literal) {
+            rhs.value = -std::any_cast<int64_t>(rhs.value);
+            m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, result}});
+        } else {
+            Variable zero   = {
+                .type_info = &type_infos.at("int8"),
+                .name = "Int_Lit",
+                .value = (int64_t)0,
+                .size = 1,
+                .kind = {
+                    .literal = true,
+                },
+            };
+            m_currentFunc->body.push_back({Op::SUB, {zero, rhs, result}});
+        }
         return {result, false};
     }
     if ((*tkn)->type == TokenType::Not) {
