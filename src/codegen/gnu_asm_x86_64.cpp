@@ -55,6 +55,18 @@ void free_reg(Register reg) {
     } else 
         TODO("register doesn't exist");
 }
+bool is_int_type(Type t) {
+    if (t == Type::Int64_t ||
+        t == Type::Int32_t ||
+        t == Type::Int16_t ||
+        t == Type::Int8_t  ||
+        t == Type::Char_t  ||
+        t == Type::Size_t  ||
+        t == Type::Bool_t
+    )
+        return true;
+    return false;
+}
 
 #define WARNING(...) std::println("\nWarning: {}\n", f(__VA_ARGS__))
 
@@ -449,7 +461,7 @@ void gnu_asm::compileFunction(Func func) {
         }
     }
     if (!returned) {
-        mov({.type = Type::Int64_t, .name = "Int_lit", .value = (int64_t)0, .size = 8, .kind = {.literal = true}}, Rax);
+        mov({.type = Type::Int8_t, .name = "Int_lit", .value = (int64_t)0, .size = 1, .kind = {.literal = true}}, Rax);
         output.appendf("    popq %r15\n");
         output.appendf("    popq %r14\n");
         output.appendf("    popq %r13\n");
@@ -828,7 +840,7 @@ void gnu_asm::mov(Variable src, Register dest) {
         lea(src.name, Rip, dest);
         //TODO("add lea func");
         //output.appendf("    leaq {}(%rip), {}\n", src.name, reg_name);
-    else if (src.kind.literal && src.type == Type::Int64_t)
+    else if (src.kind.literal && is_int_type(src.type))
         mov(std::any_cast<int64_t>(src.value), dest);
     else if (src.type == Type::Void_t)
         mov(0, dest);
@@ -903,7 +915,7 @@ void gnu_asm::mov(Variable src, Variable dest) {
     int64_t src_real_ptr_count = (src.kind.pointer_count-src.deref_count);
     int64_t dest_real_ptr_count = (dest.kind.pointer_count-dest.deref_count);
 
-    if (src.kind.literal && src.type == Type::Int64_t && dest.parent == nullptr) {
+    if (src.kind.literal && is_int_type(src.type) && dest.parent == nullptr) {
         if (dest.type == Type::Struct_t)
             TODO(f("can't mov int literal into var of type {}", dest._type_name));
         mov(std::any_cast<int64_t>(src.value), -dest.offset, Rbp, dest.size);

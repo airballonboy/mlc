@@ -27,6 +27,39 @@ size_t max_locals_offset = 8;
 size_t statement_count = 0;
 std::string current_module_prefix{};
 std::vector<std::string> included_files;
+uint8_t size_of_signed_int (int64_t i) {
+    if (i <= 127)
+        return 1;
+    if (i <= 32767)
+        return 2;
+    if (i <= 2147483647l)
+        return 4;
+    if (i <= 9223372036854775807ll)
+        return 8;
+    return 0;
+}
+uint8_t size_of_unsigned_int (uint64_t i) {
+    if (i <= 255)
+        return 1;
+    if (i <= 65535)
+        return 2;
+    if (i <= 4294967295ul)
+        return 4;
+    if (i <= 18446744073709551615ull)
+        return 8;
+    return 0;
+}
+Type sized_int_type(int8_t size) {
+    if (size == 1)
+        return Type::Int8_t;
+    if (size == 2)
+        return Type::Int16_t;
+    if (size == 4)
+        return Type::Int32_t;
+    if (size == 8)
+        return Type::Int64_t;
+    return Type::Void_t;
+}
 
 // TODO: fix this and remove it
 bool eq = false;
@@ -76,13 +109,14 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member){
         current_module_prefix = "";
     } else {
         type_name = (*tkn)->string_value;
-        var._type_name = type_name;
     }
     if (TypeIds.contains(type_name) && TypeIds.at(type_name) == Type::Struct_t) {
         strct = true;
+        var._type_name = type_name;
     } else if (TypeIds.contains((*tkn)->string_value)) {
         var.type = TypeIds.at((*tkn)->string_value);
         var.size = variable_size_bytes(var.type);
+        var._type_name = printableTypeIds.at(TypeIds.at(type_name));
     } else {
         ERROR((*tkn)->loc, "type was not found");
     }
@@ -310,7 +344,7 @@ void Parser::parseStructDeclaration() {
             current_struct.defaults.emplace(var_index, var2);
         } else if (var.type != Type::String_t && var.type != Type::Struct_t) {
             Variable default_val;
-            default_val.type = Type::Int64_t;
+            default_val.type = Type::Int8_t;
             default_val.kind.literal = true;
 
             default_val.name = "def_value";
@@ -624,7 +658,7 @@ void Parser::parseStatement(){
 
             if ((*tkn)->type == TokenType::SemiColon) {
                 if (m_currentFunc->return_type != Type::Void_t) TODO("error on no return");
-                return_value = {.type = Type::Int64_t, .name = "IntLit", .value = (int64_t)0, .size = 8, .kind = {.literal = true}};
+                return_value = {.type = Type::Int8_t, .name = "IntLit", .value = (int64_t)0, .size = 1, .kind = {.literal = true}};
                 m_currentFunc->body.push_back({Op::RETURN, {return_value}});
                 break;
             }
@@ -706,9 +740,9 @@ void Parser::parseStatement(){
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
             } else if (var.type != Type::String_t && var.type != Type::Struct_t) {
                 Variable default_val;
-                default_val.type = Type::Int64_t;
+                default_val.type = Type::Int8_t;
                 default_val.kind.literal = true;
-                default_val.size = 8;
+                default_val.size = 1;
 
                 default_val.name = "def_value";
                 default_val.value = std::any_cast<int64_t>(variable_default_value(var.type));
@@ -813,12 +847,14 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
     }
 
     if ((*tkn)->type == TokenType::IntLit) {
+        int64_t value = (*tkn)->int_value;
+        size_t size = size_of_signed_int(value);
         var = {
-            .type = Type::Int64_t,
-            .name = "Int_Lit",
-            .value = (*tkn)->int_value,
-            .size = 8,
-            .kind = {
+            .type  = sized_int_type(size),
+            .name  = "Int_Lit",
+            .value = value,
+            .size  = size,
+            .kind  = {
                 .literal = true,
             },
         };
@@ -834,10 +870,10 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-increment a non lvalue");
         Variable amount = {
-            .type = Type::Int64_t,
+            .type = Type::Int8_t,
             .name = "Int_Lit",
             .value = (int64_t)1,
-            .size = 8,
+            .size = 1,
             .kind = {
                 .literal = true,
             },
@@ -855,10 +891,10 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-decrement a non lvalue");
         Variable amount = {
-            .type = Type::Int64_t,
+            .type = Type::Int8_t,
             .name = "Int_Lit",
             .value = (int64_t)1,
-            .size = 8,
+            .size = 1,
             .kind = {
                 .literal = true,
             },
@@ -980,10 +1016,10 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
         auto rhs = std::get<0>(parseUnaryExpression());
         Variable result = make_temp_var(rhs.type, variable_size_bytes(rhs.type));
         Variable zero   = {
-            .type = Type::Int64_t,
+            .type = Type::Int8_t,
             .name = "Int_Lit",
             .value = (int64_t)0,
-            .size = 8,
+            .size = 1,
             .kind = {
                 .literal = true,
             },
@@ -997,10 +1033,10 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
         auto type = Type::Bool_t;
         Variable result = make_temp_var(type, variable_size_bytes(type));
         Variable zero   = {
-            .type = Type::Int64_t,
+            .type = Type::Int8_t,
             .name = "Int_Lit",
             .value = (int64_t)0,
-            .size = 8,
+            .size = 1,
             .kind = {
                 .literal = true,
             },
