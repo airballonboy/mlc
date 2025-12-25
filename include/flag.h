@@ -16,11 +16,17 @@ public:
         current_iteratior = 0;
         auto max = argc;
         while (current_iteratior < max) {
+            bool is_flag = false;
             for (auto& flag : flags) {
                 if(flag->parse_flag(m_args[current_iteratior], argc)) { 
                     not_ret.push_back(m_args[current_iteratior]);
+                    is_flag = true;
                     break;
                 }
+            }
+            if (!is_flag && m_args[current_iteratior].starts_with("-")) {
+                std::println(stderr, "flag {} was not found", m_args[current_iteratior]);
+                exit(1);
             }
             current_iteratior++;
         }
@@ -36,8 +42,9 @@ public:
     }
     virtual bool parse_flag(std::string _flag, int& argc) { return false; };
 
-    std::string_view name;
-    std::string_view desc;
+    std::string name;
+    std::string desc;
+    std::vector<const char*> names{""};
     inline static std::vector<FLAG_BASE*> flags;
 protected:
     inline static std::vector<std::string_view> not_ret;
@@ -49,8 +56,13 @@ template <typename FlagType>
 class Flag : public FLAG_BASE {
 public:
     Flag() = default;
-    Flag(std::string_view _name, std::string_view _desc) {
-        name = _name;
+    Flag(std::vector<const char*> _names, std::string_view _desc) {
+        names = _names;
+        desc = _desc;
+        flags.push_back(this);
+    }
+    Flag(const char* _name, std::string_view _desc) {
+        name = std::string(_name);
         desc = _desc;
         flags.push_back(this);
     }
@@ -63,7 +75,21 @@ public:
     FlagType* value = nullptr;
     
     bool parse_flag(std::string _flag, int& argc) override {
-        if (_flag != name) return false;
+        if (strcmp(names[0], "") != 0) {
+            bool found = false;
+            for (auto& flag_name : names) {
+                if (strcmp(flag_name, _flag.c_str()) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return false;
+        } else if (_flag != name) {
+            return false;
+        } else {
+            std::println("name {}, flag {}", name, _flag);
+        }
+
         if (!exists) {
             value = new FlagType;
         }

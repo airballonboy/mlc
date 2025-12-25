@@ -87,17 +87,15 @@ void print_help_message() {
     mlog::log("Usage: ", mlog::Blue, f("{} input.mlang [options]", programName).c_str());
     println("\noptions:");
     for (auto& flag: FLAG_BASE::flags) {
-        if (flag->name == "--help") continue;
         println("  {}", flag->desc);
     }
 }
 
-Flag<bool>                     help_flag2    ("--help", "");
-Flag<bool>                     help_flag1    ("-h"    , "[-h] [--help]    prints this message");
-Flag<bool>                     run_flag      ("-run"  , "[-run]           runs the program after compilation");
-Flag<std::string>              output_flag   ("-o"    , "[-o executable]  outputs the program into the name provided");
-Flag<std::string>              platform_flag ("-t"    , "[-t platform]    chooses which platform to compile to");
-Flag<std::vector<std::string>> include_flag  ("-I"    , "[-I include_dir] add a directory to included directories");
+Flag<bool>                     help_flag1    ({"-h", "--help"}, "[-h] [--help]    prints this message");
+Flag<bool>                     run_flag      ("-run"          , "[-run]           runs the program after compilation");
+Flag<std::string>              output_flag   ("-o"            , "[-o executable]  outputs the program into the name provided");
+Flag<std::string>              platform_flag ("-t"            , "[-t platform]    chooses which platform to compile to");
+Flag<std::vector<std::string>> include_flag  ("-I"            , "[-I include_dir] add a directory to included directories");
 
 // TODO: should save token id in the token
 
@@ -115,7 +113,7 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    if (help_flag1.exists || help_flag2.exists) {
+    if (help_flag1.exists) {
         print_help_message();
         exit(1);
     }
