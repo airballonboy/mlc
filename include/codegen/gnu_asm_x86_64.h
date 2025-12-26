@@ -15,11 +15,9 @@ public:
 
     gnu_asm(Program* prog) : BaseCodegenerator(prog) {}
 
-    void move_var_to_reg(Variable arg, Register reg);
-    void move_reg_to_var(Register reg, Variable arg2);
-    void move_var_to_var(Variable arg1, Variable arg2);
-    void move_reg_to_reg(Register reg1, Register reg2);
-    void deref_var_to_reg(Variable arg, Register reg);
+    void call_func(std::string func_name, VariableStorage args);
+    void compileProgram() override;
+    void compileFunction(Func func) override;
 
     // moves `src` into `dest` with the size of `size`
     void mov(Register src      , Register dest  , size_t   size);
@@ -60,10 +58,9 @@ public:
     void deref(Register, int64_t deref_count);
 
     Struct& get_struct_from_name(std::string& name);
-
-    void call_func(std::string func_name, VariableStorage args);
-    void compileProgram() override;
-    void compileFunction(Func func) override;
+private:
+    void function_prologue();
+    void function_epilogue();
 };
 
 const Register Rip = {"%rip", "%rip" , "%rip" , "%rip"};

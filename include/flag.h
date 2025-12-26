@@ -86,8 +86,6 @@ public:
             if (!found) return false;
         } else if (_flag != name) {
             return false;
-        } else {
-            std::println("name {}, flag {}", name, _flag);
         }
 
         if (!exists) {

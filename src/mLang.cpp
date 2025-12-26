@@ -141,6 +141,11 @@ int main(int argc, char* argv[])
     }
     
     std::string inputFile = std::string(shift_args(args));
+    
+    if (!inputFile.ends_with(".mlang")) {
+        mlog::error("unknown file path was provided");
+        exit(1);
+    }
 
     std::filesystem::path inputFilePath(inputFile);
     input_no_extention = inputFilePath.stem().string();
@@ -208,6 +213,7 @@ int main(int argc, char* argv[])
 
             // add libraries
             for (auto& lib : ctx.libs) {
+
                 if (lib != "")
                     link_flags += " -l" + (std::string)lib;
             }

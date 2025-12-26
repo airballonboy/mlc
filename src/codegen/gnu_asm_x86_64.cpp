@@ -18,6 +18,7 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
+Func last_func{};
 
 static std::vector<std::pair<Register, bool>> available_reg = {
     {Rax, true},
@@ -66,6 +67,27 @@ bool is_int_type(Type t) {
     )
         return true;
     return false;
+}
+Func get_func_from_module(Module mod, std::string name) {
+    for (const auto& func : mod.func_storage) {
+        if (name == func.name) return func;
+    }
+    for (auto [prefix, module] : mod.module_storage) {
+        if (name.starts_with(prefix))
+            return get_func_from_module(mod, name.erase(0, prefix.size()));
+    }
+    return {};
+}
+Func get_func_from_program(Program prog, std::string name) {
+    for (auto func : prog.func_storage) 
+        if (func.name == name) 
+            return func;
+    for (auto [prefix, mod] : prog.module_storage) {
+        if (name.starts_with(prefix))
+            return get_func_from_module(mod, name.erase(0, prefix.size()));
+    }
+    mlog::error(f("function {} was not found", name).c_str());
+    exit(1);
 }
 
 #define WARNING(...) std::println("\nWarning: {}\n", f(__VA_ARGS__))
@@ -147,12 +169,7 @@ void gnu_asm::compileFunction(Func func) {
 
     output.appendf(".global {}\n", func.name);
     output.appendf("{}:\n", func.name);
-    output.appendf("    pushq %rbp\n");
-    output.appendf("    movq %rsp, %rbp\n");
-    output.appendf("    pushq %rbx\n");
-    output.appendf("    pushq %r13\n");
-    output.appendf("    pushq %r14\n");
-    output.appendf("    pushq %r15\n");
+    function_prologue();
     func.stack_size = ((func.stack_size + 15) & ~15) + 32;
     output.appendf("    subq ${}, %rsp\n", func.stack_size);
 
@@ -169,34 +186,29 @@ void gnu_asm::compileFunction(Func func) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
                 Variable arg = std::any_cast<Variable>(inst.args[0]);
-                auto reg = get_available_reg();
-                mov(arg, reg);
-                output.appendf("    popq %r15\n");
-                output.appendf("    popq %r14\n");
-                output.appendf("    popq %r13\n");
-                output.appendf("    popq %rbx\n");
-                output.appendf("    movq %rbp, %rsp\n");
-                output.appendf("    popq %rbp\n");
+                auto t = last_func.return_type;
+                if (func.return_type.size <= 8) {
+                    mov(arg, Rax);
+                } else if (func.return_type.size <= 16) {
+                    arg.size = 8;
+                    mov(arg, Rax);
+                    arg.offset -= 8;
+                    mov(arg, Rcx);
+                    mov(Rcx, Rdx);
+                } else {
+                    func.arguments[0].deref_count = 1;
+                    mov(arg, func.arguments[0]);
+                    mov(func.arguments[0], Rax);
+                }
+                function_epilogue();
                 output.appendf("    ret\n");
                 returned = true;
-                free_reg(reg);
             }break;
             case Op::STORE_VAR: {
                 Variable var1 = std::any_cast<Variable>(inst.args[0]);
                 Variable var2 = std::any_cast<Variable>(inst.args[1]);
-
-                //asm("int3");
                 if (var1.type_info->type != Type::String_t) {
-                    //TODO: add this to parser as warning
-                    //if (var2.size < var1.size){
-                    //    WARNING("trying to assign a variable of size {} to a variable of size {} \n"
-                    //            "  shrunk the bigger variable to fit into the smaller one",
-                    //            var1.size, var2.size);
-                    //    var1.size = var2.size;
-                    //}
                     mov(var1, var2);
-                    //mov(var1, Rax);
-                    //mov(Rax, var2);
                 } else {
                     mov(var2, arg_register[0]);
                     mov(var1, arg_register[1]);
@@ -205,7 +217,20 @@ void gnu_asm::compileFunction(Func func) {
             }break;
             case Op::STORE_RET: {
                 Variable var = std::any_cast<Variable>(inst.args[0]);
-                mov(Rax, var);
+                if (last_func.return_type.size <= 8) {
+                    mov(Rax, var);
+                } else if (last_func.return_type.size <= 16) {
+                    var.size = 8;
+                    mov(Rax, var);
+                    var.offset -= 8;
+                    var.size = var.type_info->size - 8;
+                    mov(Rdx, var);
+                } else {
+                    TODO("unsupported");
+                    //deref(Rax, 1);
+                    //mov(Rax, var);
+                }
+                last_func = {};
             }break;
             case Op::DEREF_OFFSET: {
                 size_t   offset = std::any_cast<size_t>  (inst.args[0]);
@@ -228,7 +253,7 @@ void gnu_asm::compileFunction(Func func) {
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
 
                 call_func(func_name, args);
-
+                last_func = get_func_from_program(*m_program, func_name);
             }break;
             case Op::JUMP_IF_NOT: {
                 std::string label = std::any_cast<std::string>(inst.args[0]);
@@ -462,12 +487,7 @@ void gnu_asm::compileFunction(Func func) {
     }
     if (!returned) {
         mov({.type_info = &type_infos.at("int8"), .name = "Int_lit", .value = (int64_t)0, .size = 1, .kind = {.literal = true}}, Rax);
-        output.appendf("    popq %r15\n");
-        output.appendf("    popq %r14\n");
-        output.appendf("    popq %r13\n");
-        output.appendf("    popq %rbx\n");
-        output.appendf("    movq %rbp, %rsp\n");
-        output.appendf("    popq %rbp\n");
+        function_epilogue();
         output.appendf("    ret\n");
     }
 }
@@ -940,14 +960,13 @@ void gnu_asm::mov(Variable src, Variable dest) {
                 TODO(f("trying to move Variable {} into {}, but kind is not the same", src.name, dest.name));
             if (dest_real_ptr_count == 0) {
                 dest.deref_count -= 1;
-                mov(dest, Rdi);
+                mov(dest, Rsi);
 
                 if (src.kind.pointer_count > 0) {
                     src.deref_count -= 1;
-                    mov(src, reg2);
-                    mov(src, Rsi);
+                    mov(src, Rdi);
                 } else {
-                    lea(-src.offset, Rbp, Rsi);
+                    lea(-src.offset, Rbp, Rdi);
                 }
 
                 mov(strct.size, Rcx);
@@ -962,13 +981,13 @@ void gnu_asm::mov(Variable src, Variable dest) {
             free_reg(reg2);
         } else {
             if (src.deref_count > 0)
-                mov(src, Rdi);
+                mov(src, Rsi);
             else 
-                lea(-src.offset, Rbp, Rdi);
+                lea(-src.offset, Rbp, Rsi);
             if (dest.deref_count > 0)
-                mov(dest, Rsi);
+                mov(dest, Rdi);
             else 
-                lea(-dest.offset, Rbp, Rsi);
+                lea(-dest.offset, Rbp, Rdi);
             mov(strct.size, Rcx);
             output.appendf("    rep movsb\n");
         }
@@ -1001,3 +1020,19 @@ void gnu_asm::lea(int64_t offset, Register src, Register dest) {
     output.appendf("    lea {}({}), {}\n", offset, src._64, dest._64);
 }
 
+void gnu_asm::function_prologue() {
+    output.appendf("    pushq %rbp\n");
+    output.appendf("    movq %rsp, %rbp\n");
+    output.appendf("    pushq %rbx\n");
+    output.appendf("    pushq %r13\n");
+    output.appendf("    pushq %r14\n");
+    output.appendf("    pushq %r15\n");
+}
+void gnu_asm::function_epilogue() {
+    output.appendf("    popq %r15\n");
+    output.appendf("    popq %r14\n");
+    output.appendf("    popq %r13\n");
+    output.appendf("    popq %rbx\n");
+    output.appendf("    movq %rbp, %rsp\n");
+    output.appendf("    popq %rbp\n");
+}

@@ -340,7 +340,7 @@ struct Variable {
 };
 
 struct Func {
-    Type return_type = Type::Void_t;
+    TypeInfo return_type = type_infos.at("void");
 
     int arguments_count = 0;
     VariableStorage arguments{};

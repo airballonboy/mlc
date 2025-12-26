@@ -458,7 +458,7 @@ void Parser::parseExtern(){
     if (m_currentLexar->peek()->type == TokenType::Arrow) {
         m_currentLexar->getAndExpectNext(TokenType::Arrow);
         m_currentLexar->getAndExpectNext(TokenType::TypeID);
-        func.return_type = TypeIds.at((*tkn)->string_value);
+        func.return_type = type_infos.at((*tkn)->string_value);
     }
     if (m_currentLexar->peek()->type == TokenType::OBracket) {
         m_currentLexar->getAndExpectNext(TokenType::OBracket);
@@ -561,6 +561,28 @@ Func Parser::parseFunction(bool member, Struct parent){
         }
     }
     m_currentFunc = &func;
+    m_currentLexar->getAndExpectNext(TokenType::CParen);
+    m_currentLexar->expectNext({TokenType::Arrow, TokenType::OCurly});
+
+    // Returns
+    if (m_currentLexar->peek()->type == TokenType::Arrow) {
+        m_currentLexar->getAndExpectNext(TokenType::Arrow);
+        m_currentLexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
+        func.return_type = type_infos.at((*tkn)->string_value);
+    }
+                
+    if (func.return_type.size > 8) {
+        Variable ret = {
+            .type_info = new TypeInfo(func.return_type),
+            .name = "return_register",
+            .offset = 8,
+            .size = 8,
+            .kind = {
+                .pointer_count = 1
+            }
+        };
+        func.arguments.emplace(func.arguments.begin(), ret);
+    }
     for (int i = temp_var_storage.size()-1;i >= 0; i--) {
         auto var = temp_var_storage[i];
         if (var.type_info->type == Type::Struct_t) {
@@ -606,16 +628,6 @@ Func Parser::parseFunction(bool member, Struct parent){
         }
     }
 
-    m_currentLexar->getAndExpectNext(TokenType::CParen);
-    m_currentLexar->expectNext({TokenType::Arrow, TokenType::OCurly});
-
-    // Returns
-    if (m_currentLexar->peek()->type == TokenType::Arrow) {
-        m_currentLexar->getAndExpectNext(TokenType::Arrow);
-        m_currentLexar->getAndExpectNext(TokenType::TypeID);
-        func.return_type = TypeIds.at((*tkn)->string_value);
-    }
-                
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
     // For recursion
@@ -631,6 +643,17 @@ Func Parser::parseFunction(bool member, Struct parent){
     return func;
 }
 size_t temp_offset = 0;
+Variable make_temp_var(TypeInfo* type) {
+    Variable var;
+    var.type_info = type;
+    var.size = type->size;
+    var.offset = current_offset + temp_offset + type->size;
+    temp_offset += type->size;
+    var.name = "temporery variable";
+    //var.deref_count = old.deref_count;
+    //var.value = old.value;
+    return var;
+}
 Variable make_temp_var(Type type, size_t size, Variable old = {}) {
     Variable var;
     var.type_info = &type_infos.at(printableTypeIds.at(type));
@@ -658,7 +681,7 @@ void Parser::parseStatement(){
             m_currentLexar->getNext();
 
             if ((*tkn)->type == TokenType::SemiColon) {
-                if (m_currentFunc->return_type != Type::Void_t) TODO("error on no return");
+                if (m_currentFunc->return_type.name != "void") TODO("error on no return");
                 return_value = {
                     .type_info = &type_infos.at("int8"),
                     .name = "IntLit",
@@ -979,7 +1002,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             if (!function_exist_in_storage(func_name, m_program.func_storage)) {std::println("{}", func_name);TODO("func doesn't exist");}
             auto& func = get_func_from_name(func_name, m_program.func_storage);
             parseFuncCall(func, this_ptr);
-            var = make_temp_var(func.return_type, variable_size_bytes(func.return_type));
+            var = make_temp_var(&func.return_type);
             if (eq)
                 m_currentFunc->body.push_back({Op::STORE_RET, {var}});
             return {var, ret_lvalue};
@@ -1160,6 +1183,7 @@ std::tuple<Variable, bool> Parser::parseExpression(){
     return parseCondition(0);
 }
 
+// TODO: should accept the Return location and should merge STORE_RET and CALL
 void Parser::parseFuncCall(Func func, Variable this_ptr){
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
