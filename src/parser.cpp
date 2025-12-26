@@ -137,7 +137,6 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member){
             current_offset -= new_var.size - 8;
             new_var.size = 8;
         }
-        void(0);
         for (auto& v : new_var.members) {
             v.parent->kind = new_var.kind;
             v.parent->size = new_var.size;
@@ -221,7 +220,7 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
     Variable* struct_var = new Variable;
     if (!member) {
         current_offset += strct->size;
-        *struct_var = {.type_info = &type_infos.at(type_name), .name = struct_name, .offset = current_offset};
+        *struct_var = {.type_info = &type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
     } else {
         *struct_var = {.type_info = &type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
         current_offset += strct->size;
@@ -457,8 +456,26 @@ void Parser::parseExtern(){
     // Returns
     if (m_currentLexar->peek()->type == TokenType::Arrow) {
         m_currentLexar->getAndExpectNext(TokenType::Arrow);
-        m_currentLexar->getAndExpectNext(TokenType::TypeID);
-        func.return_type = type_infos.at((*tkn)->string_value);
+        m_currentLexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
+        current_module_prefix = "";
+        if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+            parseModulePrefix(); 
+            m_currentLexar->getNext();
+        }
+        func.return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
+        current_module_prefix = "";
+    }
+    if (func.return_type.size > 16) {
+        Variable ret = {
+            .type_info = new TypeInfo(func.return_type),
+            .name = "return_register",
+            .offset = 8,
+            .size = 8,
+            .kind = {
+                .pointer_count = 1
+            }
+        };
+        func.arguments.emplace(func.arguments.begin(), ret);
     }
     if (m_currentLexar->peek()->type == TokenType::OBracket) {
         m_currentLexar->getAndExpectNext(TokenType::OBracket);
@@ -568,10 +585,16 @@ Func Parser::parseFunction(bool member, Struct parent){
     if (m_currentLexar->peek()->type == TokenType::Arrow) {
         m_currentLexar->getAndExpectNext(TokenType::Arrow);
         m_currentLexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
-        func.return_type = type_infos.at((*tkn)->string_value);
+        current_module_prefix = "";
+        if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+            parseModulePrefix();
+            m_currentLexar->getNext();
+        }
+        func.return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
+        current_module_prefix = "";
     }
                 
-    if (func.return_type.size > 8) {
+    if (func.return_type.size > 16) {
         Variable ret = {
             .type_info = new TypeInfo(func.return_type),
             .name = "return_register",
