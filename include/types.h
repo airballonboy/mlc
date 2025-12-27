@@ -66,9 +66,6 @@ enum class Op {
     // stores the return of the last function called
     // STORE_RET(variable)
     STORE_RET,
-    // deref a member of a struct at an offset to a variable
-    // DEREF_OFFSET(offset, struct_var, variable)
-    DEREF_OFFSET,
     // INIT_STRING(string)
     INIT_STRING,
     // RETURN(variable)
@@ -116,15 +113,6 @@ inline std::unordered_map<Type, std::string> printableTypeIds = {
     {Type::Float_t , "float" },
     {Type::Size_t  , "usize" },
     {Type::Bool_t  , "bool"  },
-};
-
-
-inline std::unordered_map<Type, std::function<std::string(std::any)>> TypeToString = {
-    {Type::Int8_t    , [](const std::any& val){ return std::to_string(std::any_cast<int8_t> (val)); }},
-    {Type::Int16_t   , [](const std::any& val){ return std::to_string(std::any_cast<int16_t>(val)); }},
-    {Type::Int32_t   , [](const std::any& val){ return std::to_string(std::any_cast<int32_t>(val)); }},
-    {Type::Int64_t   , [](const std::any& val){ return std::to_string(std::any_cast<int64_t>(val)); }},
-    {Type::String_t  , [](const std::any& val){ return std::any_cast<std::string>(val);             }},
 };
 
 static const std::unordered_map<TokenType, std::string> printableToken = {
@@ -272,7 +260,7 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
 };
 
 
-struct Loc{
+struct Loc {
     size_t line   = 1;
     size_t offset = 1;
     std::string inputPath;

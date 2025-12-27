@@ -18,7 +18,7 @@
                  mlog::Cyan,    \
                  f("  {}:{}:{} {}", (loc).inputPath, (loc).line, (loc).offset, (massage)).c_str()); \
         exit(1); \
-    } while(0)
+    } while (0)
 
 int stringLiteralCount = 0;
 int stringCount = 0;
@@ -91,10 +91,10 @@ size_t Parser::align(size_t current_offset, Type type, std::string type_name) {
     }
     return (current_offset + alignment - 1) & ~(alignment-1);
 }
-Parser::Parser(Lexar* lexar){
+Parser::Parser(Lexar* lexar) {
     m_currentLexar = lexar;
 }
-Variable& Parser::parseVariable(VariableStorage& var_store, bool member){
+Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     Variable var{};
     std::string type_name{};
     bool strct = false;
@@ -368,7 +368,7 @@ void Parser::parseModuleDeclaration() {
             current_mod = &current_mod->at((*tkn)->string_value).module_storage;
             m_currentLexar->getAndExpectNext(TokenType::ColonColon);
             m_currentLexar->getAndExpectNext(TokenType::ID);
-        }else {
+        } else {
             TODO("redeclare module");
         }
     }
@@ -399,7 +399,7 @@ void Parser::parseHash() {
 
                 m_currentLexar->pushtokensaftercurrent(&l);
                 included_files.push_back(file_name);
-            }else {
+            } else {
                 TODO("file not found");
             };
         end_of_include:;
@@ -412,7 +412,7 @@ void Parser::parseHash() {
         }break;//TokenType::Import
     }
 }
-void Parser::parseExtern(){
+void Parser::parseExtern() {
     m_currentLexar->getAndExpectNext(TokenType::Func);
 
     Func func;
@@ -432,7 +432,7 @@ void Parser::parseExtern(){
 
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile) {
-        if(m_currentLexar->peek()->type == TokenType::Dot) {
+        if (m_currentLexar->peek()->type == TokenType::Dot) {
             
             m_currentLexar->getAndExpectNext(TokenType::Dot);
             m_currentLexar->getAndExpectNext(TokenType::Dot);
@@ -440,12 +440,12 @@ void Parser::parseExtern(){
             func.arguments_count = 1000;
             
             break;
-        }else {
+        } else {
             func.local_variables.push_back(parseVariable(func.arguments));
             func.arguments_count++;
         }
         // Process parameter(Local Variables)
-        if(m_currentLexar->peek()->type != TokenType::CParen) {
+        if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->expectNext(TokenType::Comma);
             m_currentLexar->getNext();
         }
@@ -497,12 +497,12 @@ void Parser::parseExtern(){
             else 
                 TODO("ERROR: UNREACHABLE");
             
-            if(m_currentLexar->peek()->type != TokenType::CBracket) {
+            if (m_currentLexar->peek()->type != TokenType::CBracket) {
                 m_currentLexar->getAndExpectNext(TokenType::Comma);
-            }else {
+            } else {
                 m_currentLexar->getAndExpectNext(TokenType::CBracket);
             }
-        }while((*tkn)->type != TokenType::CBracket);
+        }while ((*tkn)->type != TokenType::CBracket);
     }
 
     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
@@ -510,11 +510,11 @@ void Parser::parseExtern(){
     m_program.func_storage.push_back(func);
 
 }
-void Parser::parseModulePrefix(){
+void Parser::parseModulePrefix() {
     auto current_module_storage = &m_program.module_storage;
 
-    //if(!current_module_storage->contains((*tkn)->string_value)) TODO("error");
-    if(!current_module_storage->contains((*tkn)->string_value)) { 
+    //if (!current_module_storage->contains((*tkn)->string_value)) TODO("error");
+    if (!current_module_storage->contains((*tkn)->string_value)) { 
         std::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
         TODO("error");
     }
@@ -525,9 +525,9 @@ void Parser::parseModulePrefix(){
 
     m_currentLexar->getAndExpectNext(TokenType::ColonColon);
 
-    while((m_currentLexar->peek() + 1)->type == TokenType::ColonColon){
+    while ((m_currentLexar->peek() + 1)->type == TokenType::ColonColon) {
         m_currentLexar->getAndExpectNext(TokenType::ID);
-        if(!current_module_storage->contains((*tkn)->string_value)) { 
+        if (!current_module_storage->contains((*tkn)->string_value)) { 
             std::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
             TODO("error");
         }
@@ -539,7 +539,7 @@ void Parser::parseModulePrefix(){
         m_currentLexar->getAndExpectNext(TokenType::ColonColon);
     }
 }
-Func Parser::parseFunction(bool member, Struct parent){
+Func Parser::parseFunction(bool member, Struct parent) {
     tkn = &m_currentLexar->currentToken;
     current_offset = 0;
     Func func;
@@ -572,7 +572,7 @@ Func Parser::parseFunction(bool member, Struct parent){
     m_currentFunc = &temp_func;
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
         parseVariable(temp_var_storage);
-        if(m_currentLexar->peek()->type != TokenType::CParen) {
+        if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->expectNext(TokenType::Comma);
             m_currentLexar->getNext();
         }
@@ -692,7 +692,7 @@ void delete_temp_vars() {
     temp_offset = 0;
 }
 
-void Parser::parseStatement(){
+void Parser::parseStatement() {
     statement_count++;
     switch ((*tkn)->type) {
         case TokenType::SemiColon: { }break;
@@ -848,7 +848,7 @@ void Parser::parseStatement(){
     delete_temp_vars();
 }
 
-void Parser::parseBlock(){
+void Parser::parseBlock() {
     size_t offset = current_offset;
     auto storage = m_currentFunc->local_variables;
 
@@ -883,9 +883,9 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
 
     //m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
 
-    if((*tkn)->type == TokenType::DQoute) {
+    if ((*tkn)->type == TokenType::DQoute) {
         m_currentLexar->getAndExpectNext(TokenType::StringLit);
-        if((*tkn)->type == TokenType::StringLit) {
+        if ((*tkn)->type == TokenType::StringLit) {
             var = {
                 .type_info = &type_infos.at("string"),
                 .name = f("string_literal_{}", stringLiteralCount++),
@@ -1041,7 +1041,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
             return {var, true};
 
-        }else if (variable_exist_in_storage(name, m_currentFunc->local_variables)) {
+        } else if (variable_exist_in_storage(name, m_currentFunc->local_variables)) {
             var = get_var_from_name(name, m_currentFunc->local_variables);
             ret_lvalue = true;
             return {var, ret_lvalue};
@@ -1063,7 +1063,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
 
     return {var, false};
 }
-std::tuple<Variable, bool> Parser::parseUnaryExpression(){
+std::tuple<Variable, bool> Parser::parseUnaryExpression() {
     tkn = &m_currentLexar->currentToken;
 
     if ((*tkn)->type == TokenType::Minus) {
@@ -1107,7 +1107,7 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression(){
 
     return parsePrimaryExpression();
 }
-std::tuple<Variable, bool> Parser::parseMultiplicativeExpression(){
+std::tuple<Variable, bool> Parser::parseMultiplicativeExpression() {
     tkn = &m_currentLexar->currentToken;
     // TODO: fix this it should return lvalue not false
     auto lhs = std::get<0>(parseUnaryExpression());
@@ -1125,9 +1125,9 @@ std::tuple<Variable, bool> Parser::parseMultiplicativeExpression(){
 
         if (op_type == TokenType::Mul) {
             m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
-        }else if (op_type == TokenType::Div) {
+        } else if (op_type == TokenType::Div) {
             m_currentFunc->body.push_back({Op::DIV, {lhs, rhs, result}});
-        }else if (op_type == TokenType::Mod) {
+        } else if (op_type == TokenType::Mod) {
             m_currentFunc->body.push_back({Op::MOD, {lhs, rhs, result}});
         }
 
@@ -1136,7 +1136,7 @@ std::tuple<Variable, bool> Parser::parseMultiplicativeExpression(){
 
     return {lhs, false};
 }
-std::tuple<Variable, bool> Parser::parseAdditiveExpression(){
+std::tuple<Variable, bool> Parser::parseAdditiveExpression() {
     tkn = &m_currentLexar->currentToken;
     auto lhs = std::get<0>(parseMultiplicativeExpression());
 
@@ -1153,7 +1153,7 @@ std::tuple<Variable, bool> Parser::parseAdditiveExpression(){
         Variable result = make_temp_var(lhs.type_info->type, variable_size_bytes(lhs.type_info->type));
         if (op_type == TokenType::Plus) {
             m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
-        }else {
+        } else {
             m_currentFunc->body.push_back({Op::SUB, {lhs, rhs, result}});
         }
 
@@ -1162,7 +1162,7 @@ std::tuple<Variable, bool> Parser::parseAdditiveExpression(){
 
     return {lhs, false};
 }
-std::tuple<Variable, bool> Parser::parseCondition(int min_prec){
+std::tuple<Variable, bool> Parser::parseCondition(int min_prec) {
     tkn = &m_currentLexar->currentToken;
     auto data = parseAdditiveExpression();
     auto &[lhs, lvalue] = data;
@@ -1202,12 +1202,12 @@ std::tuple<Variable, bool> Parser::parseCondition(int min_prec){
 
     return {lhs, false};
 }
-std::tuple<Variable, bool> Parser::parseExpression(){
+std::tuple<Variable, bool> Parser::parseExpression() {
     return parseCondition(0);
 }
 
 // TODO: should accept the Return location and should merge STORE_RET and CALL
-void Parser::parseFuncCall(Func func, Variable this_ptr){
+void Parser::parseFuncCall(Func func, Variable this_ptr) {
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     if (this_ptr.type_info->type != Type::Void_t) args.push_back(this_ptr);
@@ -1258,7 +1258,6 @@ Variable& Parser::get_var_from_name(std::string_view name, VariableStorage& var_
     for (auto& var : var_storage) {
         if (var.name == name) return var;
     }
-    //asm("int3");
     std::println("{} was not found", name);
     ERROR((*tkn)->loc, "");
     TODO("var doesn't exist");
