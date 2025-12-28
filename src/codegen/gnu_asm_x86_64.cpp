@@ -135,6 +135,19 @@ void gnu_asm::compileProgram() {
     for (const auto& var : m_program->var_storage) {
         if (var.kind.literal && var.type_info->type == Type::String_t)
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
+        if (var.kind.constant && var.kind.global) {
+            output.appendf("{}:\n", var.name);
+            if (is_int_type(var.type_info->type)) {
+                if (var.type_info->size == 1)
+                    output.appendf("    .byte {}\n", std::any_cast<int64_t>(var.value));
+                else if (var.type_info->size == 2)
+                    output.appendf("    .word {}\n", std::any_cast<int64_t>(var.value));
+                else if (var.type_info->size == 4)
+                    output.appendf("    .long {}\n", std::any_cast<int64_t>(var.value));
+                else if (var.type_info->size == 8)
+                    output.appendf("    .quad {}\n", std::any_cast<int64_t>(var.value));
+            }
+        }
     }
     if (current_string_count != 0) {
         output.appendf(".align 8\n");
@@ -574,6 +587,14 @@ void gnu_asm::mov(int64_t int_value, Register dest, size_t size) {
                        REG_SIZE(dest, size)
     );
 }
+void gnu_asm::mov(int64_t  int_value, std::string label, Register dest, size_t size) {
+    output.appendf("    {} ${}, {}({})\n",
+                       INST_SIZE("mov", size),
+                       int_value,
+                       label,
+                       REG_SIZE(dest, 8)
+    );
+}
 void gnu_asm::mov(int64_t int_value, int64_t offset, Register dest, size_t size) {
     if (offset == 0) {
         output.appendf("    {} ${}, ({})\n",
@@ -616,6 +637,9 @@ void gnu_asm::mov(int64_t int_value, Register dest) {
 }
 void gnu_asm::mov(int64_t int_value, int64_t offset, Register dest) {
     mov(int_value, offset, dest, 8);
+}
+void gnu_asm::mov(int64_t int_value, std::string label, Register dest) {
+    mov(int_value, label, dest, 8);
 }
 void gnu_asm::mov(int64_t offset, Register src, Register dest) {
     mov(offset, src, dest, 8);
@@ -717,6 +741,8 @@ void gnu_asm::mov(Variable src, Register dest) {
         //output.appendf("    leaq {}(%rip), {}\n", src.name, reg_name);
     else if (src.kind.literal && is_int_type(src.type_info->type))
         mov(std::any_cast<int64_t>(src.value), dest);
+    else if (src.kind.global) 
+        mov(src.name, Rip, dest);
     else if (src.type_info->type == Type::Void_t)
         mov(0, dest);
     else if (src.parent != nullptr) {
@@ -730,7 +756,9 @@ void gnu_asm::mov(Variable src, Register dest) {
         mov(-src.offset, Rbp, dest, src.size);
 }
 void gnu_asm::mov(Register src, Variable dest) {
-    if (dest.kind.literal) {
+    if (dest.kind.constant) {
+        TODO("can't move into a constant");
+    } else if (dest.kind.literal) {
         TODO("can't mov into literals");
     } else if (dest.type_info->type == Type::Void_t) {
         TODO("can't mov into Void");
@@ -740,6 +768,8 @@ void gnu_asm::mov(Register src, Variable dest) {
         mov(dest, reg);
         mov(src, 0, reg, dest.size);
         free_reg(reg);
+    } else if (dest.kind.global) {
+        mov(src, dest.name, Rip);
     } else {
         if (dest.parent != nullptr) {
             mov_member(src, dest);
@@ -759,6 +789,8 @@ void gnu_asm::mov(Register src, Variable dest) {
 void gnu_asm::mov(Variable src, Variable dest) {
     if (dest.kind.literal)
         TODO("can't mov into literals");
+    if (dest.kind.constant)
+        TODO("can't move into a constant");
 
     int64_t src_real_ptr_count = (src.kind.pointer_count-src.deref_count);
     int64_t dest_real_ptr_count = (dest.kind.pointer_count-dest.deref_count);
@@ -766,7 +798,10 @@ void gnu_asm::mov(Variable src, Variable dest) {
     if (src.kind.literal && is_int_type(src.type_info->type) && dest.parent == nullptr) {
         if (dest.type_info->type == Type::Struct_t)
             TODO(f("can't mov int literal into var of type {}", dest.type_info->name));
-        mov(std::any_cast<int64_t>(src.value), -dest.offset, Rbp, dest.size);
+        if (dest.kind.global)
+            mov(std::any_cast<int64_t>(src.value), dest.name, Rip, dest.size);
+        else 
+            mov(std::any_cast<int64_t>(src.value), -dest.offset, Rbp, dest.size);
     } else if (src.type_info->type == Type::Struct_t || dest.type_info->type == Type::Struct_t) {
         if (src.type_info->name != dest.type_info->name) 
             TODO(f("error trying assigning different structers to each other, {} {}", src.type_info->name, dest.type_info->name));

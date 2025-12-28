@@ -183,6 +183,12 @@ Program* Parser::parse() {
                 parseModuleDeclaration();
                 m_currentLexar->getNext();
             }break;//TokenType::Module
+            case TokenType::Const: {
+                auto var = parseConstant();
+                var.kind.global = true;
+                m_program.var_storage.push_back(var);
+                m_currentLexar->getNext();
+            }break;//TokenType::Hash
             case TokenType::Hash: {
                 parseHash();
                 m_currentLexar->getNext();
@@ -357,6 +363,25 @@ void Parser::parseStructDeclaration() {
     }
     type_infos.at(struct_name).size = current_struct.size;
     current_offset = 0;
+}
+Variable Parser::parseConstant() {
+    Variable var{};
+    // TODO:m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID});
+    m_currentLexar->getAndExpectNext(TokenType::ID);   
+    var.name = (*tkn)->string_value;
+    m_currentLexar->getAndExpectNext(TokenType::Eq);   
+    m_currentLexar->getNext();   
+    auto [rhs, lvalue] = parseExpression();
+    var.type_info = rhs.type_info;
+    var.size    = rhs.size;
+    var.value   = rhs.value;
+    var.members = rhs.members;
+    var.parent  = rhs.parent;
+    var.kind    = rhs.kind;
+    var.kind.constant = true;
+
+    m_currentLexar->getAndExpectNext(TokenType::SemiColon);   
+    return var;
 }
 void Parser::parseModuleDeclaration() {
     m_currentLexar->getAndExpectNext(TokenType::ID);
@@ -975,20 +1000,17 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         var.deref_count = -1;
         return {var, ret_lvalue};
     }
+
     current_module_prefix = "";
     if (m_currentLexar->peek()->type == TokenType::ColonColon) {
         parseModulePrefix();
         m_currentLexar->getAndExpectNext(TokenType::ID);
     }
+
     Variable this_ptr = {.type_info = &type_infos.at("void")};
     Variable this_    = {.type_info = &type_infos.at("void")};
     size_t this_offset = 0;
-    //std::string struct_prefix{};
     std::string struct_func_prefix{};
-    // -----------------------
-    //  |             |   |x1|
-    //  |             |---p1-|
-    //  |---------------this-|
     while (m_currentLexar->peek()->type == TokenType::Dot) {
         Variable strct;
         if (this_ptr.type_info->type == Type::Void_t) {
@@ -1011,8 +1033,6 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             this_ptr.size = 8;
             struct_func_prefix = strct.type_info->name;
             struct_func_prefix += "___";
-            //struct_prefix += (*tkn)->string_value;
-            //struct_prefix += "___";
         }
 
         m_currentLexar->getAndExpectNext(TokenType::Dot);
@@ -1022,7 +1042,8 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
     std::string func_name = current_module_prefix + struct_func_prefix + m_currentLexar->currentToken->string_value;
     if ((*tkn)->type == TokenType::ID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
-            if (!function_exist_in_storage(func_name, m_program.func_storage)) {std::println("{}", func_name);TODO("func doesn't exist");}
+            if (!function_exist_in_storage(func_name, m_program.func_storage)) 
+                TODO(f("func {} doesn't exist", func_name));
             auto& func = get_func_from_name(func_name, m_program.func_storage);
             parseFuncCall(func, this_ptr);
             var = make_temp_var(&func.return_type);
@@ -1038,7 +1059,8 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             return {var_, true};
         } else if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
             std::println("{}",(*tkn)->string_value);
-            TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
+            //TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
+            var = get_var_from_name((*tkn)->string_value, m_program.var_storage);
             return {var, true};
 
         } else if (variable_exist_in_storage(name, m_currentFunc->local_variables)) {
@@ -1284,7 +1306,6 @@ std::any Parser::variable_default_value(Type t) {
     }
     return 0;
 }
-// UNNEEDED
 size_t Parser::variable_size_bytes(Type t) {
     switch (t) {
         case Type::Bool_t:   return 1; break;
@@ -1300,7 +1321,7 @@ size_t Parser::variable_size_bytes(Type t) {
         case Type::Void_t:   return 0; break;
 
         default: 
-            TODO(f("type {} doesn't have size", (int)t));
+            TODO(f("type {} doesn't have default size", (int)t));
     }
     return 0;
 }

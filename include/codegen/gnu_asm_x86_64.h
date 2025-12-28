@@ -41,10 +41,14 @@ public:
     void mov(Register src      , int64_t  offset, Register dest);
     // moves `int_value` into `dest+offset` of size 8
     void mov(int64_t  int_value, int64_t  offset, Register dest);
+    // moves `int_value` into `dest+label` of size 8
+    void mov(int64_t  int_value, std::string label, Register dest);
     // moves `int_value` into `dest` of size 8
     void mov(int64_t  int_value, Register dest);
     // moves `int_value` into `dest+offset` of size `size`
     void mov(int64_t  int_value, int64_t  offset, Register dest, size_t size);
+    // moves `int_value` into `dest+offset` of size `size`
+    void mov(int64_t  int_value, std::string label, Register dest, size_t size);
     // moves `int_value` into `dest` of size `size`
     void mov(int64_t  int_value, Register dest, size_t size);
     void mov(Variable src      , Register dest);

@@ -1,24 +1,29 @@
 #include <c_std.mlang>
 
-func shift_args(int* argc, string** argv) -> string {
-    string ret = **argv;
-    *argc -= 1;
-    *argv += 8;
-    return ret;
+//func shift_args(int* argc, string** argv) -> string {
+//    string ret = **argv;
+//    *argc -= 1;
+//    *argv += 8;
+//    return ret;
+//}
+struct Vec3 {
+    int x = 0; 
+    int y = 0;
+    int z = 0;
+    func init() {
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+    }
+    func print() {
+        c_std::printf("[%d, %d, %d]\n", this.x, this.y, this.z);
+    }
 }
-func fibo(int n) -> int {
-    if (n == 0 || n == 1) 
-        return n;
-    return fibo(n-1) + fibo(n-2);
-}
+
+const ONE = 1;
+
 func main(int argc, string* argv) {
-    string a = "hello world";
-    //c_std::scanf("%s", a);
-    c_std::printf("%d\n", a.len());
-    
-    //int i = 0;
-    //while (i <= 30) {
-    //    c_std::printf("%d\n", fibo(i));
-    //    i += 1;
-    //}
+    Vec3 v;
+    v.x = ONE;
+    v.print();
 }
