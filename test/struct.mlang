@@ -1,26 +1,18 @@
 #include <c_std.mlang>
 
-struct vec3 {
+struct Vec3 {
     int x = 0;
     int y = 0;
     int z = 0;
-    //func print() {
-    //    c_std::printf("x = %d, y = %d, z = %d\n", this.x, this.y, this.z);
-    //}
-}
-func vec_print(vec3 v) {
-    c_std::printf("x = %d, y = %d, z = %d\n", v.x, v.y, v.z);
-}
-struct CTX {
-    vec3* vec;
+    func print() {
+        c_std::printf("Vec3[%d, %d, %d]\n", this.x, this.y, this.z);
+    }
 }
 
 func main() {
-    CTX ctx;
-    vec3 v;
-    ctx.vec = &v;
-    ctx.vec.x = 1;
-    ctx.vec.y = 2;
-    ctx.vec.z = 3;
-    vec_print(*ctx.vec);
+    Vec3 v;
+    v.x = 1;
+    v.y = 2;
+    v.z = 3;
+    v.print();
 }

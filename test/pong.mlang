@@ -89,7 +89,7 @@ func main() {
         rl::begin_drawing();
 
         rl::clear_background(rl::get_color(BACKGROUND_COLOR));
-        ctx.update(&ctx);
+        ctx.update();
         if (rl::is_key_down(KEY_R))
             ctx.init();
         rl::draw_rectangle(ctx.p1.x, ctx.p1.y, ctx.p1.w, ctx.p1.h, ctx.color);

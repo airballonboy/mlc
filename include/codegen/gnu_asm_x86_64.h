@@ -15,7 +15,7 @@ public:
 
     gnu_asm(Program* prog) : BaseCodegenerator(prog) {}
 
-    void call_func(std::string func_name, VariableStorage args);
+    void call_func(Func func_name, VariableStorage args);
     void compileProgram() override;
     void compileFunction(Func func) override;
 

@@ -16,67 +16,13 @@
 #include "codegen/ir.h"
 #include "tools/logger.h"
 #include "tools/format.h"
+#include "tools/utils.h"
 #include "lexar.h"
 
-using std::println;
-using std::print;
 
-
-enum class Platform {
-    ir,
-    gnu_asm_86_64,
-};
-
-
-#ifndef CC
-#ifdef _WIN32
-#define CC "gcc -lmsvcrt"
-#else 
-#define CC "gcc -lc"
-#endif
-#endif
-#ifndef EXECUTABLE_EXTENSION
-#ifdef _WIN32
-#define EXECUTABLE_EXTENSION ".exe" 
-#else 
-#define EXECUTABLE_EXTENSION "" 
-#endif
-#endif
-char* shift_args(int *argc, char ***argv) {
-    assert("no more args" && *argc > 0);
-    char *result = (**argv);
-    (*argv) += 1;
-    (*argc) -= 1;
-    return result;
-}
-std::string_view shift_args(std::vector<std::string_view>& args) {
-    assert("no more args" && args.size() > 0);
-    std::string_view result = args[0];
-    
-    args.erase(args.begin());
-
-    return result;
-}
-
-template<typename... _Args>
-int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
-    print("Running: ");
-    println(__fmt, std::forward<_Args>(__args)...);
-    int result = std::system(std::format(__fmt, std::forward<_Args>(__args)...).c_str());
-    #ifdef _WIN32
-    return result;  // On Windows, std::system returns exit code directly
-    #else
-    return WEXITSTATUS(result);  // POSIX-style exit status extraction
-    #endif
-
-}
 std::string programName;
-std::string output_path;
+fs::path output_path;
 
-std::unordered_map<std::string, Platform> PLATFORMS = {
-    {"gnu_x64_64", Platform::gnu_asm_86_64},
-    {"ir",         Platform::ir},
-};
 void print_platforms() {
     std::println("platforms");
     for (auto plat : PLATFORMS) {
@@ -85,13 +31,13 @@ void print_platforms() {
 }
 void print_help_message() {
     mlog::log("Usage: ", mlog::Blue, f("{} input.mlang [options]", programName).c_str());
-    println("\noptions:");
+    std::println("\noptions:");
     for (auto& flag: FLAG_BASE::flags) {
-        println("  {}", flag->desc);
+        std::println("  {}", flag->desc);
     }
 }
 
-Flag<bool>                     help_flag1    ({"-h", "--help"}, "[-h] [--help]    prints this message");
+Flag<bool>                     help_flag     ({"-h", "--help"}, "[-h] [--help]    prints this message");
 Flag<bool>                     run_flag      ("-run"          , "[-run]           runs the program after compilation");
 Flag<std::string>              output_flag   ("-o"            , "[-o executable]  outputs the program into the name provided");
 Flag<std::string>              platform_flag ("-t"            , "[-t platform]    chooses which platform to compile to");
@@ -106,6 +52,11 @@ int main(int argc, char* argv[])
     programName = shift_args(&argc, &argv);
     auto args = FLAG_BASE::parse_flags(argc, argv);
 
+    if (help_flag.exists) {
+        print_help_message();
+        exit(1);
+    }
+
     if (argc == 0) {
         mlog::error("PROGRAM: ", "incorrect usage");
         mlog::error("PROGRAM: ", "correct usage is");
@@ -113,10 +64,6 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    if (help_flag1.exists) {
-        print_help_message();
-        exit(1);
-    }
     if (run_flag.exists) {
         run = *run_flag.value;
     }
@@ -143,43 +90,32 @@ int main(int argc, char* argv[])
     std::string inputFile = std::string(shift_args(args));
     
     if (!inputFile.ends_with(".mlang")) {
-        mlog::error("unknown file path was provided");
+        mlog::error("unknown file path or extension was provided");
         exit(1);
     }
 
     std::filesystem::path inputFilePath(inputFile);
-    input_no_extention = inputFilePath.stem().string();
-    input_path = inputFilePath.parent_path().string();
-    #ifdef WIN32
-    build_path = input_path+"\\.build";
-    std::string output_path = build_path+"\\output";
-    #else
-    build_path = input_path+"/.build";
-    output_path = build_path+"/output";
-    #endif
-    // Should add the libmlang path to here
-    ctx.includePaths.push_back(".");
+    input_no_extension = inputFilePath.stem();
+    input_path = inputFilePath.parent_path();
+    build_path = input_path/".build";
+    output_path = build_path/"output";
 
-    #ifdef WIN32
-    ctx.includePaths.push_back("D:\\ahmed\\dev\\cpp\\mlc\\test");
-    ctx.includePaths.push_back("D:\\ahmed\\dev\\cpp\\mlc\\mlang-std");
-    #else 
-    ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/test");
-    ctx.includePaths.push_back("/home/ahmed/dev/cpp/mlc/mlang-std");
-    #endif
+    ctx.includePaths.push_back(".");
+    ctx.includePaths.push_back(MSTD_PATH);
+    ctx.includePaths.push_back(PROJECT_PATH"/test");
 
     if (!std::filesystem::exists(build_path)) {
         if (std::filesystem::create_directory(build_path)) {
-            println("Directory created: {}", build_path);
+            std::println("Directory created: {}", build_path.string());
         } else {
-            println(stderr, "Failed to create directory: {}", build_path);
+            std::println(stderr, "Failed to create directory: {}", build_path.string());
         }
-        std::ofstream gitignore(f("{}/.gitignore", build_path));
-        println("created: {}/.gitignore", build_path);
+        std::ofstream gitignore(build_path/".gitignore");
+        std::println("created: {}", (build_path/".gitignore").string());
         gitignore << "*";
         gitignore.close();
     } else {
-        println("Directory already exists: {}", build_path);
+        std::println("Directory already exists: {}", build_path.string());
     }
 
 
@@ -218,7 +154,7 @@ int main(int argc, char* argv[])
                     link_flags += " -l" + (std::string)lib;
             }
 
-            cmd("{} -g -x assembler {}/{}.s -o {}{} {}", CC, build_path, input_no_extention, output_path, EXECUTABLE_EXTENSION, link_flags);
+            cmd(CC" -g -x assembler {}.s -o {}{} {}", (build_path/input_no_extension).string(), output_path.string(), EXECUTABLE_EXTENSION, link_flags);
         }break;
     }
 
@@ -226,5 +162,5 @@ int main(int argc, char* argv[])
 
     
     if (run)
-        return cmd("{}{}", output_path, EXECUTABLE_EXTENSION);
+        return cmd("{}{}", output_path.string(), EXECUTABLE_EXTENSION);
 }

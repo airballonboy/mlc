@@ -13,7 +13,7 @@ void ir::compileProgram() {
     for (auto& func : m_program->func_storage) {
         compileFunction(func);
     }
-    std::ofstream outfile(f("{}/{}.ir", build_path, input_no_extention));
+    std::ofstream outfile(f("{}.ir", (build_path/input_no_extension).string()));
     outfile << output;
     outfile.close();
 }

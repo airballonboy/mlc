@@ -462,7 +462,7 @@ void Parser::parseExtern() {
             m_currentLexar->getAndExpectNext(TokenType::Dot);
             m_currentLexar->getAndExpectNext(TokenType::Dot);
             m_currentLexar->getAndExpectNext(TokenType::Dot);
-            func.arguments_count = 1000;
+            func.c_variadic = true;
             
             break;
         } else {
@@ -1060,7 +1060,6 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         } else if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
             var = get_var_from_name((*tkn)->string_value, m_program.var_storage);
             return {var, true};
-
         } else if (variable_exist_in_storage(name, m_currentFunc->local_variables)) {
             var = get_var_from_name(name, m_currentFunc->local_variables);
             ret_lvalue = true;
@@ -1228,6 +1227,7 @@ std::tuple<Variable, bool> Parser::parseExpression() {
 
 // TODO: should accept the Return location and should merge STORE_RET and CALL
 void Parser::parseFuncCall(Func func, Variable this_ptr) {
+    std::string loc = std::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     if (this_ptr.type_info->type != Type::Void_t) args.push_back(this_ptr);
@@ -1245,7 +1245,15 @@ void Parser::parseFuncCall(Func func, Variable this_ptr) {
         }
     }
     m_currentLexar->getAndExpectNext(TokenType::CParen);
-    m_currentFunc->body.push_back({Op::CALL, {func.name, args}});
+    if (!func.variadic && !func.c_variadic) {
+        if (func.arguments.size() != args.size()) 
+            TODO(f("\n"
+                   "{} incorrect amount of function arguments got {} but expected {}",
+                   loc, args.size(), func.arguments.size())
+                 );
+        // TODO: check every argument
+    }
+    m_currentFunc->body.push_back({Op::CALL, {func, args}});
 
     m_currentFuncStorage = &m_program.func_storage;
     current_module_prefix = "";

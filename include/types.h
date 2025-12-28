@@ -2,6 +2,7 @@
 #include <functional>
 #include <ranges>
 #include <string>
+#include <filesystem>
 #include <typeindex>
 #include <vector>
 #include <any>
@@ -343,6 +344,8 @@ struct Func {
     size_t stack_size = 0;
 
     bool external = false;
+    bool variadic = false;
+    bool c_variadic = false;
     std::string link_name{};
     std::string lib{};
     std::string search_path{};
@@ -377,7 +380,8 @@ struct Program {
     StructStorage   struct_storage;
 };
 
-inline std::string input_no_extention;
-inline std::string input_path;
-inline std::string build_path;
+namespace fs = std::filesystem;
+inline fs::path input_no_extension;
+inline fs::path input_path;
+inline fs::path build_path;
 

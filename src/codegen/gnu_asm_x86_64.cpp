@@ -170,7 +170,7 @@ void gnu_asm::compileProgram() {
         }
     }
 
-    std::ofstream outfile(f("{}/{}.s", build_path, input_no_extention));
+    std::ofstream outfile(f("{}.s", (build_path/input_no_extension).string()));
     outfile << output;
     outfile.flush();
     outfile.close();
@@ -254,11 +254,11 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg);
             }break;
             case Op::CALL: {
-                std::string func_name = std::any_cast<std::string>(inst.args[0]);
+                Func func = std::any_cast<Func>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
 
-                call_func(func_name, args);
-                last_func = get_func_from_program(*m_program, func_name);
+                call_func(func, args);
+                last_func = func;
             }break;
             case Op::JUMP_IF_NOT: {
                 std::string label = std::any_cast<std::string>(inst.args[0]);
@@ -497,7 +497,7 @@ void gnu_asm::compileFunction(Func func) {
     }
 }
 
-void gnu_asm::call_func(std::string func_name, VariableStorage args) {
+void gnu_asm::call_func(Func func, VariableStorage args) {
     if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
 
     for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register); i++, j++) {
@@ -534,7 +534,7 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
         }
     }
 
-    output.appendf("    call {}\n", func_name);
+    output.appendf("    call {}\n", func.name);
 }
 
 Struct& gnu_asm::get_struct_from_name(std::string& name) {
