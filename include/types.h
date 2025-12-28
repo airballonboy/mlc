@@ -2,6 +2,7 @@
 #include <functional>
 #include <ranges>
 #include <string>
+#include <filesystem>
 #include <typeindex>
 #include <vector>
 #include <any>
@@ -377,7 +378,8 @@ struct Program {
     StructStorage   struct_storage;
 };
 
-inline std::string input_no_extention;
-inline std::string input_path;
-inline std::string build_path;
+namespace fs = std::filesystem;
+inline fs::path input_no_extension;
+inline fs::path input_path;
+inline fs::path build_path;
 

@@ -170,7 +170,7 @@ void gnu_asm::compileProgram() {
         }
     }
 
-    std::ofstream outfile(f("{}/{}.s", build_path, input_no_extention));
+    std::ofstream outfile(f("{}.s", (build_path/input_no_extension).string()));
     outfile << output;
     outfile.flush();
     outfile.close();

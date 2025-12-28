@@ -19,6 +19,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 #set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 23)
 
+target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC PROJECT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
+target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC MSTD_PATH="${CMAKE_CURRENT_SOURCE_DIR}/mlang-std/")
+
 if(MSVC) # If using the VS compiler...
 
     target_compile_definitions("${CMAKE_PROJECT_NAME}"
@@ -31,8 +34,6 @@ if(MSVC) # If using the VS compiler...
             CACHE FILEPATH "Archiver tool")
 
     # Makes the libs static
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
     set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS} -static -s")
     set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static -s")
 

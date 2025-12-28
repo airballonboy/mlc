@@ -1060,7 +1060,6 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         } else if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
             var = get_var_from_name((*tkn)->string_value, m_program.var_storage);
             return {var, true};
-
         } else if (variable_exist_in_storage(name, m_currentFunc->local_variables)) {
             var = get_var_from_name(name, m_currentFunc->local_variables);
             ret_lvalue = true;
