@@ -1058,8 +1058,6 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             *var_.parent = this_;
             return {var_, true};
         } else if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
-            std::println("{}",(*tkn)->string_value);
-            //TODO(f("check Global variables at {}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
             var = get_var_from_name((*tkn)->string_value, m_program.var_storage);
             return {var, true};
 

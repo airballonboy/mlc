@@ -815,6 +815,9 @@ void gnu_asm::mov(Variable src, Variable dest) {
             }
         }
         if (!found) TODO(f("struct {} wasn't found", src.type_info->name));
+        // TODO: bug found where if you have something like this.color = ... it will be offset(%Rbp) instead of
+        //       moving this to to a register and taking offset from it
+
         if (dest.kind.pointer_count > 0) {
             auto reg1 = get_available_reg();
             auto reg2 = get_available_reg();

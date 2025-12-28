@@ -12,6 +12,12 @@ struct vec2 {
     int y;
 }
 
+const KEY_W    = 87;
+const KEY_R    = 82;
+const KEY_S    = 83;
+const KEY_UP   = 265;
+const KEY_DOWN = 264;
+const BACKGROUND_COLOR = 0x151515ff;
 struct CTX {
     vec4 p1;
     vec4 p2;
@@ -41,21 +47,16 @@ struct CTX {
         this.velocity = 3;
     }
     func update() {
-        int W    = 87;
-        int S    = 83;
-        int UP   = 265;
-        int DOWN = 264;
-
         this.ball.x += this.ball_vel.x;
         this.ball.y += this.ball_vel.y;
 
-        if (rl::is_key_down(W) && this.p1.y > 0)
+        if (rl::is_key_down(KEY_W) && this.p1.y > 0)
             this.p1.y -= this.velocity;
-        if (rl::is_key_down(S) && (this.p1.y + this.p1.h) < 675)
+        if (rl::is_key_down(KEY_S) && (this.p1.y + this.p1.h) < 675)
             this.p1.y += this.velocity;
-        if (rl::is_key_down(UP)   && this.p2.y > 0)
+        if (rl::is_key_down(KEY_UP)   && this.p2.y > 0)
             this.p2.y -= this.velocity;
-        if (rl::is_key_down(DOWN) && (this.p2.y + this.p1.h) < 675)
+        if (rl::is_key_down(KEY_DOWN) && (this.p2.y + this.p1.h) < 675)
             this.p2.y += this.velocity;
         if  (
               this.p1.x < this.ball.x + this.ball_radius &&
@@ -87,9 +88,9 @@ func main() {
     while (!rl::window_should_close()) {
         rl::begin_drawing();
 
-        rl::clear_background(rl::get_color(0x151515ff));
+        rl::clear_background(rl::get_color(BACKGROUND_COLOR));
         ctx.update(&ctx);
-        if (rl::is_key_down(82))
+        if (rl::is_key_down(KEY_R))
             ctx.init();
         rl::draw_rectangle(ctx.p1.x, ctx.p1.y, ctx.p1.w, ctx.p1.h, ctx.color);
         rl::draw_rectangle(ctx.p2.x, ctx.p2.y, ctx.p1.w, ctx.p1.h, ctx.color);
