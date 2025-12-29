@@ -1,0 +1,9 @@
+module my_c_std;
+module my_raylib;
+
+//#extern func my_raylib::init_window(int width, int height, string window_name) [link_name = "InitWindow", lib = "raylib", search_path = "/path/to/raylib/"];
+#extern func my_c_std::printf(...) [link_name = "printf", lib = "c"];
+
+func main() {
+    my_c_std::printf("hi man\n");
+}

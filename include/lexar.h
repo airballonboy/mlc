@@ -24,6 +24,7 @@ public:
     std::vector<Token> getTokens();
 
     Token* currentToken;
+    size_t currentTokenIndex = 0;
     
 private:
     std::vector<Token> m_tokens;
@@ -31,7 +32,6 @@ private:
     size_t             m_currentCharIndex = 0;
     std::string        m_filePath;
     std::string        m_filePathNoExtension;
-    size_t             m_currentTokenIndex = 0;
     Loc                m_currentLoc;
 
     void        skipSpaces();

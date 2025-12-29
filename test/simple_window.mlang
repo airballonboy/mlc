@@ -3,10 +3,12 @@
 
 func main() {
     rl::init_window(1200, 675, "hello raylib");
+    rl::Color c;
+    c = rl::get_color(0x181818ff);
     while (!rl::window_should_close()) {
         rl::begin_drawing();
 
-        rl::clear_background(0xff1515ff);
+        rl::clear_background(c);
 
         rl::end_drawing();
     }

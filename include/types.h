@@ -1,6 +1,6 @@
 #pragma once 
-#include <functional>
 #include <string>
+#include <filesystem>
 #include <typeindex>
 #include <vector>
 #include <any>
@@ -13,6 +13,7 @@ enum class TokenType {
     // Values
     ID, StringLit,
     CharLit, IntLit,
+    DoubleLit,
     // Puncts
     OCurly, CCurly, 
     OParen, CParen,
@@ -46,29 +47,26 @@ enum class TokenType {
     Else, While, Switch,
     Goto, Return, Import,
     Func, From, Include,
-    Module, 
+    Module, Struct, Const,
 };
 enum class Type : int {
     Void_t = 0, 
+    Struct_t,
     Int8_t, Int16_t, 
     Int32_t, Int64_t, 
     String_t, Char_t,
     Float_t, Size_t,
     Bool_t,
-    String_lit, Int_lit
 };
 enum class Op {
     // stores variable1 into variable2
     // STORE_VAR(variable1, variable2)
     STORE_VAR,
-    // stores the return of the last function called
-    // STORE_RET(variable)
-    STORE_RET,
     // INIT_STRING(string)
     INIT_STRING,
     // RETURN(variable)
     RETURN,
-    // CALL(func_name, args)
+    // CALL(func, args, return_address)
     CALL,
     // (lhs, rhs, result)
     // Binary operations
@@ -88,6 +86,8 @@ enum class Op {
 
 inline std::unordered_map<std::string, Type> TypeIds = {
     {"void"  , Type::Void_t},
+    {"char"  , Type::Char_t},
+    {"int8"  , Type::Int8_t},
     {"int16" , Type::Int16_t},
     {"int"   , Type::Int32_t},
     {"int32" , Type::Int32_t},
@@ -100,26 +100,15 @@ inline std::unordered_map<std::string, Type> TypeIds = {
 };
 inline std::unordered_map<Type, std::string> printableTypeIds = {
     {Type::Void_t  , "void"  },
+    {Type::Char_t  , "char"  },
+    {Type::Int8_t  , "int8"  },
     {Type::Int16_t , "int16" },
-    {Type::Int32_t , "int"   },
     {Type::Int32_t , "int32" },
     {Type::Int64_t , "int64" },
-    {Type::Int64_t , "long"  },
     {Type::String_t, "string"},
     {Type::Float_t , "float" },
     {Type::Size_t  , "usize" },
     {Type::Bool_t  , "bool"  },
-};
-
-
-inline std::unordered_map<Type, std::function<std::string(std::any)>> TypeToString = {
-    {Type::Int8_t    , [](const std::any& val){ return std::to_string(std::any_cast<int8_t> (val)); }},
-    {Type::Int16_t   , [](const std::any& val){ return std::to_string(std::any_cast<int16_t>(val)); }},
-    {Type::Int_lit   , [](const std::any& val){ return std::to_string(std::any_cast<int32_t>(val)); }},
-    {Type::Int32_t   , [](const std::any& val){ return std::to_string(std::any_cast<int32_t>(val)); }},
-    {Type::Int64_t   , [](const std::any& val){ return std::to_string(std::any_cast<int64_t>(val)); }},
-    {Type::String_t  , [](const std::any& val){ return std::any_cast<std::string>(val);             }},
-    {Type::String_lit, [](const std::any& val){ return std::any_cast<std::string>(val);             }},
 };
 
 static const std::unordered_map<TokenType, std::string> printableToken = {
@@ -131,6 +120,7 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     {TokenType::StringLit  ,"string"},
     {TokenType::CharLit    ,"character"},
     {TokenType::IntLit     ,"integer literal"},
+    {TokenType::DoubleLit  ,"double literal"},
     // Puncts
     {TokenType::OCurly     ,"`{`"},
     {TokenType::CCurly     ,"`}`"},
@@ -194,6 +184,8 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     {TokenType::From       ,"keyword `from`"},
     {TokenType::Include    ,"keyword `include`"},
     {TokenType::Module     ,"keyword `module`"},
+    {TokenType::Struct     ,"keyword `struct`"},
+    {TokenType::Const      ,"keyword `const`"},
 };
 
 static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
@@ -261,10 +253,12 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     {"from"   , TokenType::From},
     {"include", TokenType::Include},
     {"module" , TokenType::Module},
+    {"struct" , TokenType::Struct},
+    {"const"  , TokenType::Const},
 };
 
 
-struct Loc{
+struct Loc {
     size_t line   = 1;
     size_t offset = 1;
     std::string inputPath;
@@ -283,19 +277,58 @@ struct Instruction {
     std::vector<std::any> args;
 };
 
-struct Variable {
-    Type        type;
-    std::string name;
-    std::any    value;
-    // TODO: make this used and add pointers
-    int64_t     deref_count = 0;
-    size_t      offset;
-    size_t      size;
-};
+// Forward Declared
+struct Variable;
 typedef std::vector<Variable> VariableStorage;
 
+struct Kind {
+    bool constant = false;
+    bool global   = false;
+    bool literal = false;
+    size_t  pointer_count = 0;
+    int64_t deref_offset  = -1;
+    size_t  array_count   = 0;
+    // TODO: add a vector of array data
+};
+
+struct TypeInfo {
+    size_t id = 0;
+    Type type = Type::Int32_t;
+    size_t size = 0;
+    std::string name{};
+    // TODO: add available cast functions to other types
+};
+
+inline std::unordered_map <std::string, TypeInfo> type_infos = {
+    {"void"  , {.id = 0 , .type = Type::Void_t  , .size = 1, .name = "void"}},
+    {"char"  , {.id = 1 , .type = Type::Char_t  , .size = 1, .name = "char"}},
+    {"int8"  , {.id = 2 , .type = Type::Int8_t  , .size = 1, .name = "int8"}},
+    {"int16" , {.id = 3 , .type = Type::Int16_t , .size = 2, .name = "int16"}},
+    {"int"   , {.id = 4 , .type = Type::Int32_t , .size = 4, .name = "int32"}},
+    {"int32" , {.id = 4 , .type = Type::Int32_t , .size = 4, .name = "int32"}},
+    {"int64" , {.id = 5 , .type = Type::Int64_t , .size = 8, .name = "int64"}},
+    {"long"  , {.id = 5 , .type = Type::Int64_t , .size = 8, .name = "int64"}},
+    {"string", {.id = 6 , .type = Type::String_t, .size = 8, .name = "string"}},
+    {"float" , {.id = 7 , .type = Type::Float_t , .size = 4, .name = "float"}},
+    {"usize" , {.id = 8 , .type = Type::Size_t  , .size = 8, .name = "uint64"}},
+    {"bool"  , {.id = 9 , .type = Type::Bool_t  , .size = 1, .name = "bool"}}
+};
+inline size_t current_typeid_max = 9;
+
+struct Variable {
+    TypeInfo*   type_info = nullptr;
+    std::string name{};
+    std::any    value{};
+    int64_t     deref_count = 0;
+    size_t      offset = 0;
+    size_t      size = 0;
+    Variable* parent = nullptr;
+    VariableStorage members{};
+    Kind kind{};
+};
+
 struct Func {
-    Type return_type = Type::Void_t;
+    TypeInfo return_type = type_infos.at("void");
 
     int arguments_count = 0;
     VariableStorage arguments{};
@@ -306,6 +339,8 @@ struct Func {
     size_t stack_size = 0;
 
     bool external = false;
+    bool variadic = false;
+    bool c_variadic = false;
     std::string link_name{};
     std::string lib{};
     std::string search_path{};
@@ -323,14 +358,25 @@ struct Module {
 //typedef std::vector<Module> ModuleStorage;
 typedef std::unordered_map<std::string, Module> ModuleStorage;
 
+struct Struct {
+    size_t id = 0;
+    std::string name{};
+    VariableStorage var_storage;
+    std::unordered_map<int, Variable> defaults;
+    size_t size;
+    size_t alignment;
+};
+typedef std::vector<Struct> StructStorage;
 
 struct Program {
     ModuleStorage   module_storage;
     FunctionStorage func_storage;
     VariableStorage var_storage;
+    StructStorage   struct_storage;
 };
 
-inline std::string input_no_extention;
-inline std::string input_path;
-inline std::string build_path;
+namespace fs = std::filesystem;
+inline fs::path input_no_extension;
+inline fs::path input_path;
+inline fs::path build_path;
 

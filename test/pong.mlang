@@ -1,0 +1,103 @@
+#include <raylib.mlang>
+#include <c_std.mlang>
+
+struct vec4 {
+    int x;
+    int y;
+    int w;
+    int h;
+}
+struct vec2 {
+    int x;
+    int y;
+}
+
+const KEY_W    = 87;
+const KEY_R    = 82;
+const KEY_S    = 83;
+const KEY_UP   = 265;
+const KEY_DOWN = 264;
+const BACKGROUND_COLOR = 0x151515ff;
+struct CTX {
+    vec4 p1;
+    vec4 p2;
+    rl::Color color;
+    int velocity;
+    vec2 ball;
+    int ball_radius;
+    vec2 ball_vel;
+    func init() {
+        this.p1.x = 40;
+        this.p1.y = 245;
+        this.p2.x = 1120;
+        this.p2.y = 245;
+        this.p1.w  = 40;
+        this.p2.w  = 40;
+        this.p1.h = 120;
+        this.p2.h = 120;
+        this.ball.x = 600;
+        this.ball.y = 335;
+        this.ball_radius = 30;
+        this.ball_vel.x = 4;
+        this.ball_vel.y = 2;
+        this.color.r = 0xff;
+        this.color.g = 0xff;
+        this.color.b = 0xff;
+        this.color.a = 0xff;
+        this.velocity = 3;
+    }
+    func update() {
+        this.ball.x += this.ball_vel.x;
+        this.ball.y += this.ball_vel.y;
+
+        if (rl::is_key_down(KEY_W) && this.p1.y > 0)
+            this.p1.y -= this.velocity;
+        if (rl::is_key_down(KEY_S) && (this.p1.y + this.p1.h) < 675)
+            this.p1.y += this.velocity;
+        if (rl::is_key_down(KEY_UP)   && this.p2.y > 0)
+            this.p2.y -= this.velocity;
+        if (rl::is_key_down(KEY_DOWN) && (this.p2.y + this.p1.h) < 675)
+            this.p2.y += this.velocity;
+        if  (
+              this.p1.x < this.ball.x + this.ball_radius &&
+              this.p1.x + this.p1.w > this.ball.x &&
+              this.p1.y < this.ball.y + this.ball_radius &&
+              this.p1.y + this.p1.h > this.ball.y 
+            ) 
+        {
+            this.ball_vel.x *= -1;
+            this.ball_vel.y *= -1;
+        }
+        if  (
+              this.p2.x < this.ball.x + this.ball_radius &&
+              this.p2.x + this.p1.w > this.ball.x &&
+              this.p2.y < this.ball.y + this.ball_radius &&
+              this.p2.y + this.p1.h > this.ball.y 
+            ) 
+        {
+            this.ball_vel.x *= -1;
+            this.ball_vel.y *= -1;
+        }
+    }
+}
+func main() {
+    CTX ctx;
+    ctx.init();
+    rl::set_target_fps(60);
+    rl::init_window(1200, 675, "ping-pong");
+    while (!rl::window_should_close()) {
+        rl::begin_drawing();
+
+        rl::clear_background(rl::get_color(BACKGROUND_COLOR));
+        ctx.update();
+        if (rl::is_key_down(KEY_R))
+            ctx.init();
+        rl::draw_rectangle(ctx.p1.x, ctx.p1.y, ctx.p1.w, ctx.p1.h, ctx.color);
+        rl::draw_rectangle(ctx.p2.x, ctx.p2.y, ctx.p1.w, ctx.p1.h, ctx.color);
+        rl::draw_rectangle(ctx.ball.x, ctx.ball.y, ctx.ball_radius, ctx.ball_radius, ctx.color);
+
+        rl::draw_fps(10, 10);
+        rl::end_drawing();
+    }
+    rl::close_window();
+}
