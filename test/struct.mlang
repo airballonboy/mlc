@@ -8,6 +8,23 @@ struct Vec3 {
         c_std::printf("Vec3[%d, %d, %d]\n", this.x, this.y, this.z);
     }
 }
+struct Vec4 {
+    int64 x;
+    int64 y;
+    int64 w;
+    int64 h;
+    func print() {
+        c_std::printf("Vec4[%ld, %ld, %ld, %ld]\n", this.x, this.y, this.w, this.h);
+    }
+}
+func vec4_init() -> Vec4 {
+    Vec4 v;
+    v.x = 1;
+    v.y = 2;
+    v.w = 3;
+    v.h = 4;
+    return v;
+}
 
 func main() {
     Vec3 v;
@@ -15,4 +32,7 @@ func main() {
     v.y = 2;
     v.z = 3;
     v.print();
+    Vec4 ve;
+    ve = vec4_init();
+    ve.print();
 }

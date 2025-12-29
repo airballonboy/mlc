@@ -209,7 +209,7 @@ void gnu_asm::compileFunction(Func func) {
                 } else {
                     func.arguments[0].deref_count = 1;
                     mov(arg, func.arguments[0]);
-                    mov(func.arguments[0], Rax);
+                    //mov(func.arguments[0], Rax);
                 }
                 function_epilogue();
                 output.appendf("    ret\n");
@@ -250,7 +250,8 @@ void gnu_asm::compileFunction(Func func) {
                         ret_address.size = ret_address.type_info->size - 8;
                         mov(Rdx, ret_address);
                     } else {
-                        TODO("unsupported function return size");
+                        //mov(0, Rax, Rax);
+                        //mov(Rax, ret_address);
                     }
                 }
             }break;
@@ -528,6 +529,8 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
         }
     }
 
+    if (func.c_variadic)
+        output.appendf("    xorl %eax, %eax\n");
     output.appendf("    call {}\n", func.name);
 }
 
@@ -819,14 +822,15 @@ void gnu_asm::mov(Variable src, Variable dest) {
             if (src_real_ptr_count != dest_real_ptr_count)
                 TODO(f("trying to move Variable {} into {}, but kind is not the same", src.name, dest.name));
             if (dest_real_ptr_count == 0) {
+                output.appendf("    cld\n");
                 dest.deref_count -= 1;
-                mov(dest, Rsi);
+                mov(dest, Rdi);
 
                 if (src.kind.pointer_count > 0) {
                     src.deref_count -= 1;
-                    mov(src, Rdi);
+                    mov(src, Rsi);
                 } else {
-                    lea(-src.offset, Rbp, Rdi);
+                    lea(-src.offset, Rbp, Rsi);
                 }
 
                 mov(strct.size, Rcx);
@@ -840,6 +844,7 @@ void gnu_asm::mov(Variable src, Variable dest) {
             free_reg(reg1);
             free_reg(reg2);
         } else {
+            output.appendf("    cld\n");
             if (src.deref_count > 0)
                 mov(src, Rsi);
             else 

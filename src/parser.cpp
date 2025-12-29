@@ -592,11 +592,11 @@ Func Parser::parseFunction(bool member, Struct parent) {
         current_offset += 8;
     }
     m_currentLexar->getAndExpectNext(TokenType::OParen);
-    VariableStorage temp_var_storage{};
+    VariableStorage args_temp_storage{};
     Func temp_func{};
     m_currentFunc = &temp_func;
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-        parseVariable(temp_var_storage);
+        parseVariable(args_temp_storage);
         if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->expectNext(TokenType::Comma);
             m_currentLexar->getNext();
@@ -629,10 +629,12 @@ Func Parser::parseFunction(bool member, Struct parent) {
                 .pointer_count = 1
             }
         };
+        current_offset += 8;
         func.arguments.emplace(func.arguments.begin(), ret);
+        func.arguments_count++;
     }
-    for (int i = temp_var_storage.size()-1;i >= 0; i--) {
-        auto var = temp_var_storage[i];
+    for (int i = args_temp_storage.size()-1;i >= 0; i--) {
+        auto var = args_temp_storage[i];
         if (var.type_info->type == Type::Struct_t) {
             if (var.kind.pointer_count > 0) {
                 func.arguments.push_back(var);
@@ -1226,12 +1228,16 @@ std::tuple<Variable, bool> Parser::parseExpression() {
     return parseCondition(0);
 }
 
-// TODO: should accept the Return location and should merge STORE_RET and CALL
 void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address) {
     std::string loc = std::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     if (this_ptr.type_info->type != Type::Void_t) args.push_back(this_ptr);
+    if (func.return_type.size > 16) {
+        return_address.deref_count -= 1;
+        args.push_back(return_address);
+        return_address.deref_count += 1;
+    }
     while (m_currentLexar->peek()->type != TokenType::CParen) {
         m_currentLexar->getNext();
         if (eq) {
