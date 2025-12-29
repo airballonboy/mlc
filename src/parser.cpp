@@ -225,9 +225,11 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
     // maybe shared pointers??
     Variable* struct_var = new Variable;
     if (!member) {
+        current_offset = align(current_offset, Type::Struct_t, type_name);
         current_offset += strct->size;
         *struct_var = {.type_info = &type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
     } else {
+        current_offset = align(current_offset, Type::Struct_t, type_name);
         *struct_var = {.type_info = &type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
         current_offset += strct->size;
     }
