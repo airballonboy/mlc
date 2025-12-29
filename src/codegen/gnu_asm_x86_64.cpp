@@ -18,7 +18,6 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
-Func last_func{};
 
 static std::vector<std::pair<Register, bool>> available_reg = {
     {Rax, true},
@@ -199,7 +198,6 @@ void gnu_asm::compileFunction(Func func) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
                 Variable arg = std::any_cast<Variable>(inst.args[0]);
-                auto t = last_func.return_type;
                 if (func.return_type.size <= 8) {
                     mov(arg, Rax);
                 } else if (func.return_type.size <= 16) {
@@ -228,23 +226,6 @@ void gnu_asm::compileFunction(Func func) {
                     output.appendf("    call strcpy\n");
                 }
             }break;
-            case Op::STORE_RET: {
-                Variable var = std::any_cast<Variable>(inst.args[0]);
-                if (last_func.return_type.size <= 8) {
-                    mov(Rax, var);
-                } else if (last_func.return_type.size <= 16) {
-                    var.size = 8;
-                    mov(Rax, var);
-                    var.offset -= 8;
-                    var.size = var.type_info->size - 8;
-                    mov(Rdx, var);
-                } else {
-                    TODO("unsupported");
-                    //deref(Rax, 1);
-                    //mov(Rax, var);
-                }
-                last_func = {};
-            }break;
             case Op::INIT_STRING: {
                 Variable str = std::any_cast<Variable>(inst.args[0]);
                 auto storage_offset = current_string_count++*MAX_STRING_SIZE;
@@ -254,11 +235,24 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg);
             }break;
             case Op::CALL: {
-                Func func = std::any_cast<Func>(inst.args[0]);
+                Func func             = std::any_cast<Func>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
+                Variable ret_address  = std::any_cast<Variable>(inst.args[2]);
 
                 call_func(func, args);
-                last_func = func;
+                if (ret_address.type_info->type != Type::Void_t) {
+                    if (func.return_type.size <= 8) {
+                        mov(Rax, ret_address);
+                    } else if (func.return_type.size <= 16) {
+                        ret_address.size = 8;
+                        mov(Rax, ret_address);
+                        ret_address.offset -= 8;
+                        ret_address.size = ret_address.type_info->size - 8;
+                        mov(Rdx, ret_address);
+                    } else {
+                        TODO("unsupported function return size");
+                    }
+                }
             }break;
             case Op::JUMP_IF_NOT: {
                 std::string label = std::any_cast<std::string>(inst.args[0]);

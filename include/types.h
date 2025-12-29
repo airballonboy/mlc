@@ -1,9 +1,6 @@
 #pragma once 
-#include <functional>
-#include <ranges>
 #include <string>
 #include <filesystem>
-#include <typeindex>
 #include <vector>
 #include <any>
 #include <unordered_map>
@@ -64,14 +61,11 @@ enum class Op {
     // stores variable1 into variable2
     // STORE_VAR(variable1, variable2)
     STORE_VAR,
-    // stores the return of the last function called
-    // STORE_RET(variable)
-    STORE_RET,
     // INIT_STRING(string)
     INIT_STRING,
     // RETURN(variable)
     RETURN,
-    // CALL(func_name, args)
+    // CALL(func, args, return_address)
     CALL,
     // (lhs, rhs, result)
     // Binary operations

@@ -1045,10 +1045,11 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             if (!function_exist_in_storage(func_name, m_program.func_storage)) 
                 TODO(f("func {} doesn't exist", func_name));
             auto& func = get_func_from_name(func_name, m_program.func_storage);
-            parseFuncCall(func, this_ptr);
             var = make_temp_var(&func.return_type);
             if (eq)
-                m_currentFunc->body.push_back({Op::STORE_RET, {var}});
+                parseFuncCall(func, this_ptr, var);
+            else 
+                parseFuncCall(func, this_ptr);
             return {var, ret_lvalue};
         }
         if (this_ptr.type_info->type != Type::Void_t) {
@@ -1226,7 +1227,7 @@ std::tuple<Variable, bool> Parser::parseExpression() {
 }
 
 // TODO: should accept the Return location and should merge STORE_RET and CALL
-void Parser::parseFuncCall(Func func, Variable this_ptr) {
+void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address) {
     std::string loc = std::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
@@ -1253,7 +1254,7 @@ void Parser::parseFuncCall(Func func, Variable this_ptr) {
                  );
         // TODO: check every argument
     }
-    m_currentFunc->body.push_back({Op::CALL, {func, args}});
+    m_currentFunc->body.push_back({Op::CALL, {func, args, return_address}});
 
     m_currentFuncStorage = &m_program.func_storage;
     current_module_prefix = "";
