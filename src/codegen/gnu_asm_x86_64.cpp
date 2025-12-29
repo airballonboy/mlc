@@ -18,7 +18,6 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
-Func last_func{};
 
 static std::vector<std::pair<Register, bool>> available_reg = {
     {Rax, true},
@@ -199,7 +198,6 @@ void gnu_asm::compileFunction(Func func) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
                 Variable arg = std::any_cast<Variable>(inst.args[0]);
-                auto t = last_func.return_type;
                 if (func.return_type.size <= 8) {
                     mov(arg, Rax);
                 } else if (func.return_type.size <= 16) {
@@ -211,7 +209,7 @@ void gnu_asm::compileFunction(Func func) {
                 } else {
                     func.arguments[0].deref_count = 1;
                     mov(arg, func.arguments[0]);
-                    mov(func.arguments[0], Rax);
+                    //mov(func.arguments[0], Rax);
                 }
                 function_epilogue();
                 output.appendf("    ret\n");
@@ -228,23 +226,6 @@ void gnu_asm::compileFunction(Func func) {
                     output.appendf("    call strcpy\n");
                 }
             }break;
-            case Op::STORE_RET: {
-                Variable var = std::any_cast<Variable>(inst.args[0]);
-                if (last_func.return_type.size <= 8) {
-                    mov(Rax, var);
-                } else if (last_func.return_type.size <= 16) {
-                    var.size = 8;
-                    mov(Rax, var);
-                    var.offset -= 8;
-                    var.size = var.type_info->size - 8;
-                    mov(Rdx, var);
-                } else {
-                    TODO("unsupported");
-                    //deref(Rax, 1);
-                    //mov(Rax, var);
-                }
-                last_func = {};
-            }break;
             case Op::INIT_STRING: {
                 Variable str = std::any_cast<Variable>(inst.args[0]);
                 auto storage_offset = current_string_count++*MAX_STRING_SIZE;
@@ -254,11 +235,25 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg);
             }break;
             case Op::CALL: {
-                std::string func_name = std::any_cast<std::string>(inst.args[0]);
+                Func func             = std::any_cast<Func>(inst.args[0]);
                 VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
+                Variable ret_address  = std::any_cast<Variable>(inst.args[2]);
 
-                call_func(func_name, args);
-                last_func = get_func_from_program(*m_program, func_name);
+                call_func(func, args);
+                if (ret_address.type_info->type != Type::Void_t) {
+                    if (func.return_type.size <= 8) {
+                        mov(Rax, ret_address);
+                    } else if (func.return_type.size <= 16) {
+                        ret_address.size = 8;
+                        mov(Rax, ret_address);
+                        ret_address.offset -= 8;
+                        ret_address.size = ret_address.type_info->size - 8;
+                        mov(Rdx, ret_address);
+                    } else {
+                        //mov(0, Rax, Rax);
+                        //mov(Rax, ret_address);
+                    }
+                }
             }break;
             case Op::JUMP_IF_NOT: {
                 std::string label = std::any_cast<std::string>(inst.args[0]);
@@ -497,7 +492,7 @@ void gnu_asm::compileFunction(Func func) {
     }
 }
 
-void gnu_asm::call_func(std::string func_name, VariableStorage args) {
+void gnu_asm::call_func(Func func, VariableStorage args) {
     if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
 
     for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register); i++, j++) {
@@ -534,7 +529,9 @@ void gnu_asm::call_func(std::string func_name, VariableStorage args) {
         }
     }
 
-    output.appendf("    call {}\n", func_name);
+    if (func.c_variadic)
+        output.appendf("    xorl %eax, %eax\n");
+    output.appendf("    call {}\n", func.name);
 }
 
 Struct& gnu_asm::get_struct_from_name(std::string& name) {
@@ -825,14 +822,15 @@ void gnu_asm::mov(Variable src, Variable dest) {
             if (src_real_ptr_count != dest_real_ptr_count)
                 TODO(f("trying to move Variable {} into {}, but kind is not the same", src.name, dest.name));
             if (dest_real_ptr_count == 0) {
+                output.appendf("    cld\n");
                 dest.deref_count -= 1;
-                mov(dest, Rsi);
+                mov(dest, Rdi);
 
                 if (src.kind.pointer_count > 0) {
                     src.deref_count -= 1;
-                    mov(src, Rdi);
+                    mov(src, Rsi);
                 } else {
-                    lea(-src.offset, Rbp, Rdi);
+                    lea(-src.offset, Rbp, Rsi);
                 }
 
                 mov(strct.size, Rcx);
@@ -846,6 +844,7 @@ void gnu_asm::mov(Variable src, Variable dest) {
             free_reg(reg1);
             free_reg(reg2);
         } else {
+            output.appendf("    cld\n");
             if (src.deref_count > 0)
                 mov(src, Rsi);
             else 

@@ -12,7 +12,7 @@ enum class Platform {
     ir,
     gnu_asm_86_64,
 };
-std::unordered_map<std::string, Platform> PLATFORMS = {
+inline std::unordered_map<std::string, Platform> PLATFORMS = {
     {"gnu_x64_64", Platform::gnu_asm_86_64},
     {"ir",         Platform::ir},
 };

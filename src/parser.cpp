@@ -225,9 +225,11 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
     // maybe shared pointers??
     Variable* struct_var = new Variable;
     if (!member) {
+        current_offset = align(current_offset, Type::Struct_t, type_name);
         current_offset += strct->size;
         *struct_var = {.type_info = &type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
     } else {
+        current_offset = align(current_offset, Type::Struct_t, type_name);
         *struct_var = {.type_info = &type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
         current_offset += strct->size;
     }
@@ -462,7 +464,7 @@ void Parser::parseExtern() {
             m_currentLexar->getAndExpectNext(TokenType::Dot);
             m_currentLexar->getAndExpectNext(TokenType::Dot);
             m_currentLexar->getAndExpectNext(TokenType::Dot);
-            func.arguments_count = 1000;
+            func.c_variadic = true;
             
             break;
         } else {
@@ -592,11 +594,11 @@ Func Parser::parseFunction(bool member, Struct parent) {
         current_offset += 8;
     }
     m_currentLexar->getAndExpectNext(TokenType::OParen);
-    VariableStorage temp_var_storage{};
+    VariableStorage args_temp_storage{};
     Func temp_func{};
     m_currentFunc = &temp_func;
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
-        parseVariable(temp_var_storage);
+        parseVariable(args_temp_storage);
         if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->expectNext(TokenType::Comma);
             m_currentLexar->getNext();
@@ -629,10 +631,12 @@ Func Parser::parseFunction(bool member, Struct parent) {
                 .pointer_count = 1
             }
         };
+        current_offset += 8;
         func.arguments.emplace(func.arguments.begin(), ret);
+        func.arguments_count++;
     }
-    for (int i = temp_var_storage.size()-1;i >= 0; i--) {
-        auto var = temp_var_storage[i];
+    for (int i = args_temp_storage.size()-1;i >= 0; i--) {
+        auto var = args_temp_storage[i];
         if (var.type_info->type == Type::Struct_t) {
             if (var.kind.pointer_count > 0) {
                 func.arguments.push_back(var);
@@ -1045,10 +1049,11 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             if (!function_exist_in_storage(func_name, m_program.func_storage)) 
                 TODO(f("func {} doesn't exist", func_name));
             auto& func = get_func_from_name(func_name, m_program.func_storage);
-            parseFuncCall(func, this_ptr);
             var = make_temp_var(&func.return_type);
             if (eq)
-                m_currentFunc->body.push_back({Op::STORE_RET, {var}});
+                parseFuncCall(func, this_ptr, var);
+            else 
+                parseFuncCall(func, this_ptr);
             return {var, ret_lvalue};
         }
         if (this_ptr.type_info->type != Type::Void_t) {
@@ -1225,11 +1230,16 @@ std::tuple<Variable, bool> Parser::parseExpression() {
     return parseCondition(0);
 }
 
-// TODO: should accept the Return location and should merge STORE_RET and CALL
-void Parser::parseFuncCall(Func func, Variable this_ptr) {
+void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address) {
+    std::string loc = std::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     if (this_ptr.type_info->type != Type::Void_t) args.push_back(this_ptr);
+    if (func.return_type.size > 16) {
+        return_address.deref_count -= 1;
+        args.push_back(return_address);
+        return_address.deref_count += 1;
+    }
     while (m_currentLexar->peek()->type != TokenType::CParen) {
         m_currentLexar->getNext();
         if (eq) {
@@ -1244,7 +1254,15 @@ void Parser::parseFuncCall(Func func, Variable this_ptr) {
         }
     }
     m_currentLexar->getAndExpectNext(TokenType::CParen);
-    m_currentFunc->body.push_back({Op::CALL, {func.name, args}});
+    if (!func.variadic && !func.c_variadic) {
+        if (func.arguments.size() != args.size()) 
+            TODO(f("\n"
+                   "{} incorrect amount of function arguments got {} but expected {}",
+                   loc, args.size(), func.arguments.size())
+                 );
+        // TODO: check every argument
+    }
+    m_currentFunc->body.push_back({Op::CALL, {func, args, return_address}});
 
     m_currentFuncStorage = &m_program.func_storage;
     current_module_prefix = "";
