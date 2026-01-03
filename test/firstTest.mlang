@@ -15,6 +15,12 @@ struct Vec3 {
         this.y = 0;
         this.z = 0;
     }
+    func add(int amount) -> Vec3 {
+        this.x += amount;
+        this.y += amount;
+        this.z += amount;
+        return *this;
+    }
     func print() {
         c_std::printf("[%d, %d, %d]\n", this.x, this.y, this.z);
     }
@@ -24,9 +30,7 @@ const ONE = 1;
 
 func main() {
     Vec3* v = c_std::malloc(12);
+    c_std::printf("Vec3 typeid = %d\n", Vec3);
     v.init();
-    v.x = (ONE+ONE)*32;
-    v.y = (ONE+ONE)*32;
-    v.z = (ONE+ONE)*32;
     v.print();
 }

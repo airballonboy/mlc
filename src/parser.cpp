@@ -928,7 +928,6 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
     Variable var;
     bool ret_lvalue = false;
 
-    //m_currentLexar->getAndExpectNext({TokenType::And, TokenType::Mul, TokenType::DQoute, TokenType::IntLit, TokenType::ID});
 
     if ((*tkn)->type == TokenType::DQoute) {
         m_currentLexar->getAndExpectNext(TokenType::StringLit);
@@ -1062,7 +1061,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
     }
     std::string name      = current_module_prefix + m_currentLexar->currentToken->string_value;
     std::string func_name = current_module_prefix + struct_func_prefix + m_currentLexar->currentToken->string_value;
-    if ((*tkn)->type == TokenType::ID) {
+    if ((*tkn)->type == TokenType::ID || (*tkn)->type == TokenType::TypeID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
             if (!function_exist_in_storage(func_name, m_program.func_storage)) 
                 TODO(f("func {} doesn't exist", func_name));
@@ -1073,6 +1072,21 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             else 
                 parseFuncCall(func, this_ptr);
             return {var, ret_lvalue};
+        }
+        if (type_infos.contains(name)) {
+            TypeInfo type = type_infos.at(name);
+            if (type.type == Type::Struct_t) {
+                if (m_currentLexar->peek()->type == TokenType::OCurly) {
+                    TODO("implement struct literals");
+                    return {var, false};
+                }
+            }
+            var.name = type.name;
+            var.size = 4;
+            var.type_info = &type_infos.at("int32");
+            var.kind.literal = true;
+            var.value = (int64_t)type.id;
+            return {var, false};
         }
         if (this_ptr.type_info->type != Type::Void_t) {
             //auto strct = get_struct_from_name(this_._type_name);
