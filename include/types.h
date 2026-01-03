@@ -53,7 +53,8 @@ enum class Type : int {
     Void_t = 0, 
     Struct_t,
     Int8_t, Int16_t, 
-    Int32_t, Int64_t, 
+    Int32_t, Int64_t,
+    Ptr_t,
     String_t, Char_t,
     Float_t, Size_t,
     Bool_t,
@@ -85,30 +86,32 @@ enum class Op {
 
 
 inline std::unordered_map<std::string, Type> TypeIds = {
-    {"void"  , Type::Void_t},
-    {"char"  , Type::Char_t},
-    {"int8"  , Type::Int8_t},
-    {"int16" , Type::Int16_t},
-    {"int"   , Type::Int32_t},
-    {"int32" , Type::Int32_t},
-    {"int64" , Type::Int64_t},
-    {"long"  , Type::Int64_t},
-    {"string", Type::String_t},
-    {"float" , Type::Float_t},
-    {"usize" , Type::Size_t},
-    {"bool"  , Type::Bool_t}
+    {"void"   , Type::Void_t},
+    {"char"   , Type::Char_t},
+    {"int8"   , Type::Int8_t},
+    {"int16"  , Type::Int16_t},
+    {"int"    , Type::Int32_t},
+    {"int32"  , Type::Int32_t},
+    {"int64"  , Type::Int64_t},
+    {"pointer", Type::Ptr_t},
+    {"long"   , Type::Int64_t},
+    {"string" , Type::String_t},
+    {"float"  , Type::Float_t},
+    {"usize"  , Type::Size_t},
+    {"bool"   , Type::Bool_t}
 };
 inline std::unordered_map<Type, std::string> printableTypeIds = {
-    {Type::Void_t  , "void"  },
-    {Type::Char_t  , "char"  },
-    {Type::Int8_t  , "int8"  },
-    {Type::Int16_t , "int16" },
-    {Type::Int32_t , "int32" },
-    {Type::Int64_t , "int64" },
-    {Type::String_t, "string"},
-    {Type::Float_t , "float" },
-    {Type::Size_t  , "usize" },
-    {Type::Bool_t  , "bool"  },
+    {Type::Void_t  , "void"   },
+    {Type::Char_t  , "char"   },
+    {Type::Int8_t  , "int8"   },
+    {Type::Int16_t , "int16"  },
+    {Type::Int32_t , "int32"  },
+    {Type::Int64_t , "int64"  },
+    {Type::Ptr_t   , "pointer"},
+    {Type::String_t, "string" },
+    {Type::Float_t , "float"  },
+    {Type::Size_t  , "usize"  },
+    {Type::Bool_t  , "bool"   },
 };
 
 static const std::unordered_map<TokenType, std::string> printableToken = {
@@ -299,21 +302,22 @@ struct TypeInfo {
     // TODO: add available cast functions to other types
 };
 
+inline size_t current_typeid_max = 0;
 inline std::unordered_map <std::string, TypeInfo> type_infos = {
-    {"void"  , {.id = 0 , .type = Type::Void_t  , .size = 1, .name = "void"}},
-    {"char"  , {.id = 1 , .type = Type::Char_t  , .size = 1, .name = "char"}},
-    {"int8"  , {.id = 2 , .type = Type::Int8_t  , .size = 1, .name = "int8"}},
-    {"int16" , {.id = 3 , .type = Type::Int16_t , .size = 2, .name = "int16"}},
-    {"int"   , {.id = 4 , .type = Type::Int32_t , .size = 4, .name = "int32"}},
-    {"int32" , {.id = 4 , .type = Type::Int32_t , .size = 4, .name = "int32"}},
-    {"int64" , {.id = 5 , .type = Type::Int64_t , .size = 8, .name = "int64"}},
-    {"long"  , {.id = 5 , .type = Type::Int64_t , .size = 8, .name = "int64"}},
-    {"string", {.id = 6 , .type = Type::String_t, .size = 8, .name = "string"}},
-    {"float" , {.id = 7 , .type = Type::Float_t , .size = 4, .name = "float"}},
-    {"usize" , {.id = 8 , .type = Type::Size_t  , .size = 8, .name = "uint64"}},
-    {"bool"  , {.id = 9 , .type = Type::Bool_t  , .size = 1, .name = "bool"}}
+    {"void"   , {.id = current_typeid_max++ , .type = Type::Void_t  , .size = 1, .name = "void"}},
+    {"char"   , {.id = current_typeid_max++ , .type = Type::Char_t  , .size = 1, .name = "char"}},
+    {"int8"   , {.id = current_typeid_max++ , .type = Type::Int8_t  , .size = 1, .name = "int8"}},
+    {"int16"  , {.id = current_typeid_max++ , .type = Type::Int16_t , .size = 2, .name = "int16"}},
+    {"int"    , {.id = current_typeid_max++ , .type = Type::Int32_t , .size = 4, .name = "int32"}},
+    {"int32"  , {.id = current_typeid_max   , .type = Type::Int32_t , .size = 4, .name = "int32"}},
+    {"int64"  , {.id = current_typeid_max++ , .type = Type::Int64_t , .size = 8, .name = "int64"}},
+    {"long"   , {.id = current_typeid_max   , .type = Type::Int64_t , .size = 8, .name = "int64"}},
+    {"pointer", {.id = current_typeid_max++ , .type = Type::Ptr_t   , .size = 8, .name = "pointer"}},
+    {"string" , {.id = current_typeid_max++ , .type = Type::String_t, .size = 8, .name = "string"}},
+    {"float"  , {.id = current_typeid_max++ , .type = Type::Float_t , .size = 4, .name = "float"}},
+    {"usize"  , {.id = current_typeid_max++ , .type = Type::Size_t  , .size = 8, .name = "uint64"}},
+    {"bool"   , {.id = current_typeid_max++ , .type = Type::Bool_t  , .size = 1, .name = "bool"}}
 };
-inline size_t current_typeid_max = 9;
 
 struct Variable {
     TypeInfo*   type_info = nullptr;

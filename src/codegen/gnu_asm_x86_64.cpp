@@ -62,7 +62,8 @@ bool is_int_type(Type t) {
         t == Type::Int8_t  ||
         t == Type::Char_t  ||
         t == Type::Size_t  ||
-        t == Type::Bool_t
+        t == Type::Bool_t  ||
+        t == Type::Ptr_t
     )
         return true;
     return false;
@@ -289,7 +290,8 @@ void gnu_asm::compileFunction(Func func) {
                     rhs.size = result.size;
                 }
 
-                output.appendf("    {} {}, {}\n", INST_SIZE("add", result.size), REG_SIZE(reg2, rhs.size), REG_SIZE(reg1, lhs.size));
+                size_t size = result.size > 1 ? result.size : 2;
+                output.appendf("    {} {}, {}\n", INST_SIZE("add", size), REG_SIZE(reg2, size), REG_SIZE(reg1, size));
                 mov(reg1, result);
                 free_reg(reg1);
                 free_reg(reg2);
@@ -303,7 +305,8 @@ void gnu_asm::compileFunction(Func func) {
                 auto reg2 = get_available_reg();
                 mov(lhs, reg1);
                 mov(rhs, reg2);
-                output.appendf("    {} {}, {}\n", INST_SIZE("sub", result.size), REG_SIZE(reg2, result.size), REG_SIZE(reg1, result.size));
+                size_t size = result.size > 1 ? result.size : 2;
+                output.appendf("    {} {}, {}\n", INST_SIZE("sub", size), REG_SIZE(reg2, size), REG_SIZE(reg1, size));
                 mov(reg1, result);
                 free_reg(reg1);
                 free_reg(reg2);
@@ -317,7 +320,8 @@ void gnu_asm::compileFunction(Func func) {
                 auto reg2 = get_available_reg();
                 mov(lhs, reg1);
                 mov(rhs, reg2);
-                output.appendf("    {} {}, {}\n", INST_SIZE("imul", lhs.size), REG_SIZE(reg2, lhs.size), REG_SIZE(reg1, lhs.size)); // signed multiply
+                size_t size = result.size > 1 ? result.size : 2;
+                output.appendf("    {} {}, {}\n", INST_SIZE("imul", size), REG_SIZE(reg2, size), REG_SIZE(reg1, size)); // signed multiply
                 mov(reg1, result);
                 free_reg(reg1);
                 free_reg(reg2);
@@ -332,7 +336,8 @@ void gnu_asm::compileFunction(Func func) {
                 mov(lhs, reg1);
                 output.appendf("    cqto\n");
                 mov(rhs, reg2);
-                output.appendf("    {} {}, {}\n", INST_SIZE("idiv", lhs.size), REG_SIZE(reg2, lhs.size), REG_SIZE(reg1, lhs.size));
+                size_t size = result.size > 1 ? result.size : 2;
+                output.appendf("    {} {}, {}\n", INST_SIZE("idiv", size), REG_SIZE(reg2, size), REG_SIZE(reg1, size));
                 mov(reg1, result);
                 free_reg(reg1);
                 free_reg(reg2);
@@ -793,13 +798,13 @@ void gnu_asm::mov(Variable src, Variable dest) {
     int64_t dest_real_ptr_count = (dest.kind.pointer_count-dest.deref_count);
 
     if (src.kind.literal && is_int_type(src.type_info->type) && dest.parent == nullptr) {
-        if (dest.type_info->type == Type::Struct_t)
+        if (dest.type_info->type == Type::Struct_t && dest.kind.pointer_count == 0)
             TODO(f("can't mov int literal into var of type {}", dest.type_info->name));
         if (dest.kind.global)
             mov(std::any_cast<int64_t>(src.value), dest.name, Rip, dest.size);
         else 
             mov(std::any_cast<int64_t>(src.value), -dest.offset, Rbp, dest.size);
-    } else if (src.type_info->type == Type::Struct_t || dest.type_info->type == Type::Struct_t) {
+    } else if ((src.type_info->type == Type::Struct_t && src.kind.pointer_count == 0)||(dest.type_info->type == Type::Struct_t && dest.kind.pointer_count == 0)) {
         if (src.type_info->name != dest.type_info->name) 
             TODO(f("error trying assigning different structers to each other, {} {}", src.type_info->name, dest.type_info->name));
         Struct strct{};

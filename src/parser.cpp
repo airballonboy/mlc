@@ -130,12 +130,21 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     m_currentLexar->getAndExpectNext(TokenType::ID);
     if (strct) {
         std::string struct_name = (*tkn)->string_value;
+        Func temp_func{};
+        Func *orig_func;
+        if (var.kind.pointer_count != 0) {
+            orig_func = m_currentFunc;
+            m_currentFunc = &temp_func;
+        }
         Variable new_var{};
         new_var = initStruct(type_name, struct_name, member);
         new_var.kind = var.kind;
         if (var.kind.pointer_count != 0) {
             current_offset -= new_var.size - 8;
             new_var.size = 8;
+        }
+        if (var.kind.pointer_count != 0) {
+            m_currentFunc = orig_func;
         }
         for (auto& v : new_var.members) {
             v.parent->kind = new_var.kind;
@@ -830,6 +839,15 @@ void Parser::parseStatement() {
 
                 default_val.name = "def_value";
                 default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info->type));
+                m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+            } else if (var.kind.pointer_count > 0) {
+                Variable default_val;
+                default_val.type_info = &type_infos.at("int64");
+                default_val.kind.literal = true;
+                default_val.size = 1;
+
+                default_val.name = "def_value";
+                default_val.value = std::any_cast<int64_t>(variable_default_value(default_val.type_info->type));
                 m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
             }
 

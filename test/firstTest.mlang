@@ -22,8 +22,11 @@ struct Vec3 {
 
 const ONE = 1;
 
-func main(int argc, string* argv) {
-    Vec3 v;
-    v.x = ONE;
+func main() {
+    Vec3* v = c_std::malloc(12);
+    v.init();
+    v.x = (ONE+ONE)*32;
+    v.y = (ONE+ONE)*32;
+    v.z = (ONE+ONE)*32;
     v.print();
 }
