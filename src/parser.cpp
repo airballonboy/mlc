@@ -627,10 +627,19 @@ Func Parser::parseFunction(bool member, Struct parent) {
             m_currentLexar->getNext();
         }
         func.return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
+        if (m_currentLexar->peek()->type == TokenType::OBracket) {
+            m_currentLexar->getNext();
+            m_currentLexar->getAndExpectNext(TokenType::CBracket);
+            TODO("add arrays return");
+        }
+        while (m_currentLexar->peek()->type == TokenType::Mul) {
+            m_currentLexar->getNext();
+            func.return_kind.pointer_count += 1;
+        }
         current_module_prefix = "";
     }
                 
-    if (func.return_type.size > 16) {
+    if (func.return_type.size > 16 && func.return_kind.pointer_count == 0) {
         Variable ret = {
             .type_info = new TypeInfo(func.return_type),
             .name = "return_register",
@@ -1067,6 +1076,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
                 TODO(f("func {} doesn't exist", func_name));
             auto& func = get_func_from_name(func_name, m_program.func_storage);
             var = make_temp_var(&func.return_type);
+            var.kind = func.return_kind;
             if (eq)
                 parseFuncCall(func, this_ptr, var);
             else 

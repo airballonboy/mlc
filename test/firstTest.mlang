@@ -10,27 +10,31 @@ struct Vec3 {
     int x = 0; 
     int y = 0;
     int z = 0;
+    func add(int amount) {
+        this.x += amount;
+        this.y += amount;
+        this.z += amount;
+    }
+    func print() {
+        c_std::printf("[%d, %d, %d]\n", this.x, this.y, this.z);
+    }
     func init() {
         this.x = 0;
         this.y = 0;
         this.z = 0;
     }
-    func add(int amount) -> Vec3 {
-        this.x += amount;
-        this.y += amount;
-        this.z += amount;
-        return *this;
-    }
-    func print() {
-        c_std::printf("[%d, %d, %d]\n", this.x, this.y, this.z);
-    }
+}
+func vec_alloc() -> Vec3* {
+    return c_std::malloc(12);
 }
 
 const ONE = 1;
 
 func main() {
-    Vec3* v = c_std::malloc(12);
+    Vec3* v = vec_alloc();
     c_std::printf("Vec3 typeid = %d\n", Vec3);
     v.init();
+    v.print();
+    v.add(3);
     v.print();
 }
