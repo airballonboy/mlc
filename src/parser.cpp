@@ -49,16 +49,16 @@ uint8_t size_of_unsigned_int (uint64_t i) {
         return 8;
     return 0;
 }
-TypeInfo* sized_int_type(int8_t size) {
+TypeInfo sized_int_type(int8_t size) {
     if (size == 1)
-        return &type_infos.at("int8");
+        return type_infos.at("int8");
     if (size == 2)
-        return &type_infos.at("int16");
+        return type_infos.at("int16");
     if (size == 4)
-        return &type_infos.at("int32");
+        return type_infos.at("int32");
     if (size == 8)
-        return &type_infos.at("int64");
-    return &type_infos.at("void");
+        return type_infos.at("int64");
+    return type_infos.at("void");
 }
 
 // TODO: fix this and remove it
@@ -113,11 +113,11 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     if (TypeIds.contains(type_name) && TypeIds.at(type_name) == Type::Struct_t) {
         strct = true;
         //var.type_name = type_name;
-        var.type_info = &type_infos.at(type_name);
+        var.type_info = type_infos.at(type_name);
     } else if (TypeIds.contains((*tkn)->string_value)) {
         type_name = printableTypeIds.at(TypeIds.at(type_name));
-        var.type_info = &type_infos.at(type_name);
-        var.size = variable_size_bytes(var.type_info->type);
+        var.type_info = type_infos.at(type_name);
+        var.size = variable_size_bytes(var.type_info.type);
     } else {
         ERROR((*tkn)->loc, "type was not found");
     }
@@ -156,12 +156,12 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     }
 
 
-    if (variable_exist_in_storage(m_currentLexar->currentToken->string_value, var_store) && var.type_info->type != Type::Struct_t) 
+    if (variable_exist_in_storage(m_currentLexar->currentToken->string_value, var_store) && var.type_info.type != Type::Struct_t) 
         ERROR(m_currentLexar->currentToken->loc, f("redifinition of {}", m_currentLexar->currentToken->string_value));
     else 
         var.name = m_currentLexar->currentToken->string_value;    
 
-    current_offset = align(current_offset, var.type_info->type, type_name);
+    current_offset = align(current_offset, var.type_info.type, type_name);
     var.offset = current_offset;
     // TODO: support arrays
     if (m_currentLexar->peek()->type == TokenType::OBracket) {
@@ -236,10 +236,10 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
     if (!member) {
         current_offset = align(current_offset, Type::Struct_t, type_name);
         current_offset += strct->size;
-        *struct_var = {.type_info = &type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
+        *struct_var = {.type_info = type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
     } else {
         current_offset = align(current_offset, Type::Struct_t, type_name);
-        *struct_var = {.type_info = &type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
+        *struct_var = {.type_info = type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
         current_offset += strct->size;
     }
     //std::println("struct {} size {}", strct->name, strct->size);
@@ -251,11 +251,11 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
         var.parent = struct_var;
 
         // I think this should be removed
-        if (var.type_info->type == Type::Struct_t) {
+        if (var.type_info.type == Type::Struct_t) {
             size_t temp_offset = current_offset;
             std::vector<Instruction> body = m_currentFunc->body;
             
-            auto strct_ = initStruct(var.type_info->name, var.name, true);
+            auto strct_ = initStruct(var.type_info.name, var.name, true);
 
             if (var.kind.pointer_count > 0) {
                 m_currentFunc->body = body;
@@ -277,9 +277,10 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
 
         if (strct->defaults.contains(i)) {
             auto def = strct->defaults.at(i);
-            if (var.type_info->type == Type::String_t) {
+            if (var.type_info.type == Type::String_t) {
                 m_currentFunc->body.push_back({Op::INIT_STRING, {var}});
-            } if (def.type_info->type != Type::Void_t && var.type_info->type != Type::Struct_t) {
+            }
+            if (def.type_info.type != Type::Void_t && var.type_info.type != Type::Struct_t) {
                 m_currentFunc->body.push_back({Op::STORE_VAR, {def, var}});
             }
         }
@@ -321,7 +322,7 @@ void Parser::parseStructDeclaration() {
             auto& member_func = m_program.func_storage[func_index];
             member_func.name = struct_name + "___" + member_func.name;
             Variable this_pointer = {
-                .type_info  = &type_infos.at(struct_name),
+                .type_info  = type_infos.at(struct_name),
                 .name       = "this", .offset = 8,
                 .size       = 8,
                 .members    = current_struct.var_storage,
@@ -341,9 +342,9 @@ void Parser::parseStructDeclaration() {
         m_currentFunc = &temp_f;
         auto& var = parseVariable(current_struct.var_storage, true);
         int var_index = current_struct.var_storage.size()-1;
-        current_struct.size = align(current_struct.size, var.type_info->type, var.type_info->name);
-        if (var.type_info->type == Type::Struct_t) {
-            current_struct.alignment = std::max((int)current_struct.alignment, (int)get_struct_from_name(var.type_info->name).alignment);
+        current_struct.size = align(current_struct.size, var.type_info.type, var.type_info.name);
+        if (var.type_info.type == Type::Struct_t) {
+            current_struct.alignment = std::max((int)current_struct.alignment, (int)get_struct_from_name(var.type_info.name).alignment);
         } else {
             current_struct.alignment = std::max((int)current_struct.alignment, (int)var.size);
         }
@@ -352,21 +353,21 @@ void Parser::parseStructDeclaration() {
         m_currentFunc = last_func;
 
         // Defaults
-        if (var.type_info->type == Type::String_t) {
-            m_currentFunc->local_variables.push_back(var);
+        if (var.type_info.type == Type::String_t) {
+            current_struct.defaults.emplace(var_index, Variable{ type_infos.at("void") });
         }
         if (m_currentLexar->peek()->type == TokenType::Eq) {
             m_currentLexar->getAndExpectNext(TokenType::Eq);
             m_currentLexar->getNext();
             auto var2 = std::get<0>(parseExpression());
             current_struct.defaults.emplace(var_index, var2);
-        } else if (var.type_info->type != Type::String_t && var.type_info->type != Type::Struct_t) {
+        } else if (var.type_info.type != Type::String_t && var.type_info.type != Type::Struct_t) {
             Variable default_val;
-            default_val.type_info = &type_infos.at("int8");
+            default_val.type_info = type_infos.at("int8");
             default_val.kind.literal   = true;
 
             default_val.name = "def_value";
-            default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info->type));
+            default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info.type));
             current_struct.defaults.emplace(var_index, default_val);
         }
         m_currentLexar->getAndExpectNext(TokenType::SemiColon);
@@ -503,7 +504,7 @@ void Parser::parseExtern() {
     }
     if (func.return_type.size > 16) {
         Variable ret = {
-            .type_info = new TypeInfo(func.return_type),
+            .type_info = TypeInfo(func.return_type),
             .name = "return_register",
             .offset = 8,
             .size = 8,
@@ -591,7 +592,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
 
     if (member) {
         Variable this_pointer = {
-            .type_info  = &type_infos.at(parent.name),
+            .type_info  = type_infos.at(parent.name),
             .name       = "this", .offset = 8,
             .size       = 8,
             .members    = parent.var_storage,
@@ -641,7 +642,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
                 
     if (func.return_type.size > 16 && func.return_kind.pointer_count == 0) {
         Variable ret = {
-            .type_info = new TypeInfo(func.return_type),
+            .type_info = TypeInfo(func.return_type),
             .name = "return_register",
             .offset = 8,
             .size = 8,
@@ -655,7 +656,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
     }
     for (int i = args_temp_storage.size()-1;i >= 0; i--) {
         auto var = args_temp_storage[i];
-        if (var.type_info->type == Type::Struct_t) {
+        if (var.type_info.type == Type::Struct_t) {
             if (var.kind.pointer_count > 0) {
                 func.arguments.push_back(var);
                 func.local_variables.push_back(var);
@@ -668,7 +669,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
                 func.local_variables.push_back(var);
                 func.arguments_count++;
             } else if (var.size <= 16) {
-                i -= get_struct_from_name(var.type_info->name).var_storage.size();
+                i -= get_struct_from_name(var.type_info.name).var_storage.size();
                 size_t base_offset = var.offset;
                 auto var1 = var;
                 auto var2 = var;
@@ -713,12 +714,16 @@ Func Parser::parseFunction(bool member, Struct parent) {
     return func;
 }
 size_t temp_offset = 0;
-Variable make_temp_var(TypeInfo* type) {
+Variable make_temp_var(TypeInfo type, Kind kind = {}) {
     Variable var;
     var.type_info = type;
-    var.size = type->size;
-    var.offset = current_offset + temp_offset + type->size;
-    temp_offset += type->size;
+    var.kind = kind;
+    if (kind.pointer_count > 0)
+        var.size = 8;
+    else 
+        var.size = type.size;
+    var.offset = current_offset + temp_offset + var.size;
+    temp_offset += var.size;
     var.name = "temporery variable";
     //var.deref_count = old.deref_count;
     //var.value = old.value;
@@ -726,7 +731,7 @@ Variable make_temp_var(TypeInfo* type) {
 }
 Variable make_temp_var(Type type, size_t size, Variable old = {}) {
     Variable var;
-    var.type_info = &type_infos.at(printableTypeIds.at(type));
+    var.type_info = type_infos.at(printableTypeIds.at(type));
     var.size = size;
     var.offset = current_offset + temp_offset + size;
     temp_offset += size;
@@ -753,7 +758,7 @@ void Parser::parseStatement() {
             if ((*tkn)->type == TokenType::SemiColon) {
                 if (m_currentFunc->return_type.name != "void") TODO("error on no return");
                 return_value = {
-                    .type_info = &type_infos.at("int8"),
+                    .type_info = type_infos.at("int8"),
                     .name = "IntLit",
                     .value = (int64_t)0,
                     .size = 1,
@@ -826,37 +831,39 @@ void Parser::parseStatement() {
             if (!TypeIds.contains(type_name)) {
                 goto defau;
             }
+            auto saved_body = m_currentFunc->body;
             auto var = parseVariable(m_currentFunc->local_variables);
 
             // TODO: factor out to a function
-            if (var.type_info->type == Type::String_t) {
+            if (var.type_info.type == Type::String_t) {
                 m_currentFunc->local_variables.push_back(var);
                 m_currentFunc->body.push_back({Op::INIT_STRING, {var}});
             }
             if (m_currentLexar->peek()->type == TokenType::Eq) {
                 m_currentLexar->getAndExpectNext(TokenType::Eq);
                 m_currentLexar->getNext();
+                m_currentFunc->body = saved_body;
                 eq = true;
                 auto var2 = std::get<0>(parseExpression());
                 eq = false;
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
-            } else if (var.type_info->type != Type::String_t && var.type_info->type != Type::Struct_t) {
+            } else if (var.type_info.type != Type::String_t && var.type_info.type != Type::Struct_t) {
                 Variable default_val;
-                default_val.type_info = &type_infos.at("int8");
+                default_val.type_info = type_infos.at("int8");
                 default_val.kind.literal = true;
                 default_val.size = 1;
 
                 default_val.name = "def_value";
-                default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info->type));
+                default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info.type));
                 m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
             } else if (var.kind.pointer_count > 0) {
                 Variable default_val;
-                default_val.type_info = &type_infos.at("int64");
+                default_val.type_info = type_infos.at("int64");
                 default_val.kind.literal = true;
                 default_val.size = 1;
 
                 default_val.name = "def_value";
-                default_val.value = std::any_cast<int64_t>(variable_default_value(default_val.type_info->type));
+                default_val.value = std::any_cast<int64_t>(variable_default_value(default_val.type_info.type));
                 m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
             }
 
@@ -923,7 +930,7 @@ void Parser::parseBlock() {
 void print_var(Variable var) {
     std::println("name: {}", var.name);
     std::println("offset: {}, size: {}", var.offset, var.size);
-    std::println("type: {}, type_name: {}", (int)var.type_info->type, var.type_info->name);
+    std::println("type: {}, type_name: {}", (int)var.type_info.type, var.type_info.name);
     std::println("deref_count: {}", var.deref_count);
     std::println("kind: {{ ");
     std::println("  pointer_count: {}", var.kind.pointer_count);
@@ -942,7 +949,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         m_currentLexar->getAndExpectNext(TokenType::StringLit);
         if ((*tkn)->type == TokenType::StringLit) {
             var = {
-                .type_info = &type_infos.at("string"),
+                .type_info = type_infos.at("string"),
                 .name = f("string_literal_{}", stringLiteralCount++),
                 .value = (*tkn)->string_value,
                 .size = 8,
@@ -980,7 +987,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-increment a non lvalue");
         Variable amount = {
-            .type_info = &type_infos.at("int8"),
+            .type_info = type_infos.at("int8"),
             .name = "Int_Lit",
             .value = (int64_t)1,
             .size = 1,
@@ -1001,7 +1008,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-decrement a non lvalue");
         Variable amount = {
-            .type_info = &type_infos.at("int8"),
+            .type_info = type_infos.at("int8"),
             .name = "Int_Lit",
             .value = (int64_t)1,
             .size = 1,
@@ -1037,15 +1044,15 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
         m_currentLexar->getAndExpectNext(TokenType::ID);
     }
 
-    Variable this_ptr = {.type_info = &type_infos.at("void")};
-    Variable this_    = {.type_info = &type_infos.at("void")};
+    Variable this_ptr = {.type_info = type_infos.at("void")};
+    Variable this_    = {.type_info = type_infos.at("void")};
     size_t this_offset = 0;
     std::string struct_func_prefix{};
     while (m_currentLexar->peek()->type == TokenType::Dot) {
         Variable strct;
-        if (this_ptr.type_info->type == Type::Void_t) {
+        if (this_ptr.type_info.type == Type::Void_t) {
             strct = get_var_from_name((*tkn)->string_value, m_currentFunc->local_variables);
-            struct_func_prefix = strct.type_info->name;
+            struct_func_prefix = strct.type_info.name;
             struct_func_prefix += "___";
             this_ptr = strct;
             this_    = strct;
@@ -1061,7 +1068,7 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             this_ptr.deref_count = this_ptr.kind.pointer_count - 1;
             this_ptr.kind.pointer_count = 1;
             this_ptr.size = 8;
-            struct_func_prefix = strct.type_info->name;
+            struct_func_prefix = strct.type_info.name;
             struct_func_prefix += "___";
         }
 
@@ -1075,8 +1082,9 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             if (!function_exist_in_storage(func_name, m_program.func_storage)) 
                 TODO(f("func {} doesn't exist", func_name));
             auto& func = get_func_from_name(func_name, m_program.func_storage);
-            var = make_temp_var(&func.return_type);
-            var.kind = func.return_kind;
+            var = make_temp_var(func.return_type, func.return_kind);
+            if (var.kind.pointer_count > 0)
+                var.size = 8;
             if (eq)
                 parseFuncCall(func, this_ptr, var);
             else 
@@ -1093,12 +1101,12 @@ std::tuple<Variable, bool> Parser::parsePrimaryExpression() {
             }
             var.name = type.name;
             var.size = 4;
-            var.type_info = &type_infos.at("int32");
+            var.type_info = type_infos.at("int32");
             var.kind.literal = true;
             var.value = (int64_t)type.id;
             return {var, false};
         }
-        if (this_ptr.type_info->type != Type::Void_t) {
+        if (this_ptr.type_info.type != Type::Void_t) {
             //auto strct = get_struct_from_name(this_._type_name);
             auto var_ = get_var_from_name(name, this_.members);
             var_.parent = new Variable;
@@ -1135,13 +1143,13 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression() {
     if ((*tkn)->type == TokenType::Minus) {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
-        Variable result = make_temp_var(rhs.type_info->type, 8);
+        Variable result = make_temp_var(rhs.type_info.type, 8);
         if (rhs.kind.literal) {
             rhs.value = -std::any_cast<int64_t>(rhs.value);
             m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, result}});
         } else {
             Variable zero   = {
-                .type_info = &type_infos.at("int8"),
+                .type_info = type_infos.at("int8"),
                 .name = "Int_Lit",
                 .value = (int64_t)0,
                 .size = 1,
@@ -1159,7 +1167,7 @@ std::tuple<Variable, bool> Parser::parseUnaryExpression() {
         auto type = Type::Bool_t;
         Variable result = make_temp_var(type, variable_size_bytes(type));
         Variable zero   = {
-            .type_info = &type_infos.at("int8"),
+            .type_info = type_infos.at("int8"),
             .name = "Int_Lit",
             .value = (int64_t)0,
             .size = 1,
@@ -1187,7 +1195,7 @@ std::tuple<Variable, bool> Parser::parseMultiplicativeExpression() {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
 
-        Variable result = make_temp_var(lhs.type_info->type, variable_size_bytes(lhs.type_info->type));
+        Variable result = make_temp_var(lhs.type_info.type, variable_size_bytes(lhs.type_info.type));
 
         if (op_type == TokenType::Mul) {
             m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
@@ -1216,7 +1224,7 @@ std::tuple<Variable, bool> Parser::parseAdditiveExpression() {
         auto rhs = std::get<0>(parseMultiplicativeExpression());
 
 
-        Variable result = make_temp_var(lhs.type_info->type, variable_size_bytes(lhs.type_info->type));
+        Variable result = make_temp_var(lhs.type_info.type, variable_size_bytes(lhs.type_info.type));
         if (op_type == TokenType::Plus) {
             m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
         } else {
@@ -1276,7 +1284,7 @@ void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address
     std::string loc = std::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
-    if (this_ptr.type_info->type != Type::Void_t) args.push_back(this_ptr);
+    if (this_ptr.type_info.type != Type::Void_t) args.push_back(this_ptr);
     if (func.return_type.size > 16) {
         return_address.deref_count -= 1;
         args.push_back(return_address);

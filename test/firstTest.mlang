@@ -6,6 +6,12 @@
 //    *argv += 8;
 //    return ret;
 //}
+struct TypeInfo {
+    int64 id;
+    int   type;
+    int64 size;
+    string name;
+}
 struct Vec3 {
     int x = 0; 
     int y = 0;
@@ -14,6 +20,14 @@ struct Vec3 {
         this.x += amount;
         this.y += amount;
         this.z += amount;
+    }
+    func type_info() -> TypeInfo {
+        TypeInfo t;
+        t.id = Vec3;
+        t.type = 1;
+        t.size = 12;
+        t.name = "Vec3";
+        return t;
     }
     func print() {
         c_std::printf("[%d, %d, %d]\n", this.x, this.y, this.z);
@@ -32,9 +46,13 @@ const ONE = 1;
 
 func main() {
     Vec3* v = vec_alloc();
+
+    //TypeInfo t;
+    //t = v.type_info();
+    //c_std::printf("%ld, %d, %ld, %s\n", t.id, t.type, t.size, t.name);
     c_std::printf("Vec3 typeid = %d\n", Vec3);
     v.init();
     v.print();
-    v.add(3);
-    v.print();
+    //v.add(3);
+    //v.print();
 }

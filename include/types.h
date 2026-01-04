@@ -320,7 +320,7 @@ inline std::unordered_map <std::string, TypeInfo> type_infos = {
 };
 
 struct Variable {
-    TypeInfo*   type_info = nullptr;
+    TypeInfo    type_info = type_infos.at("void");
     std::string name{};
     std::any    value{};
     int64_t     deref_count = 0;
