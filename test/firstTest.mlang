@@ -11,6 +11,9 @@ struct TypeInfo {
     int   type;
     int64 size;
     string name;
+    func print() {
+        c_std::printf("TypeInfo{name = %s, id = %ld, type = %d, size = %ld}\n", this.name, this.id, this.type, this.size);
+    }
 }
 struct Vec3 {
     int x = 0; 
@@ -30,7 +33,7 @@ struct Vec3 {
         return t;
     }
     func print() {
-        c_std::printf("[%d, %d, %d]\n", this.x, this.y, this.z);
+        c_std::printf("Vec3[%d, %d, %d]\n", this.x, this.y, this.z);
     }
     func init() {
         this.x = 0;
@@ -47,12 +50,10 @@ const ONE = 1;
 func main() {
     Vec3* v = vec_alloc();
 
-    //TypeInfo t;
-    //t = v.type_info();
-    //c_std::printf("%ld, %d, %ld, %s\n", t.id, t.type, t.size, t.name);
-    c_std::printf("Vec3 typeid = %d\n", Vec3);
+    v.type_info().print();
+
     v.init();
     v.print();
-    //v.add(3);
-    //v.print();
+    v.add(3);
+    v.print();
 }
