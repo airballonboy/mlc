@@ -25,12 +25,7 @@ struct Vec3 {
         this.z += amount;
     }
     func type_info() -> TypeInfo {
-        TypeInfo t;
-        t.id = Vec3;
-        t.type = 1;
-        t.size = 12;
-        t.name = "Vec3";
-        return t;
+        return TypeInfo{Vec3, 1, 12, "Vec3"};
     }
     func print() {
         c_std::printf("Vec3[%d, %d, %d]\n", this.x, this.y, this.z);
@@ -49,6 +44,8 @@ const ONE = 1;
 
 func main() {
     Vec3* v = vec_alloc();
+    Vec3 vec = Vec3{12, 12};
+    vec.print();
 
     v.type_info().print();
 

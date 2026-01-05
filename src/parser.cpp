@@ -1061,8 +1061,20 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         if (type_infos.contains(name)) {
             TypeInfo type = type_infos.at(name);
             if (type.type == Type::Struct_t) {
+                VariableStorage v{};
                 if (m_currentLexar->peek()->type == TokenType::OCurly) {
-                    TODO("implement struct literals");
+                    m_currentLexar->getNext();
+                    while (m_currentLexar->peek()->type != TokenType::CCurly) {
+                        m_currentLexar->getNext();
+                        v.push_back(std::get<0>(parseExpression()));
+                        if (m_currentLexar->peek()->type == TokenType::Comma)
+                            m_currentLexar->getAndExpectNext(TokenType::Comma);
+                    }
+                    m_currentLexar->getAndExpectNext(TokenType::CCurly);
+                    var = initStruct(name, "struct_literal");
+                    for (size_t i; i < var.members.size() && i < v.size(); i++) {
+                        m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
+                    }
                     return {var, false};
                 }
             }
@@ -1343,9 +1355,6 @@ Variable& Parser::get_var_from_name(std::string_view name, VariableStorage& var_
     std::println("{} was not found", name);
     TODO("var doesn't exist");
     ERROR((*tkn)->loc, "");
-}
-Variable Parser::parseArgument() {
-    return {};
 }
 std::any Parser::variable_default_value(Type t) {
     switch (t) {

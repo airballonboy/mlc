@@ -10,7 +10,6 @@ public:
     Program* parse();
     Func parseFunction(bool member = false, Struct parent = {});
     Variable& parseVariable(VariableStorage& var_store, bool member = false);
-    Variable parseArgument();
     void     parseModuleDeclaration();
     void     parseStructDeclaration();
     Variable parseConstant();
