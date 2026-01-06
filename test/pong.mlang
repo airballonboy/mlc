@@ -1,13 +1,13 @@
 #include <raylib.mlang>
 #include <c_std.mlang>
 
-struct vec4 {
+struct Vec4 {
     int x;
     int y;
     int w;
     int h;
 }
-struct vec2 {
+struct Vec2 {
     int x;
     int y;
 }
@@ -19,27 +19,19 @@ const KEY_UP   = 265;
 const KEY_DOWN = 264;
 const BACKGROUND_COLOR = 0x151515ff;
 struct CTX {
-    vec4 p1;
-    vec4 p2;
+    Vec4 p1;
+    Vec4 p2;
     rl::Color color;
     int velocity;
-    vec2 ball;
+    Vec2 ball;
     int ball_radius;
-    vec2 ball_vel;
+    Vec2 ball_vel;
     func init() {
-        this.p1.x = 40;
-        this.p1.y = 245;
-        this.p2.x = 1120;
-        this.p2.y = 245;
-        this.p1.w  = 40;
-        this.p2.w  = 40;
-        this.p1.h = 120;
-        this.p2.h = 120;
-        this.ball.x = 600;
-        this.ball.y = 335;
+        this.p1 = Vec4{40, 245, 40, 120};
+        this.p2 = Vec4{1120, 245, 40, 120};
+        this.ball = Vec2{600, 335};
         this.ball_radius = 30;
-        this.ball_vel.x = 4;
-        this.ball_vel.y = 2;
+        this.ball_vel = Vec2{4, 2};
         this.color.r = 0xff;
         this.color.g = 0xff;
         this.color.b = 0xff;

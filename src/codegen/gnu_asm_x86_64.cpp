@@ -848,7 +848,6 @@ void gnu_asm::mov(Variable src, Variable dest) {
                 mov(strct.size, Rcx);
                 output.appendf("    rep movsb\n");
             } else if (dest_real_ptr_count > 0) {
-                // this should be like call_func
                 mov(src, reg1);
                 mov(reg1, dest);
             } else 
@@ -857,14 +856,10 @@ void gnu_asm::mov(Variable src, Variable dest) {
             free_reg(reg2);
         } else {
             output.appendf("    cld\n");
-            if (src.deref_count > 0)
-                mov(src, Rsi);
-            else 
-                lea(-src.offset, Rbp, Rsi);
-            if (dest.deref_count > 0)
-                mov(dest, Rdi);
-            else 
-                lea(-dest.offset, Rbp, Rdi);
+            src.deref_count = src.kind.pointer_count - 1;
+            dest.deref_count = dest.kind.pointer_count - 1;
+            mov(src, Rsi);
+            mov(dest, Rdi);
             mov(strct.size, Rcx);
             output.appendf("    rep movsb\n");
         }
