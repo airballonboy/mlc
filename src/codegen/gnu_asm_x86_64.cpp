@@ -198,9 +198,15 @@ void gnu_asm::compileFunction(Func func) {
     func.stack_size = ((func.stack_size + 15) & ~15) + 32;
     output.appendf("    subq ${}, %rsp\n", func.stack_size);
 
-    for (int i = 0; i < func.arguments_count; i++) {
-        if (i < std::size(arg_register)) {
-            mov(arg_register[i], func.arguments[i]);       
+    for (int j = 0, i = 0, f = 0; j < func.arguments_count;) {
+        if (!is_float_type(func.arguments[j].type_info.type) && i < std::size(arg_register)) {
+            mov(arg_register[i], func.arguments[j]);       
+            i++;
+            j++;
+        } else if (f < std::size(arg_register_float)) {
+            mov(arg_register_float[f], func.arguments[j]);       
+            f++;
+            j++;
         }
     }
 
@@ -520,7 +526,7 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
     if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
     size_t float_count = 0;
 
-    for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register); i++, j++) {
+    for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register) && float_count < std::size(arg_register_float); i++, j++) {
         if (args[i].type_info.type == Type::Struct_t) {
             if (args[i].deref_count > 0) {
                 if (args[i].kind.pointer_count == args[i].deref_count)
@@ -547,9 +553,10 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
                 mov(args[i], arg_register[j]);
             }
         } else {
-            if (args[i].type_info.type == Type::Double_t || args[i].type_info.type == Type::Float_t)
+            if (args[i].type_info.type == Type::Double_t || args[i].type_info.type == Type::Float_t) {
                 mov(args[i], arg_register_float[float_count++]);
-            else
+                j--;
+            } else
                 mov(args[i], arg_register[j]);
         }
     }

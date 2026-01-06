@@ -1,6 +1,10 @@
 #include <c_std.mlang>
 
+func printfl(double f) {
+    c_std::printf("%.2f\n", f);
+}
+
 func main() {
     double x = 12.0;
-    c_std::printf("%.2f\n", x);
+    printfl(x);
 }
