@@ -68,6 +68,11 @@ bool is_int_type(Type t) {
         return true;
     return false;
 }
+bool is_float_type(Type t) {
+    if (t == Type::Float_t || t == Type::Double_t)
+        return true;
+    return false;
+}
 Func get_func_from_module(Module mod, std::string name) {
     for (const auto& func : mod.func_storage) {
         if (name == func.name) return func;
@@ -101,9 +106,16 @@ Func get_func_from_program(Program prog, std::string name) {
 static const Register arg_register[] = {
     Rcx, Rdx, R8, R9
 };
+static const Register arg_register_float[] = {
+    Xmm0, Xmm1, Xmm2, Xmm3
+};
 #else	
 static const Register arg_register[] = {
     Rdi, Rsi, Rdx, Rcx, R8, R9
+};
+static const Register arg_register_float[] = {
+    Xmm0, Xmm1, Xmm2, Xmm3,
+    Xmm4, Xmm5, Xmm6, Xmm7
 };
 #endif
 
@@ -506,6 +518,7 @@ void gnu_asm::compileFunction(Func func) {
 
 void gnu_asm::call_func(Func func, VariableStorage args) {
     if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
+    size_t float_count = 0;
 
     for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register); i++, j++) {
         if (args[i].type_info.type == Type::Struct_t) {
@@ -534,15 +547,15 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
                 mov(args[i], arg_register[j]);
             }
         } else {
-            if (args[i].deref_count == 0)
-                mov(args[i], arg_register[j]);
-            else 
+            if (args[i].type_info.type == Type::Double_t || args[i].type_info.type == Type::Float_t)
+                mov(args[i], arg_register_float[float_count++]);
+            else
                 mov(args[i], arg_register[j]);
         }
     }
 
     if (func.c_variadic)
-        output.appendf("    xorl %eax, %eax\n");
+        mov(float_count, Rax);
     output.appendf("    call {}\n", func.name);
 }
 
@@ -590,14 +603,14 @@ void gnu_asm::mov(Register src, Register dest, size_t size) {
     );
 }
 void gnu_asm::mov(int64_t int_value, Register dest, size_t size) {
-    output.appendf("    {} ${}, {}\n",
+    output.appendf("    {} $0x{:x}, {}\n",
                        INST_SIZE("mov", size),
                        int_value,
                        REG_SIZE(dest, size)
     );
 }
 void gnu_asm::mov(int64_t  int_value, std::string label, Register dest, size_t size) {
-    output.appendf("    {} ${}, {}({})\n",
+    output.appendf("    {} $0x{:x}, {}({})\n",
                        INST_SIZE("mov", size),
                        int_value,
                        label,
@@ -606,13 +619,13 @@ void gnu_asm::mov(int64_t  int_value, std::string label, Register dest, size_t s
 }
 void gnu_asm::mov(int64_t int_value, int64_t offset, Register dest, size_t size) {
     if (offset == 0) {
-        output.appendf("    {} ${}, ({})\n",
+        output.appendf("    {} $0x{:x}, ({})\n",
                            INST_SIZE("mov", size),
                            int_value,
                            REG_SIZE(dest, 8)
         );
     } else {
-        output.appendf("    {} ${}, {}({})\n",
+        output.appendf("    {} $0x{:x}, {}({})\n",
                            INST_SIZE("mov", size),
                            int_value,
                            offset, REG_SIZE(dest, 8)
@@ -658,6 +671,45 @@ void gnu_asm::mov(Register src, int64_t offset, Register dest) {
 }
 void gnu_asm::mov(Register src, Register dest) {
     mov(src, dest, 8);
+}
+void gnu_asm::movabs(int64_t int_value, Register dest, size_t size) {
+    output.appendf("    {} $0x{:x}, {}\n",
+                       INST_SIZE("movabs", size),
+                       int_value,
+                       REG_SIZE(dest, size)
+    );
+}
+void gnu_asm::movabs(int64_t  int_value, std::string label, Register dest, size_t size) {
+    output.appendf("    {} $0x{:x}, {}({})\n",
+                       INST_SIZE("movabs", size),
+                       int_value,
+                       label,
+                       REG_SIZE(dest, 8)
+    );
+}
+void gnu_asm::movabs(int64_t int_value, int64_t offset, Register dest, size_t size) {
+    if (offset == 0) {
+        output.appendf("    {} $0x{:x}, ({})\n",
+                           INST_SIZE("movabs", size),
+                           int_value,
+                           REG_SIZE(dest, 8)
+        );
+    } else {
+        output.appendf("    {} $0x{:x}, {}({})\n",
+                           INST_SIZE("movabs", size),
+                           int_value,
+                           offset, REG_SIZE(dest, 8)
+        );
+    }
+}
+void gnu_asm::movabs(int64_t int_value, Register dest) {
+    movabs(int_value, dest, 8);
+}
+void gnu_asm::movabs(int64_t int_value, int64_t offset, Register dest) {
+    movabs(int_value, offset, dest, 8);
+}
+void gnu_asm::movabs(int64_t int_value, std::string label, Register dest) {
+    movabs(int_value, label, dest, 8);
 }
 void gnu_asm::mov_member(Register src, Variable dest) {
     Variable current = dest;
@@ -750,7 +802,12 @@ void gnu_asm::mov(Variable src, Register dest) {
         //output.appendf("    leaq {}(%rip), {}\n", src.name, reg_name);
     else if (src.kind.literal && is_int_type(src.type_info.type))
         mov(std::any_cast<int64_t>(src.value), dest);
-    else if (src.kind.global) 
+    else if (src.kind.literal && is_float_type(src.type_info.type)) {
+        auto reg = get_available_reg();
+        movabs(std::any_cast<int64_t>(src.value), reg);
+        mov(reg, dest);
+        free_reg(reg);
+    } else if (src.kind.global) 
         mov(src.name, Rip, dest);
     else if (src.type_info.type == Type::Void_t)
         mov(0, dest);
@@ -761,7 +818,12 @@ void gnu_asm::mov(Variable src, Register dest) {
         deref(dest, src.deref_count);
     } else if (src.deref_count == -1) {
         lea(-src.offset, Rbp, dest);
-    } else 
+    } else if (is_float_type(src.type_info.type)) {
+        auto reg = get_available_reg();
+        mov(-src.offset, Rbp, reg, src.size);
+        mov(reg, dest);
+        free_reg(reg);
+    } else
         mov(-src.offset, Rbp, dest, src.size);
 }
 void gnu_asm::mov(Register src, Variable dest) {

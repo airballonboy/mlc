@@ -5,30 +5,30 @@
 #extern func InitWindow(int x, int y, string name);
 #extern func c_printf(string fmtString, ...) [link_name = "printf", lib = "libc.so", search_path = "/home/user/dev/lib"];
 
-//#alias std::io::print -> print
+//const print = std::io::print;
 
 /*
  this is multi line comment
 */
-//#type strint = [string, int]
 
-//string names[] = {"ahmed", "bar", "foo"};
-//[string, int] pair = ["arabic" : 81];
-//strint pair_array[] = {
-//	["ahmed" : 76],
-//	["bar"   : 12],
-//	["foo"   : 12]
-//};
+// array
+//int nums_arr[12];
+// array with inferred size
+//string names[_] = ["ahmed", "bar", "foo"];
+// dynamic array
+//int nums[] = [12, 123, 423, 7283];
+
+//[string, int] pair = {"arabic", 81};
 //
-//var lamba = [&](int a = 0, int b = 0) -> int {
-//	return a + b;
+//let lambda = func(int a = 0, int b = 0) -> int {
+//  return a + b;
 //}
 
-func main(string args/*[]*/) -> int {
-	if(args.count == 1)
-		c_printf("no args found other than the name of program: %s", args[0]);
-	else 
-		print(args.merge());
-	std::io::printf("{}", lambda(12, 122));
-	return 0;
+func main(string args[]) -> int {
+    if(args.count == 1)
+        c_printf("no args found other than the name of program: %s", args[0]);
+    else 
+        print(args.merge());
+    io::println("{}", lambda(12, 122));
+    return 0;
 }

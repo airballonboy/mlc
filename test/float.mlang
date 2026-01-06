@@ -1,0 +1,6 @@
+#include <c_std.mlang>
+
+func main() {
+    double x = 12.0;
+    c_std::printf("%.2f\n", x);
+}

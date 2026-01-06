@@ -54,9 +54,9 @@ enum class Type : int {
     Struct_t,
     Int8_t, Int16_t, 
     Int32_t, Int64_t,
-    Ptr_t,
+    Ptr_t, Size_t,
     String_t, Char_t,
-    Float_t, Size_t,
+    Float_t, Double_t,
     Bool_t,
 };
 enum class Op {
@@ -94,10 +94,11 @@ inline std::unordered_map<std::string, Type> TypeIds = {
     {"int32"  , Type::Int32_t},
     {"int64"  , Type::Int64_t},
     {"pointer", Type::Ptr_t},
+    {"usize"  , Type::Size_t},
     {"long"   , Type::Int64_t},
     {"string" , Type::String_t},
     {"float"  , Type::Float_t},
-    {"usize"  , Type::Size_t},
+    {"double" , Type::Double_t},
     {"bool"   , Type::Bool_t}
 };
 inline std::unordered_map<Type, std::string> printableTypeIds = {
@@ -108,9 +109,10 @@ inline std::unordered_map<Type, std::string> printableTypeIds = {
     {Type::Int32_t , "int32"  },
     {Type::Int64_t , "int64"  },
     {Type::Ptr_t   , "pointer"},
+    {Type::Size_t  , "usize"  },
     {Type::String_t, "string" },
     {Type::Float_t , "float"  },
-    {Type::Size_t  , "usize"  },
+    {Type::Double_t, "double" },
     {Type::Bool_t  , "bool"   },
 };
 
@@ -313,9 +315,10 @@ inline std::unordered_map <std::string, TypeInfo> type_infos = {
     {"int64"  , {.id = current_typeid_max   , .type = Type::Int64_t , .size = 8, .name = "int64"}},
     {"long"   , {.id = current_typeid_max++ , .type = Type::Int64_t , .size = 8, .name = "int64"}},
     {"pointer", {.id = current_typeid_max++ , .type = Type::Ptr_t   , .size = 8, .name = "pointer"}},
+    {"usize"  , {.id = current_typeid_max++ , .type = Type::Size_t  , .size = 8, .name = "uint64"}},
     {"string" , {.id = current_typeid_max++ , .type = Type::String_t, .size = 8, .name = "string"}},
     {"float"  , {.id = current_typeid_max++ , .type = Type::Float_t , .size = 4, .name = "float"}},
-    {"usize"  , {.id = current_typeid_max++ , .type = Type::Size_t  , .size = 8, .name = "uint64"}},
+    {"double" , {.id = current_typeid_max++ , .type = Type::Double_t, .size = 8, .name = "double"}},
     {"bool"   , {.id = current_typeid_max++ , .type = Type::Bool_t  , .size = 1, .name = "bool"}}
 };
 

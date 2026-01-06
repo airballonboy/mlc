@@ -6,6 +6,7 @@
 #include "types.h"
 #include <algorithm>
 #include <any>
+#include <bit>
 #include <cstdint>
 #include <print>
 #include <string_view>
@@ -975,6 +976,20 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         };
         return {var, ret_lvalue};
     }
+    if ((*tkn)->type == TokenType::DoubleLit) {
+        int64_t value = std::bit_cast<int64_t>((*tkn)->double_value);
+        var = {
+            .type_info = type_infos.at("double"),
+            .name  = "Double_Lit",
+            .value = value,
+            .size  = 8,
+            .kind  = {
+                .constant = true,
+                .literal = true,
+            },
+        };
+        return {var, ret_lvalue};
+    }
     
     if ((*tkn)->type == TokenType::PlusPlus) {
         auto loc = (*tkn)->loc;
@@ -1375,6 +1390,7 @@ std::any Parser::variable_default_value(Type t) {
         case Type::Char_t:
         case Type::Bool_t:
         case Type::Int64_t:
+        case Type::Double_t:
         case Type::Float_t: return (int64_t)0; break;
 
         case Type::String_t: return ""   ; break;
@@ -1396,6 +1412,7 @@ size_t Parser::variable_size_bytes(Type t) {
         case Type::Ptr_t:    return 8; break;
         case Type::Size_t:   return 8; break;
         case Type::Float_t:  return 4; break;
+        case Type::Double_t:  return 8; break;
 
         case Type::String_t:   return 8; break;
         case Type::Void_t:   return 0; break;
