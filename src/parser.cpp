@@ -766,7 +766,8 @@ void Parser::parseStatement() {
                     .value = (int64_t)0,
                     .size = 1,
                     .kind = {
-                        .literal = true
+                        .constant = true,
+                        .literal = true,
                     }
                 };
                 m_currentFunc->body.push_back({Op::RETURN, {return_value}});
@@ -846,6 +847,7 @@ void Parser::parseStatement() {
                 Variable default_val;
                 default_val.type_info = type_infos.at("int8");
                 default_val.kind.literal = true;
+                default_val.kind.constant = true;
                 default_val.size = 1;
 
                 default_val.name = "def_value";
@@ -855,6 +857,7 @@ void Parser::parseStatement() {
                 Variable default_val;
                 default_val.type_info = type_infos.at("int64");
                 default_val.kind.literal = true;
+                default_val.kind.constant = true;
                 default_val.size = 1;
 
                 default_val.name = "def_value";
@@ -947,6 +950,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                 .value = (*tkn)->string_value,
                 .size = 8,
                 .kind = {
+                    .constant = true,
                     .literal = true,
                 },
             };
@@ -965,6 +969,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .value = value,
             .size  = size,
             .kind  = {
+                .constant = true,
                 .literal = true,
             },
         };
@@ -985,6 +990,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .value = (int64_t)1,
             .size = 1,
             .kind = {
+                .constant = true,
                 .literal = true,
             },
         };
@@ -1006,6 +1012,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .value = (int64_t)1,
             .size = 1,
             .kind = {
+                .constant = true,
                 .literal = true,
             },
         };
@@ -1056,6 +1063,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         }
         if (type_infos.contains(name)) {
             TypeInfo type = type_infos.at(name);
+            //Struct_literal
             if (type.type == Type::Struct_t) {
                 VariableStorage v{};
                 if (m_currentLexar->peek()->type == TokenType::OCurly) {
@@ -1080,6 +1088,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             var.name = type.name;
             var.size = 4;
             var.type_info = type_infos.at("int32");
+            var.kind.constant = true,
             var.kind.literal = true;
             var.value = (int64_t)type.id;
             return {var, false};
@@ -1165,6 +1174,7 @@ ExprResult Parser::parseUnaryExpression() {
                 .value = (int64_t)0,
                 .size = 1,
                 .kind = {
+                    .constant = true,
                     .literal = true,
                 },
             };
@@ -1183,6 +1193,7 @@ ExprResult Parser::parseUnaryExpression() {
             .value = (int64_t)0,
             .size = 1,
             .kind = {
+                .constant = true,
                 .literal = true,
             },
         };
