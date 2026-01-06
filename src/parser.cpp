@@ -82,6 +82,7 @@ int get_cond_precedence(TokenType tt) {
 size_t Parser::align(size_t current_offset, Type type, std::string type_name) {
     size_t alignment = 0;
     if (type != Type::Struct_t) {
+        if (type == Type::Void_t) return current_offset;
         alignment = variable_size_bytes(type);
     } else {
         alignment = get_struct_from_name(type_name).alignment;
@@ -239,8 +240,6 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
         *struct_var = {.type_info = type_infos.at(type_name), .name = struct_name, .offset = current_offset, .size = strct->size};
         current_offset += strct->size;
     }
-    //std::println("struct {} size {}", strct->name, strct->size);
-    //std::println("current offset {}", current_offset);
 
 
     for (size_t i = 0; i < strct->var_storage.size(); i++) {
@@ -259,18 +258,15 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
             }
 
             current_offset = temp_offset;
-            //strct_.parent = new Variable{};
             strct_.parent = struct_var;
             strct_.kind = var.kind;
             strct_.offset = var.offset;
             strct_.size = var.size;
             if (strct_.members[0].parent)
                 *strct_.members[0].parent = strct_;
-            //wmemcpy((wchar_t*)strct_.parent, (wchar_t*)struct_var, 8);
             struct_var->members.push_back(strct_);
         } else
             struct_var->members.push_back(var);
-        //std::println("{} .off {} .size {}", var.name, var.offset, var.size);
 
         if (strct->defaults.contains(i)) {
             auto def = strct->defaults.at(i);
@@ -281,7 +277,6 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
                 m_currentFunc->body.push_back({Op::STORE_VAR, {def, var}});
             }
         }
-        //std::println("{} {} {} {} {}", (*tkn)->loc.line, var.name, (int)var.type, var.size, var.offset);
     }
     if (member)
         current_offset += strct->size;
@@ -719,6 +714,7 @@ Variable make_temp_var(TypeInfo type, Kind kind = {}) {
         var.size = 8;
     else 
         var.size = type.size;
+
     current_offset = Parser::align(current_offset, type.type, type.name);
     temp_offset = Parser::align(temp_offset, type.type, type.name);
     var.offset = current_offset + temp_offset + var.size;
@@ -1071,10 +1067,13 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                             m_currentLexar->getAndExpectNext(TokenType::Comma);
                     }
                     m_currentLexar->getAndExpectNext(TokenType::CCurly);
-                    var = initStruct(name, "struct_literal");
+                    // saving offset to make struct literal temporary
+                    auto save = current_offset;
+                    var = initStruct(name, "struct literal");
                     for (size_t i; i < var.members.size() && i < v.size(); i++) {
                         m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
                     }
+                    current_offset = save;
                     return {var, false};
                 }
             }
