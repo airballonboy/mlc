@@ -1,14 +1,8 @@
 #pragma once 
+#include "codegen/instruction.h"
 #include "codegen/base.h"
 #include "types.h"
 #include <unordered_set>
-
-struct Register {
-    std::string_view _64;
-    std::string_view _32;
-    std::string_view _16;
-    std::string_view _8;
-};
 
 class gnu_asm : public BaseCodegenerator {
 public:
@@ -19,56 +13,14 @@ public:
     void compileProgram() override;
     void compileFunction(Func func) override;
 
-    // movabses `int_value` into `dest+offset` of size 8
-    void movabs(int64_t  int_value, int64_t  offset, Register dest);
-    // movabses `int_value` into `dest+label` of size 8
-    void movabs(int64_t  int_value, std::string label, Register dest);
-    // movabses `int_value` into `dest` of size 8
-    void movabs(int64_t  int_value, Register dest);
-    // movabses `int_value` into `dest+offset` of size `size`
-    void movabs(int64_t  int_value, int64_t  offset, Register dest, size_t size);
-    // movabses `int_value` into `dest+offset` of size `size`
-    void movabs(int64_t  int_value, std::string label, Register dest, size_t size);
-    // movabses `int_value` into `dest` of size `size`
-    void movabs(int64_t  int_value, Register dest, size_t size);
-    // moves `src` into `dest` with the size of `size`
-    void mov(Register src      , Register dest  , size_t   size);
-    // moves `src+offset` into `dest` with the size of `size`
-    void mov(int64_t  offset   , Register src   , Register dest, size_t size);
-    // moves `src` into `dest+offset` with the size of `size`
-    void mov(Register src      , int64_t  offset, Register dest, size_t size);
-    // moves `global_label+src` into `dest` with the size of `size`
-    void mov(std::string global_label, Register src, Register dest, size_t size);
-    // moves `src` into `global_label+dest` with the size of `size`
-    void mov(Register src, std::string global_label, Register dest, size_t size);
-    // moves `global_label+src` into `dest` with the size of 8
-    void mov(std::string global_label, Register src, Register dest);
-    // moves `src` into `global_label+dest` with the size of 8
-    void mov(Register src, std::string global_label, Register dest);
-    // moves `src` into `dest` with the size of 8
-    void mov(Register src      , Register dest);
-    // moves `src+offset` into `dest` with the size of 8
-    void mov(int64_t  offset   , Register src   , Register dest);
-    // moves `src` into `dest+offset` with the size of 8
-    void mov(Register src      , int64_t  offset, Register dest);
-    // moves `int_value` into `dest+offset` of size 8
-    void mov(int64_t  int_value, int64_t  offset, Register dest);
-    // moves `int_value` into `dest+label` of size 8
-    void mov(int64_t  int_value, std::string label, Register dest);
-    // moves `int_value` into `dest` of size 8
-    void mov(int64_t  int_value, Register dest);
-    // moves `int_value` into `dest+offset` of size `size`
-    void mov(int64_t  int_value, int64_t  offset, Register dest, size_t size);
-    // moves `int_value` into `dest+offset` of size `size`
-    void mov(int64_t  int_value, std::string label, Register dest, size_t size);
-    // moves `int_value` into `dest` of size `size`
-    void mov(int64_t  int_value, Register dest, size_t size);
-    void mov(Variable src      , Register dest);
-    void mov(Register src      , Variable dest);
-    void mov(Variable src      , Variable dest);
-    void lea(Register src      , Register dest);
-    void lea(std::string label, Register src      , Register dest);
-    void lea(int64_t offset   , Register src      , Register dest);
+    AsmInstruction mov    = AsmInstruction("mov", output);
+    AsmInstruction movs   = AsmInstruction("movs", output, {"d", "s", "s", "s"});
+    AsmInstruction movabs = AsmInstruction("movabs", output);
+    AsmInstruction lea    = AsmInstruction("lea", output);
+
+    void mov_var(Variable src      , Register dest);
+    void mov_var(Register src      , Variable dest);
+    void mov_var(Variable src      , Variable dest);
     void mov_member(Variable src, Register dest);
     void mov_member(Register src, Variable dest);
     void deref(Register, int64_t deref_count);
