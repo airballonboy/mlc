@@ -12,15 +12,16 @@ public:
     void call_func(Func func_name, VariableStorage args);
     void compileProgram() override;
     void compileFunction(Func func) override;
+    void compileConstant(Variable var);
 
     AsmInstruction mov    = AsmInstruction("mov", output);
     AsmInstruction movs   = AsmInstruction("movs", output, {"d", "s", "s", "s"});
     AsmInstruction movabs = AsmInstruction("movabs", output);
     AsmInstruction lea    = AsmInstruction("lea", output);
 
-    void mov_var(Variable src      , Register dest);
-    void mov_var(Register src      , Variable dest);
-    void mov_var(Variable src      , Variable dest);
+    void mov_var(Variable src   , Register dest);
+    void mov_var(Register src   , Variable dest);
+    void mov_var(Variable src   , Variable dest);
     void mov_member(Variable src, Register dest);
     void mov_member(Register src, Variable dest);
     void deref(Register, int64_t deref_count);

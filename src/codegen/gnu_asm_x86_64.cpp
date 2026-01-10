@@ -149,16 +149,7 @@ void gnu_asm::compileProgram() {
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
         if (var.kind.constant && var.kind.global) {
             output.appendf("{}:\n", var.name);
-            if (is_int_type(var.type_info.type)) {
-                if (var.type_info.size == 1)
-                    output.appendf("    .byte {}\n", std::any_cast<int64_t>(var.value));
-                else if (var.type_info.size == 2)
-                    output.appendf("    .word {}\n", std::any_cast<int64_t>(var.value));
-                else if (var.type_info.size == 4)
-                    output.appendf("    .long {}\n", std::any_cast<int64_t>(var.value));
-                else if (var.type_info.size == 8)
-                    output.appendf("    .quad {}\n", std::any_cast<int64_t>(var.value));
-            }
+            compileConstant(var);
         }
     }
     if (current_string_count != 0) {
@@ -186,6 +177,23 @@ void gnu_asm::compileProgram() {
     outfile << output;
     outfile.flush();
     outfile.close();
+}
+void gnu_asm::compileConstant(Variable var) {
+    if (is_int_type(var.type_info.type)) {
+        if (var.type_info.size == 1)
+            output.appendf("    .byte 0x{:x}\n", std::any_cast<int64_t>(var.value));
+        else if (var.type_info.size == 2)
+            output.appendf("    .word 0x{:x}\n", std::any_cast<int64_t>(var.value));
+        else if (var.type_info.size == 4)
+            output.appendf("    .long 0x{:x}\n", std::any_cast<int64_t>(var.value));
+        else if (var.type_info.size == 8)
+            output.appendf("    .quad 0x{:x}\n", std::any_cast<int64_t>(var.value));
+    }
+    if (var.type_info.type == Type::Struct_t) {
+        for (auto v2 : var.members) {
+            compileConstant(v2);
+        }
+    }
 }
 void gnu_asm::compileFunction(Func func) {
     // if the function doesn't return you make it return 0
@@ -217,7 +225,7 @@ void gnu_asm::compileFunction(Func func) {
         switch (inst.op) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
-                Variable arg = std::any_cast<Variable>(inst.args[0]);
+                Variable arg = std::get<Variable>(inst.args[0]);
                 if (func.return_type.size <= 8) {
                     mov_var(arg, Rax);
                 } else if (func.return_type.size <= 16) {
@@ -242,8 +250,8 @@ void gnu_asm::compileFunction(Func func) {
                 returned = true;
             }break;
             case Op::STORE_VAR: {
-                Variable var1 = std::any_cast<Variable>(inst.args[0]);
-                Variable var2 = std::any_cast<Variable>(inst.args[1]);
+                Variable var1 = std::get<Variable>(inst.args[0]);
+                Variable var2 = std::get<Variable>(inst.args[1]);
                 if (var1.type_info.type != Type::String_t) {
                     mov_var(var1, var2);
                 } else {
@@ -253,7 +261,7 @@ void gnu_asm::compileFunction(Func func) {
                 }
             }break;
             case Op::INIT_STRING: {
-                Variable str = std::any_cast<Variable>(inst.args[0]);
+                Variable str = std::get<Variable>(inst.args[0]);
                 auto storage_offset = current_string_count++*MAX_STRING_SIZE;
                 auto reg = get_available_reg();
                 output.appendf("    leaq {}+string_storage(%rip), {}\n", storage_offset, reg._64);
@@ -261,9 +269,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg);
             }break;
             case Op::CALL: {
-                Func func             = std::any_cast<Func>(inst.args[0]);
-                VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
-                Variable ret_address  = std::any_cast<Variable>(inst.args[2]);
+                Func func             = std::get<Func>(inst.args[0]);
+                VariableStorage args  = std::get<VariableStorage>(inst.args[1]);
+                Variable ret_address  = std::get<Variable>(inst.args[2]);
 
                 call_func(func, args);
                 if (ret_address.type_info.type != Type::Void_t) {
@@ -282,8 +290,8 @@ void gnu_asm::compileFunction(Func func) {
                 }
             }break;
             case Op::JUMP_IF_NOT: {
-                std::string label = std::any_cast<std::string>(inst.args[0]);
-                Variable    expr = std::any_cast<Variable>(inst.args[1]);
+                std::string label = std::get<std::string>(inst.args[0]);
+                Variable    expr = std::get<Variable>(inst.args[1]);
                 auto reg = get_available_reg();
                 mov_var(expr, reg);
                 output.appendf("    testb {}, {}\n", reg._8, reg._8);
@@ -291,18 +299,18 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg);
             }break;
             case Op::JUMP: {
-                std::string label = std::any_cast<std::string>(inst.args[0]);
+                std::string label = std::get<std::string>(inst.args[0]);
                 output.appendf("    jmp L{}\n", label);
             }break;
             case Op::LABEL: {
-                std::string label = std::any_cast<std::string>(inst.args[0]);
+                std::string label = std::get<std::string>(inst.args[0]);
 
                 output.appendf("L{}:\n", label);
             }break;
             case Op::ADD: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
 
                 auto reg1 = get_available_reg();
@@ -322,9 +330,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::SUB: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -337,9 +345,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::MUL: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -352,9 +360,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::DIV: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -368,9 +376,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::MOD: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -384,9 +392,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::EQ: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -400,9 +408,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::NE: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -416,9 +424,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::LT: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -432,9 +440,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::LE: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -448,9 +456,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::GT: { 
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -464,9 +472,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::GE: { 
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -480,9 +488,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::LAND: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -497,9 +505,9 @@ void gnu_asm::compileFunction(Func func) {
                 free_reg(reg2);
             } break;
             case Op::LOR: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
                 auto reg1 = get_available_reg();
                 auto reg2 = get_available_reg();
@@ -668,9 +676,16 @@ void gnu_asm::mov_var(Variable src, Register dest) {
         movabs.append(std::any_cast<int64_t>(src.value), reg);
         mov.append(reg, dest);
         free_reg(reg);
-    } else if (src.kind.global) 
-        mov.append(src.name, Rip, dest);
-    else if (src.type_info.type == Type::Void_t)
+    } else if (src.kind.global) {
+        if (src.deref_count == -1) {
+            lea.append(src.name, Rip, dest);
+        } else if (src.deref_count > 0) {
+            mov.append(src.name, Rip, dest);
+            deref(dest, src.deref_count);
+        } else {
+            mov.append(src.name, Rip, dest);
+        }
+    } else if (src.type_info.type == Type::Void_t)
         mov.append(0, dest);
     else if (src.parent != nullptr) {
         mov_member(src, dest);

@@ -32,10 +32,7 @@ struct CTX {
         this.ball = Vec2{600, 335};
         this.ball_radius = 30;
         this.ball_vel = Vec2{4, 2};
-        this.color.r = 0xff;
-        this.color.g = 0xff;
-        this.color.b = 0xff;
-        this.color.a = 0xff;
+        this.color = WHITE;
         this.velocity = 3;
     }
     func update() {
