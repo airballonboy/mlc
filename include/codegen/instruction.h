@@ -17,6 +17,12 @@ public:
           m_instSuffixs(suffixs) {}
     ~AsmInstruction() = default;
 
+    // appends instruction
+    void append();
+    // appends instruction with `reg`
+    void append(Register reg);
+    // appends instruction with `reg`
+    void append(Register reg, size_t size);
     // appends instruction with `src` into `dest` with the size of `size`
     void append(Register src      , Register dest  , size_t   size);
     // appends instruction with `src+offset` into `dest` with the size of `size`

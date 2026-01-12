@@ -5,6 +5,15 @@
 #define REG_SIZE(REG, SIZE)   (SIZE) == 8 ? (REG)._64 : (SIZE) == 4 ? (REG)._32 : (SIZE) == 2 ? (REG)._16 : (REG)._8 
 #define INST_SIZE(INST, SUFF, SIZE) (SIZE) == 8 ? INST+SUFF._64 : (SIZE) == 4 ? INST + SUFF._32 : (SIZE) == 2 ? INST+SUFF._16 : INST+SUFF._8 
 
+void AsmInstruction::append() {
+    m_output.appendf("    {}\n", INST_SIZE(m_instName, m_instSuffixs, 8));
+}
+void AsmInstruction::append(Register reg, size_t size) {
+    m_output.appendf("    {} {}\n",
+                       INST_SIZE(m_instName, m_instSuffixs, size),
+                       REG_SIZE(reg, size)
+    );
+}
 void AsmInstruction::append(int64_t offset, Register src, Register dest, size_t size) {
     if (offset == 0) {
         m_output.appendf("    {} ({}), {}\n",
@@ -111,4 +120,7 @@ void AsmInstruction::append(Register src, int64_t offset, Register dest) {
 }
 void AsmInstruction::append(Register src, Register dest) {
     append(src, dest, 8);
+}
+void AsmInstruction::append(Register reg) {
+    append(reg, 8);
 }

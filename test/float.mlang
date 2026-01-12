@@ -5,6 +5,8 @@ func printfl(double f) {
 }
 
 func main() {
-    double x = 12.0;
-    printfl(x);
+    double x = 10.0;
+    double y = 0.6;
+    double z = x * y;
+    printfl(z);
 }
