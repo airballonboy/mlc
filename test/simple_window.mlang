@@ -3,12 +3,15 @@
 
 func main() {
     rl::init_window(1200, 675, "hello raylib");
-    rl::Color c;
-    c = rl::get_color(0x181818ff);
+    rl::Color c = rl::get_color(0x181818ff);
+    rl::Color c2 = rl::get_color(0xff1515ff);
     while (!rl::window_should_close()) {
         rl::begin_drawing();
 
         rl::clear_background(c);
+        rl::Vec2 s = rl::Vec2{12.0, 12.0};
+        rl::Vec2 p = rl::Vec2{120.0, 120.0};
+        rl::draw_rectangle_v(p, s, c2);
 
         rl::end_drawing();
     }

@@ -26,6 +26,7 @@ int stringCount = 0;
 size_t current_offset = 0;
 size_t max_locals_offset = 8;
 size_t statement_count = 0;
+Func default_func = {0};
 std::string current_module_prefix{};
 std::vector<std::string> included_files;
 uint8_t size_of_signed_int (int64_t i) {
@@ -129,11 +130,10 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     m_currentLexar->getAndExpectNext(TokenType::ID);
     if (strct) {
         std::string struct_name = (*tkn)->string_value;
-        Func temp_func{};
         Func *orig_func;
         if (var.kind.pointer_count != 0) {
             orig_func = m_currentFunc;
-            m_currentFunc = &temp_func;
+            m_currentFunc = &default_func;
         }
         Variable new_var{};
         new_var = initStruct(type_name, struct_name, member);
@@ -179,12 +179,14 @@ Program* Parser::parse() {
     tkn = &m_currentLexar->currentToken;
 
     m_currentFuncStorage = &m_program.func_storage;
+    m_currentFunc = &default_func;
 
     while ((*tkn)->type != TokenType::EndOfFile) {
         switch((*tkn)->type) {
             case TokenType::Func:{
                 parseFunction();
                 m_currentLexar->getNext();
+                m_currentFunc = &default_func;
                 
             }break;//TokenType::Func
             case TokenType::Module: {
@@ -300,6 +302,7 @@ void Parser::parseStructDeclaration() {
     m_program.struct_storage.push_back({});
     Struct& current_struct = m_program.struct_storage[struct_index];
     current_struct.id = current_struct_id++;
+    current_struct.is_float_only = true;
     
     m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
@@ -331,8 +334,7 @@ void Parser::parseStructDeclaration() {
             continue;
         }
         Func* last_func = m_currentFunc;
-        Func temp_f{};
-        m_currentFunc = &temp_f;
+        m_currentFunc = &default_func;
         auto& var = parseVariable(current_struct.var_storage, true);
         int var_index = current_struct.var_storage.size()-1;
         current_struct.size = align(current_struct.size, var.type_info.type, var.type_info.name);
@@ -344,6 +346,8 @@ void Parser::parseStructDeclaration() {
         var.offset = current_struct.size;
         current_struct.size += var.size;
         m_currentFunc = last_func;
+        if (var.type_info.type != Type::Double_t && var.type_info.type != Type::Float_t)
+            current_struct.is_float_only = false;
 
         // Defaults
         if (var.type_info.type == Type::String_t) {
@@ -356,7 +360,13 @@ void Parser::parseStructDeclaration() {
             current_struct.defaults.emplace(var_index, var2);
         } else if (var.type_info.type != Type::String_t && var.type_info.type != Type::Struct_t) {
             Variable default_val;
-            default_val.type_info = type_infos.at("int8");
+            if (var.type_info.type == Type::Double_t || var.type_info.type == Type::Float_t) {
+                default_val.type_info = type_infos.at("float");
+                default_val.size = 4;
+            } else {
+                default_val.type_info = type_infos.at("int8");
+                default_val.size = 1;
+            }
             default_val.kind.literal   = true;
 
             default_val.name = "def_value";
@@ -539,6 +549,7 @@ void Parser::parseExtern() {
     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
 
     m_program.func_storage.push_back(func);
+    m_currentFunc = &default_func;
 
 }
 void Parser::parseModulePrefix() {
@@ -599,8 +610,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
     }
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     VariableStorage args_temp_storage{};
-    Func temp_func{};
-    m_currentFunc = &temp_func;
+    m_currentFunc = &default_func;
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
         parseVariable(args_temp_storage);
         if (m_currentLexar->peek()->type != TokenType::CParen) {
@@ -847,10 +857,15 @@ void Parser::parseStatement() {
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
             } else if (var.type_info.type != Type::String_t && var.type_info.type != Type::Struct_t) {
                 Variable default_val;
-                default_val.type_info = type_infos.at("int8");
+                if (var.type_info.type == Type::Double_t || var.type_info.type == Type::Float_t) {
+                    default_val.type_info = type_infos.at("float");
+                    default_val.size = 4;
+                } else {
+                    default_val.type_info = type_infos.at("int8");
+                    default_val.size = 1;
+                }
                 default_val.kind.literal = true;
                 default_val.kind.constant = true;
-                default_val.size = 1;
 
                 default_val.name = "def_value";
                 default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info.type));
@@ -1093,7 +1108,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     m_currentLexar->getAndExpectNext(TokenType::CCurly);
                     // saving offset to make struct literal temporary
                     auto save = current_offset;
-                    var = initStruct(name, "struct literal");
+                    var = initStruct(name, "struct literal", false, false);
                     for (size_t i = 0; i < var.members.size() && i < v.size(); i++) {
                         var.members[i].value = v[i].value;
                         m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
@@ -1391,9 +1406,9 @@ std::any Parser::variable_default_value(Type t) {
         case Type::Int32_t:
         case Type::Char_t:
         case Type::Bool_t:
-        case Type::Int64_t:
+        case Type::Int64_t: return (int64_t)0; break;
         case Type::Double_t:
-        case Type::Float_t: return (int64_t)0; break;
+        case Type::Float_t: return std::bit_cast<int64_t>(0.0); break;
 
         case Type::String_t: return ""   ; break;
         case Type::Void_t:   return (int64_t)0    ; break;

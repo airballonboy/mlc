@@ -377,6 +377,7 @@ struct Struct {
     std::unordered_map<int, Variable> defaults;
     size_t size;
     size_t alignment;
+    bool is_float_only = false;
 };
 typedef std::vector<Struct> StructStorage;
 

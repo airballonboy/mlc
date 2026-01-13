@@ -6,6 +6,24 @@ struct rl::Color {
     char b;
     char a;
 }
+struct rl::Vec2 {
+    float x;
+    float y;
+}
+
+#extern func rl::init_window(int x, int y, string s) [link_name = "InitWindow", lib = "raylib", search_path = "/home/ahmed/dev/thirdparty/raylib-5.5/lib"];
+#extern func rl::close_window()                      [link_name = "CloseWindow", lib = "m"];
+#extern func rl::begin_drawing()                     [link_name = "BeginDrawing"];
+#extern func rl::end_drawing()                       [link_name = "EndDrawing"];
+#extern func rl::window_should_close() -> bool       [link_name = "WindowShouldClose"];
+#extern func rl::is_key_down(int key) -> bool        [link_name = "IsKeyDown"];
+#extern func rl::set_target_fps(int fps)             [link_name = "SetTargetFPS"];
+#extern func rl::draw_fps(int x, int y)              [link_name = "DrawFPS"];
+#extern func rl::clear_background(rl::Color color)   [link_name = "ClearBackground"];
+#extern func rl::get_color(int hex) -> rl::Color     [link_name = "GetColor"];
+#extern func rl::draw_rectangle(int x, int y, int width, int height, int color) [link_name = "DrawRectangle"];
+#extern func rl::draw_rectangle_v(rl::Vec2 pos, rl::Vec2 size, int color) [link_name = "DrawRectangleV"];
+#extern func rl::draw_circle(int x, int y, int radius, int color) [link_name = "DrawCircle"];
 
 const LIGHTGRAY  = rl::Color{200, 200, 200, 255};// Light Gray
 const GRAY       = rl::Color{130, 130, 130, 255};// Gray
@@ -34,16 +52,3 @@ const BLANK      = rl::Color{0  , 0  , 0  , 0  };// Blank (Transparent)
 const MAGENTA    = rl::Color{255, 0  , 255, 255};// Magenta
 const RAYWHITE   = rl::Color{245, 245, 245, 255};// My own White (raylib logo)
 
-
-#extern func rl::init_window(int x, int y, string s) [link_name = "InitWindow", lib = "raylib", search_path = "/home/ahmed/dev/thirdparty/raylib-5.5/lib"];
-#extern func rl::close_window()                      [link_name = "CloseWindow", lib = "m"];
-#extern func rl::begin_drawing()                     [link_name = "BeginDrawing"];
-#extern func rl::end_drawing()                       [link_name = "EndDrawing"];
-#extern func rl::window_should_close() -> bool       [link_name = "WindowShouldClose"];
-#extern func rl::is_key_down(int key) -> bool        [link_name = "IsKeyDown"];
-#extern func rl::set_target_fps(int fps)             [link_name = "SetTargetFPS"];
-#extern func rl::draw_fps(int x, int y)              [link_name = "DrawFPS"];
-#extern func rl::clear_background(rl::Color color)   [link_name = "ClearBackground"];
-#extern func rl::get_color(int hex) -> rl::Color     [link_name = "GetColor"];
-#extern func rl::draw_rectangle(int x, int y, int width, int height, int color) [link_name = "DrawRectangle"];
-#extern func rl::draw_circle(int x, int y, int radius, int color) [link_name = "DrawCircle"];

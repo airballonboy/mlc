@@ -623,15 +623,25 @@ void gnu_asm::compileFunction(Func func) {
 void gnu_asm::call_func(Func func, VariableStorage args) {
     if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
     size_t float_count = 0;
-
+    size_t temp_float_size;
     for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register) && float_count < std::size(arg_register_float); i++, j++, float_count++) {
+        if (is_float_type(args[i].type_info.type) && func.c_variadic)
+            temp_float_size = 8;
+        else
+            temp_float_size = args[i].type_info.size;
         if (args[i].type_info.type == Type::Struct_t) {
+            auto strct = get_struct_from_name(args[i].type_info.name);
             if (args[i].deref_count > 0) {
                 if (args[i].kind.pointer_count == args[i].deref_count)
-                    args[i].size = get_struct_from_name(args[i].type_info.name).size;
+                    args[i].size = strct.size;
             }
             if (args[i].size <= 8) {
-                mov_var(args[i], arg_register[j]);
+                if (strct.is_float_only) {
+                    mov_var(args[i], arg_register_float[float_count]);
+                    j--;
+                } else {
+                    mov_var(args[i], arg_register[j]);
+                }
             } else if (args[i].size <= 16) {
                 size_t orig_size = args[i].size;
                 args[i].size = 8;
@@ -650,18 +660,17 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
                 args[i].deref_count = -1;
                 mov_var(args[i], arg_register[j]);
             }
-        }
-        else {
+        } else {
             if (is_float_type(args[i].type_info.type)) {
                 mov_var(args[i], arg_register_float[float_count]);
+                cast_float_size(arg_register_float[float_count], args[i].size, temp_float_size);
 #ifdef WIN32
                 if (func.c_variadic)
                     mov_var(args[i], arg_register[j]);
 #else
                 j--;
 #endif
-            }
-            else {
+            } else {
 #ifndef WIN32 
                 float_count--;
 #endif
@@ -755,7 +764,10 @@ void gnu_asm::mov_member(Variable src, Register dest) {
             if (src.deref_count == -1) {
                 lea.append(off, reg, dest);
             } else {
-                mov.append(off, reg, dest, src.size);
+                if (is_float_reg(dest)) {
+                    movs.append(off, reg, dest, src.size);
+                } else 
+                    mov.append(off, reg, dest, src.size);
                 if (src.deref_count > 0) {
                     deref(dest, src.deref_count);
                 }

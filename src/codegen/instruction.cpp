@@ -54,14 +54,14 @@ void AsmInstruction::append(Register src, Register dest, size_t size) {
 void AsmInstruction::append(int64_t int_value, Register dest, size_t size) {
     m_output.appendf("    {} $0x{:x}, {}\n",
                        INST_SIZE(m_instName, m_instSuffixs, size),
-                       int_value,
+                       static_cast<uint64_t>(int_value),
                        REG_SIZE(dest, size)
     );
 }
 void AsmInstruction::append(int64_t  int_value, std::string label, Register dest, size_t size) {
     m_output.appendf("    {} $0x{:x}, {}({})\n",
                        INST_SIZE(m_instName, m_instSuffixs, size),
-                       int_value,
+                       static_cast<uint64_t>(int_value),
                        label,
                        REG_SIZE(dest, 8)
     );
@@ -70,13 +70,13 @@ void AsmInstruction::append(int64_t int_value, int64_t offset, Register dest, si
     if (offset == 0) {
         m_output.appendf("    {} $0x{:x}, ({})\n",
                            INST_SIZE(m_instName, m_instSuffixs, size),
-                           int_value,
+                           static_cast<uint64_t>(int_value),
                            REG_SIZE(dest, 8)
         );
     } else {
         m_output.appendf("    {} $0x{:x}, {}({})\n",
                            INST_SIZE(m_instName, m_instSuffixs, size),
-                           int_value,
+                           static_cast<uint64_t>(int_value),
                            offset, REG_SIZE(dest, 8)
         );
     }
