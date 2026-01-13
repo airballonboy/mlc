@@ -252,10 +252,10 @@ void gnu_asm::compileFunction(Func func) {
 #endif
         } else if (f < std::size(arg_register_float)) {
             mov_var(arg_register_float[f], func.arguments[j]);       
-            i++;
+            j++;
             f++;
 #ifdef WIN32
-            j++;
+            i++;
 #endif
         }
     }
