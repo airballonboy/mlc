@@ -4,6 +4,7 @@
 #include <typeindex>
 #include <vector>
 #include <any>
+#include <variant>
 #include <unordered_map>
 
 enum class TokenType {
@@ -277,14 +278,17 @@ struct Token {
     double      double_value;
 };
 
-struct Instruction {
-    Op op;
-    std::vector<std::any> args;
-};
-
 // Forward Declared
 struct Variable;
 typedef std::vector<Variable> VariableStorage;
+struct Func;
+
+
+using Arg = std::variant<std::string, Variable, VariableStorage, Func>;
+struct Instruction {
+    Op op;
+    std::vector<Arg> args;
+};
 
 struct Kind {
     bool constant = false;

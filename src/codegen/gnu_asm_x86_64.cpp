@@ -19,6 +19,41 @@ int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
 
+static std::vector<std::pair<Register, bool>> available_float_reg = {
+    {Xmm12, true},
+    {Xmm13, true},
+    {Xmm14, true},
+    {Xmm15, true},
+};
+Register get_available_float_reg() {
+    if (available_float_reg.size() < 1) TODO("no available Registers");
+    Register reg;
+    for (auto& [reg_, avail] : available_float_reg) {
+        if (avail) {
+            reg = reg_;
+            avail = false;
+            break;
+        }
+    }
+    return reg;
+}
+
+void free_float_reg(Register reg) {
+    for (auto& [reg_, avail] : available_float_reg) {
+        if (reg_._64 == reg._64)
+            if (avail == true)
+                return;
+    }
+    if (xmm.contains(reg._64)) {
+        for (auto& [reg_, avail] : available_float_reg) {
+            if (reg_._64 == reg._64) {
+                avail = true;
+                break;
+            }
+        }
+    } else 
+        TODO("register doesn't exist");
+}
 static std::vector<std::pair<Register, bool>> available_reg = {
     {Rax, true},
     {Rbx, true},
@@ -26,7 +61,7 @@ static std::vector<std::pair<Register, bool>> available_reg = {
     {R14, true},
     {R15, true},
 };
-Register get_available_reg() {
+Register get_available_int_reg() {
     if (available_reg.size() < 1) TODO("no available Registers");
     Register reg;
     for (auto& [reg_, avail] : available_reg) {
@@ -39,13 +74,13 @@ Register get_available_reg() {
     return reg;
 }
 
-void free_reg(Register reg) {
+void free_int_reg(Register reg) {
     for (auto& [reg_, avail] : available_reg) {
         if (reg_._64 == reg._64)
             if (avail == true)
                 return;
     }
-    if (REGS.contains(reg._64)) {
+    if (r64.contains(reg._64)) {
         for (auto& [reg_, avail] : available_reg) {
             if (reg_._64 == reg._64) {
                 avail = true;
@@ -73,6 +108,9 @@ bool is_float_type(Type t) {
         return true;
     return false;
 }
+bool is_float_reg(Register reg) {
+    return xmm.contains(reg._64);
+}
 Func get_func_from_module(Module mod, std::string name) {
     for (const auto& func : mod.func_storage) {
         if (name == func.name) return func;
@@ -99,8 +137,6 @@ Func get_func_from_program(Program prog, std::string name) {
 
 
 #define REG_SIZE(REG, SIZE)   (SIZE) == 8 ? (REG)._64 : (SIZE) == 4 ? (REG)._32 : (SIZE) == 2 ? (REG)._16 : (REG)._8 
-#define MOV_SIZE(SIZE)        (SIZE) == 8 ?   "movq"  : (SIZE) == 4 ?   "movl"  : (SIZE) == 2 ?   "movw"  :  "movb" 
-#define INST_SIZE(INST, SIZE) (SIZE) == 8 ?  INST"q"  : (SIZE) == 4 ?   INST"l" : (SIZE) == 2 ?   INST"w" :  INST"b" 
 
 #ifdef WIN32
 static const Register arg_register[] = {
@@ -143,32 +179,23 @@ void gnu_asm::compileProgram() {
     }
 
 
-    output.appendf(".section .rodata\n");
+    output.append(".section .rodata\n");
     for (const auto& var : m_program->var_storage) {
         if (var.kind.literal && var.type_info.type == Type::String_t)
             output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
         if (var.kind.constant && var.kind.global) {
             output.appendf("{}:\n", var.name);
-            if (is_int_type(var.type_info.type)) {
-                if (var.type_info.size == 1)
-                    output.appendf("    .byte {}\n", std::any_cast<int64_t>(var.value));
-                else if (var.type_info.size == 2)
-                    output.appendf("    .word {}\n", std::any_cast<int64_t>(var.value));
-                else if (var.type_info.size == 4)
-                    output.appendf("    .long {}\n", std::any_cast<int64_t>(var.value));
-                else if (var.type_info.size == 8)
-                    output.appendf("    .quad {}\n", std::any_cast<int64_t>(var.value));
-            }
+            compileConstant(var);
         }
     }
     if (current_string_count != 0) {
-        output.appendf(".align 8\n");
-        output.appendf(".section .bss\n");
+        output.append(".align 8\n");
+        output.append(".section .bss\n");
         output.appendf("string_storage: .skip {}\n", current_string_count*MAX_STRING_SIZE);
     }
 
-    output.appendf(".section .text\n");
-    output.appendf("// Externals\n");
+    output.append(".section .text\n");
+    output.append("// Externals\n");
     for (const auto& func : m_program->func_storage) {
         if (func.external) {
             output.appendf(".global {}\n", func.name);
@@ -187,6 +214,23 @@ void gnu_asm::compileProgram() {
     outfile.flush();
     outfile.close();
 }
+void gnu_asm::compileConstant(Variable var) {
+    if (is_int_type(var.type_info.type)) {
+        if (var.type_info.size == 1)
+            output.appendf("    .byte 0x{:x}\n", std::any_cast<int64_t>(var.value));
+        else if (var.type_info.size == 2)
+            output.appendf("    .word 0x{:x}\n", std::any_cast<int64_t>(var.value));
+        else if (var.type_info.size == 4)
+            output.appendf("    .long 0x{:x}\n", std::any_cast<int64_t>(var.value));
+        else if (var.type_info.size == 8)
+            output.appendf("    .quad 0x{:x}\n", std::any_cast<int64_t>(var.value));
+    }
+    if (var.type_info.type == Type::Struct_t) {
+        for (auto v2 : var.members) {
+            compileConstant(v2);
+        }
+    }
+}
 void gnu_asm::compileFunction(Func func) {
     // if the function doesn't return you make it return 0
     bool returned = false;
@@ -200,13 +244,19 @@ void gnu_asm::compileFunction(Func func) {
 
     for (int j = 0, i = 0, f = 0; j < func.arguments_count;) {
         if (!is_float_type(func.arguments[j].type_info.type) && i < std::size(arg_register)) {
-            mov(arg_register[i], func.arguments[j]);       
+            mov_var(arg_register[i], func.arguments[j]);       
             i++;
             j++;
-        } else if (f < std::size(arg_register_float)) {
-            mov(arg_register_float[f], func.arguments[j]);       
+#ifdef WIN32
             f++;
+#endif
+        } else if (f < std::size(arg_register_float)) {
+            mov_var(arg_register_float[f], func.arguments[j]);       
+            i++;
+            f++;
+#ifdef WIN32
             j++;
+#endif
         }
     }
 
@@ -217,306 +267,354 @@ void gnu_asm::compileFunction(Func func) {
         switch (inst.op) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
-                Variable arg = std::any_cast<Variable>(inst.args[0]);
+                Variable arg = std::get<Variable>(inst.args[0]);
                 if (func.return_type.size <= 8) {
-                    mov(arg, Rax);
+                    mov_var(arg, Rax);
                 } else if (func.return_type.size <= 16) {
                     arg.size = 8;
-                    mov(arg, Rax);
+                    mov_var(arg, Rax);
                     arg.offset -= 8;
-                    mov(arg, Rcx);
-                    mov(Rcx, Rdx);
+                    mov_var(arg, Rcx);
+                    mov.append(Rcx, Rdx);
                 } else {
                     if (is_member) {
                         func.arguments[1].deref_count = 1;
-                        mov(arg, func.arguments[1]);
+                        mov_var(arg, func.arguments[1]);
                     } else {
                         func.arguments[0].deref_count = 1;
-                        mov(arg, func.arguments[0]);
+                        mov_var(arg, func.arguments[0]);
                     }
 
-                    //mov(func.arguments[0], Rax);
+                    //mov_var(func.arguments[0], Rax);
                 }
                 function_epilogue();
-                output.appendf("    ret\n");
+                output.append("    ret\n");
                 returned = true;
             }break;
             case Op::STORE_VAR: {
-                Variable var1 = std::any_cast<Variable>(inst.args[0]);
-                Variable var2 = std::any_cast<Variable>(inst.args[1]);
+                Variable var1 = std::get<Variable>(inst.args[0]);
+                Variable var2 = std::get<Variable>(inst.args[1]);
                 if (var1.type_info.type != Type::String_t) {
-                    mov(var1, var2);
+                    mov_var(var1, var2);
                 } else {
-                    mov(var2, arg_register[0]);
-                    mov(var1, arg_register[1]);
-                    output.appendf("    call strcpy\n");
+                    mov_var(var2, arg_register[0]);
+                    mov_var(var1, arg_register[1]);
+                    output.append("    call strcpy\n");
                 }
             }break;
             case Op::INIT_STRING: {
-                Variable str = std::any_cast<Variable>(inst.args[0]);
+                Variable str = std::get<Variable>(inst.args[0]);
                 auto storage_offset = current_string_count++*MAX_STRING_SIZE;
-                auto reg = get_available_reg();
+                auto reg = get_available_int_reg();
                 output.appendf("    leaq {}+string_storage(%rip), {}\n", storage_offset, reg._64);
-                mov(reg, str);
-                free_reg(reg);
+                mov_var(reg, str);
+                free_int_reg(reg);
             }break;
             case Op::CALL: {
-                Func func             = std::any_cast<Func>(inst.args[0]);
-                VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
-                Variable ret_address  = std::any_cast<Variable>(inst.args[2]);
+                Func func             = std::get<Func>(inst.args[0]);
+                VariableStorage args  = std::get<VariableStorage>(inst.args[1]);
+                Variable ret_address  = std::get<Variable>(inst.args[2]);
 
                 call_func(func, args);
                 if (ret_address.type_info.type != Type::Void_t) {
                     if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
-                        mov(Rax, ret_address);
+                        mov_var(Rax, ret_address);
                     } else if (func.return_type.size <= 16) {
                         ret_address.size = 8;
-                        mov(Rax, ret_address);
+                        mov_var(Rax, ret_address);
                         ret_address.offset -= 8;
                         ret_address.size = ret_address.type_info.size - 8;
-                        mov(Rdx, ret_address);
+                        mov_var(Rdx, ret_address);
                     } else {
-                        //mov(0, Rax, Rax);
-                        //mov(Rax, ret_address);
+                        //mov_var(0, Rax, Rax);
+                        //mov_var(Rax, ret_address);
                     }
                 }
             }break;
             case Op::JUMP_IF_NOT: {
-                std::string label = std::any_cast<std::string>(inst.args[0]);
-                Variable    expr = std::any_cast<Variable>(inst.args[1]);
-                auto reg = get_available_reg();
-                mov(expr, reg);
+                std::string label = std::get<std::string>(inst.args[0]);
+                Variable    expr = std::get<Variable>(inst.args[1]);
+                auto reg = get_available_int_reg();
+                mov_var(expr, reg);
                 output.appendf("    testb {}, {}\n", reg._8, reg._8);
                 output.appendf("    jz L{}\n", label);
-                free_reg(reg);
+                free_int_reg(reg);
             }break;
             case Op::JUMP: {
-                std::string label = std::any_cast<std::string>(inst.args[0]);
+                std::string label = std::get<std::string>(inst.args[0]);
                 output.appendf("    jmp L{}\n", label);
             }break;
             case Op::LABEL: {
-                std::string label = std::any_cast<std::string>(inst.args[0]);
+                std::string label = std::get<std::string>(inst.args[0]);
 
                 output.appendf("L{}:\n", label);
             }break;
             case Op::ADD: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
+                if (is_float_type(lhs.type_info.type) || is_float_type(rhs.type_info.type)) {
+                    auto reg1 = get_available_float_reg();
+                    auto reg2 = get_available_float_reg();
+                    mov_var(lhs, reg1);
+                    mov_var(rhs, reg2);
 
-                if (lhs.size != rhs.size) {
-                    lhs.size = result.size;
-                    rhs.size = result.size;
+                    size_t size = std::max<size_t>(result.size, 4);
+                    cast_float_size(reg1, lhs.size, size);
+                    cast_float_size(reg2, rhs.size, size);
+
+                    adds.append(reg2, reg1, size);
+                    mov_var(reg1, result);
+                    free_float_reg(reg1);
+                    free_float_reg(reg2);
+                } else {
+                    auto reg1 = get_available_int_reg();
+                    auto reg2 = get_available_int_reg();
+                    mov_var(lhs, reg1);
+                    mov_var(rhs, reg2);
+
+                    if (lhs.size != rhs.size) {
+                        lhs.size = result.size;
+                        rhs.size = result.size;
+                    }
+
+                    size_t size = std::max<size_t>(result.size, 2);
+                    add.append(reg2, reg1, size);
+                    mov_var(reg1, result);
+                    free_int_reg(reg1);
+                    free_int_reg(reg2);
                 }
-
-                size_t size = result.size > 1 ? result.size : 2;
-                output.appendf("    {} {}, {}\n", INST_SIZE("add", size), REG_SIZE(reg2, size), REG_SIZE(reg1, size));
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
             } break;
             case Op::SUB: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
-                size_t size = result.size > 1 ? result.size : 2;
-                output.appendf("    {} {}, {}\n", INST_SIZE("sub", size), REG_SIZE(reg2, size), REG_SIZE(reg1, size));
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                if (is_float_type(lhs.type_info.type) || is_float_type(rhs.type_info.type)) {
+                    auto reg1 = get_available_float_reg();
+                    auto reg2 = get_available_float_reg();
+                    mov_var(lhs, reg1);
+                    mov_var(rhs, reg2);
+
+                    size_t size = std::max<size_t>(result.size, 4);
+                    cast_float_size(reg1, lhs.size, size);
+                    cast_float_size(reg2, rhs.size, size);
+
+                    subs.append(reg2, reg1, size);
+                    mov_var(reg1, result);
+                    free_float_reg(reg1);
+                    free_float_reg(reg2);
+                } else {
+                    auto reg1 = get_available_int_reg();
+                    auto reg2 = get_available_int_reg();
+                    mov_var(lhs, reg1);
+                    mov_var(rhs, reg2);
+                    size_t size = std::max<size_t>(result.size, 2);
+                    sub.append(reg2, reg1, size);
+                    mov_var(reg1, result);
+                    free_int_reg(reg1);
+                    free_int_reg(reg2);
+                }
             } break;
             case Op::MUL: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
-                size_t size = result.size > 1 ? result.size : 2;
-                output.appendf("    {} {}, {}\n", INST_SIZE("imul", size), REG_SIZE(reg2, size), REG_SIZE(reg1, size)); // signed multiply
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                if (is_float_type(lhs.type_info.type) || is_float_type(rhs.type_info.type)) {
+                    auto reg1 = get_available_float_reg();
+                    auto reg2 = get_available_float_reg();
+                    mov_var(lhs, reg1);
+                    mov_var(rhs, reg2);
+
+                    size_t size = std::max<size_t>(result.size, 4);
+                    cast_float_size(reg1, lhs.size, size);
+                    cast_float_size(reg2, rhs.size, size);
+
+                    muls.append(reg2, reg1, size);
+                    mov_var(reg1, result);
+                    free_float_reg(reg1);
+                    free_float_reg(reg2);
+                } else {
+                    auto reg1 = get_available_int_reg();
+                    auto reg2 = get_available_int_reg();
+                    mov_var(lhs, reg1);
+                    mov_var(rhs, reg2);
+                    size_t size = std::max<size_t>(result.size, 2);
+                    imul.append(reg2, reg1, size);
+                    mov_var(reg1, result);
+                    free_int_reg(reg1);
+                    free_int_reg(reg2);
+                }
             } break;
             case Op::DIV: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                output.appendf("    cqto\n");
-                mov(rhs, reg2);
-                size_t size = result.size > 1 ? result.size : 2;
-                output.appendf("    {} {}, {}\n", INST_SIZE("idiv", size), REG_SIZE(reg2, size), REG_SIZE(reg1, size));
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg1);
+                output.append("    cqto\n");
+                mov_var(rhs, reg2);
+                size_t size = std::max<size_t>(result.size, 2);
+                idiv.append(reg2, reg1, size);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
             case Op::MOD: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                output.appendf("    cqto\n");
-                mov(rhs, reg2);
-                output.appendf("    idivq {}\n", reg2._64);
-                output.appendf("    movq {}, {}\n", Rdx._64, reg1._64);
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg1);
+                output.append("    cqto\n");
+                mov_var(rhs, reg2);
+                idiv.append(reg2, 8);
+                mov.append(Rdx, reg1 ,8);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
             case Op::EQ: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
-                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg1);
+                mov_var(rhs, reg2);
+                cmp.append(reg1, reg2, lhs.size);
                 output.appendf("    sete {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
             case Op::NE: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
-                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg1);
+                mov_var(rhs, reg2);
+                cmp.append(reg1, reg2, lhs.size);
                 output.appendf("    setne {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
             case Op::LT: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg2);
-                mov(rhs, reg1);
-                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg2);
+                mov_var(rhs, reg1);
+                cmp.append(reg1, reg2, lhs.size);
                 output.appendf("    setl {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
             case Op::LE: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg2);
-                mov(rhs, reg1);
-                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg2);
+                mov_var(rhs, reg1);
+                cmp.append(reg1, reg2, lhs.size);
                 output.appendf("    setle {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
             case Op::GT: { 
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg2);
-                mov(rhs, reg1);
-                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg2);
+                mov_var(rhs, reg1);
+                cmp.append(reg1, reg2, lhs.size);
                 output.appendf("    setg {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
             case Op::GE: { 
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
-                output.appendf("    {} {}, {}\n", INST_SIZE("cmp", lhs.size), REG_SIZE(reg1, lhs.size), REG_SIZE(reg2, lhs.size));
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg1);
+                mov_var(rhs, reg2);
+                cmp.append(reg1, reg2, lhs.size);
                 output.appendf("    setge {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
             case Op::LAND: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg1);
+                mov_var(rhs, reg2);
                 output.appendf("    andq {}, {}\n", reg2._64, reg1._64);
-                output.appendf("    cmpq $0, {}\n", reg1._64);
+                cmp.append(0, reg1, 8);
                 output.appendf("    setne {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
             case Op::LOR: {
-                Variable lhs = std::any_cast<Variable>(inst.args[0]);
-                Variable rhs = std::any_cast<Variable>(inst.args[1]);
-                Variable result = std::any_cast<Variable>(inst.args[2]);
+                Variable lhs = std::get<Variable>(inst.args[0]);
+                Variable rhs = std::get<Variable>(inst.args[1]);
+                Variable result = std::get<Variable>(inst.args[2]);
 
-                auto reg1 = get_available_reg();
-                auto reg2 = get_available_reg();
-                mov(lhs, reg1);
-                mov(rhs, reg2);
+                auto reg1 = get_available_int_reg();
+                auto reg2 = get_available_int_reg();
+                mov_var(lhs, reg1);
+                mov_var(rhs, reg2);
                 output.appendf("    orq {}, {}\n", reg2._64, reg1._64);
-                output.appendf("    cmpq $0, {}\n", reg1._64);
+                cmp.append(0, reg1, 8);
                 output.appendf("    setne {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov(reg1, result);
-                free_reg(reg1);
-                free_reg(reg2);
+                mov_var(reg1, result);
+                free_int_reg(reg1);
+                free_int_reg(reg2);
             } break;
         }
     }
     if (!returned) {
-        mov({.type_info = type_infos.at("int8"), .name = "Int_lit", .value = (int64_t)0, .size = 1, .kind = {.literal = true}}, Rax);
+        mov_var({.type_info = type_infos.at("int8"), .name = "Int_lit", .value = (int64_t)0, .size = 1, .kind = {.literal = true}}, Rax);
         function_epilogue();
         output.appendf("    ret\n");
     }
@@ -526,43 +624,56 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
     if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
     size_t float_count = 0;
 
-    for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register) && float_count < std::size(arg_register_float); i++, j++) {
+    for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register) && float_count < std::size(arg_register_float); i++, j++, float_count++) {
         if (args[i].type_info.type == Type::Struct_t) {
             if (args[i].deref_count > 0) {
                 if (args[i].kind.pointer_count == args[i].deref_count)
                     args[i].size = get_struct_from_name(args[i].type_info.name).size;
             }
             if (args[i].size <= 8) {
-                mov(args[i], arg_register[j]);
+                mov_var(args[i], arg_register[j]);
             } else if (args[i].size <= 16) {
                 size_t orig_size = args[i].size;
                 args[i].size = 8;
-                mov(args[i], arg_register[j++]);
+                mov_var(args[i], arg_register[j++]);
                 if (args[i].deref_count == 0) {
                     args[i].size = orig_size-8;
                     args[i].offset -= 8;
-                    mov(args[i], arg_register[j]);
+                    mov_var(args[i], arg_register[j]);
                 } else {
                     args[i].deref_count -= 1;
-                    mov(args[i], arg_register[j]);
-                    mov(8, arg_register[j], arg_register[j], orig_size-8);
+                    mov_var(args[i], arg_register[j]);
+                    mov.append(8, arg_register[j], arg_register[j], orig_size-8);
 
                 }
             } else {
                 args[i].deref_count = -1;
-                mov(args[i], arg_register[j]);
+                mov_var(args[i], arg_register[j]);
             }
-        } else {
-            if (args[i].type_info.type == Type::Double_t || args[i].type_info.type == Type::Float_t) {
-                mov(args[i], arg_register_float[float_count++]);
+        }
+        else {
+            if (is_float_type(args[i].type_info.type)) {
+                mov_var(args[i], arg_register_float[float_count]);
+#ifdef WIN32
+                if (func.c_variadic)
+                    mov_var(args[i], arg_register[j]);
+#else
                 j--;
-            } else
-                mov(args[i], arg_register[j]);
+#endif
+            }
+            else {
+#ifndef WIN32 
+                float_count--;
+#endif
+                mov_var(args[i], arg_register[j]);
+            }
         }
     }
 
+#ifndef WIN32 
     if (func.c_variadic)
-        mov(float_count, Rax);
+        mov.append(float_count, Rax);
+#endif
     output.appendf("    call {}\n", func.name);
 }
 
@@ -572,157 +683,11 @@ Struct& gnu_asm::get_struct_from_name(std::string& name) {
     }
     TODO("struct not found");
 }
-void gnu_asm::mov(int64_t offset, Register src, Register dest, size_t size) {
-    if (offset == 0) {
-        output.appendf("    {} ({}), {}\n",
-                           INST_SIZE("mov", size),
-                           REG_SIZE(src, 8),
-                           REG_SIZE(dest, size)
-        );
-    } else { 
-        output.appendf("    {} {}({}), {}\n",
-                           INST_SIZE("mov", size),
-                           offset, REG_SIZE(src, 8),
-                           REG_SIZE(dest, size)
-        );
-    }
-}
-void gnu_asm::mov(Register src, int64_t offset, Register dest, size_t size) {
-    if (offset == 0) {
-        output.appendf("    {} {}, ({})\n",
-                           INST_SIZE("mov", size),
-                           REG_SIZE(src, size),
-                           REG_SIZE(dest, 8)
-        );
-    } else {
-        output.appendf("    {} {}, {}({})\n",
-                           INST_SIZE("mov", size),
-                           REG_SIZE(src, size),
-                           offset, REG_SIZE(dest, 8)
-        );
-    }
-}
-void gnu_asm::mov(Register src, Register dest, size_t size) {
-    output.appendf("    {} {}, {}\n",
-                       INST_SIZE("mov", size),
-                       REG_SIZE(src, size),
-                       REG_SIZE(dest, size)
-    );
-}
-void gnu_asm::mov(int64_t int_value, Register dest, size_t size) {
-    output.appendf("    {} $0x{:x}, {}\n",
-                       INST_SIZE("mov", size),
-                       int_value,
-                       REG_SIZE(dest, size)
-    );
-}
-void gnu_asm::mov(int64_t  int_value, std::string label, Register dest, size_t size) {
-    output.appendf("    {} $0x{:x}, {}({})\n",
-                       INST_SIZE("mov", size),
-                       int_value,
-                       label,
-                       REG_SIZE(dest, 8)
-    );
-}
-void gnu_asm::mov(int64_t int_value, int64_t offset, Register dest, size_t size) {
-    if (offset == 0) {
-        output.appendf("    {} $0x{:x}, ({})\n",
-                           INST_SIZE("mov", size),
-                           int_value,
-                           REG_SIZE(dest, 8)
-        );
-    } else {
-        output.appendf("    {} $0x{:x}, {}({})\n",
-                           INST_SIZE("mov", size),
-                           int_value,
-                           offset, REG_SIZE(dest, 8)
-        );
-    }
-}
-void gnu_asm::mov(std::string global_label, Register src, Register dest, size_t size) {
-    assert(size <= 8);
-    output.appendf("    {} {}({}), {}\n",
-                       INST_SIZE("mov", size),
-                       global_label, REG_SIZE(src, 8),
-                       REG_SIZE(dest, size)
-    );
-}
-void gnu_asm::mov(Register src, std::string global_label, Register dest, size_t size) {
-    assert(size <= 8);
-    output.appendf("    {} {}, {}({})\n",
-                       INST_SIZE("mov", size),
-                       REG_SIZE(src, size),
-                       global_label, REG_SIZE(dest, 8)
-    );
-}
-void gnu_asm::mov(std::string global_label, Register src, Register dest) {
-    mov(global_label, src, dest, 8);
-}
-void gnu_asm::mov(Register src, std::string global_label, Register dest) {
-    mov(src, global_label, dest, 8);
-}
-void gnu_asm::mov(int64_t int_value, Register dest) {
-    mov(int_value, dest, 8);
-}
-void gnu_asm::mov(int64_t int_value, int64_t offset, Register dest) {
-    mov(int_value, offset, dest, 8);
-}
-void gnu_asm::mov(int64_t int_value, std::string label, Register dest) {
-    mov(int_value, label, dest, 8);
-}
-void gnu_asm::mov(int64_t offset, Register src, Register dest) {
-    mov(offset, src, dest, 8);
-}
-void gnu_asm::mov(Register src, int64_t offset, Register dest) {
-    mov(src, offset, dest, 8);
-}
-void gnu_asm::mov(Register src, Register dest) {
-    mov(src, dest, 8);
-}
-void gnu_asm::movabs(int64_t int_value, Register dest, size_t size) {
-    output.appendf("    {} $0x{:x}, {}\n",
-                       INST_SIZE("movabs", size),
-                       int_value,
-                       REG_SIZE(dest, size)
-    );
-}
-void gnu_asm::movabs(int64_t  int_value, std::string label, Register dest, size_t size) {
-    output.appendf("    {} $0x{:x}, {}({})\n",
-                       INST_SIZE("movabs", size),
-                       int_value,
-                       label,
-                       REG_SIZE(dest, 8)
-    );
-}
-void gnu_asm::movabs(int64_t int_value, int64_t offset, Register dest, size_t size) {
-    if (offset == 0) {
-        output.appendf("    {} $0x{:x}, ({})\n",
-                           INST_SIZE("movabs", size),
-                           int_value,
-                           REG_SIZE(dest, 8)
-        );
-    } else {
-        output.appendf("    {} $0x{:x}, {}({})\n",
-                           INST_SIZE("movabs", size),
-                           int_value,
-                           offset, REG_SIZE(dest, 8)
-        );
-    }
-}
-void gnu_asm::movabs(int64_t int_value, Register dest) {
-    movabs(int_value, dest, 8);
-}
-void gnu_asm::movabs(int64_t int_value, int64_t offset, Register dest) {
-    movabs(int_value, offset, dest, 8);
-}
-void gnu_asm::movabs(int64_t int_value, std::string label, Register dest) {
-    movabs(int_value, label, dest, 8);
-}
 void gnu_asm::mov_member(Register src, Variable dest) {
     Variable current = dest;
     Variable* parent = dest.parent;
     size_t off = 0;
-    Register reg = get_available_reg();
+    Register reg = get_available_int_reg();
     if (parent == nullptr)
         off = current.offset;
     while (parent != nullptr) {
@@ -734,26 +699,35 @@ void gnu_asm::mov_member(Register src, Variable dest) {
         off += current.offset;
         if (parent->kind.pointer_count == 0) {
         } else {
-            //mov(*parent->parent, reg);
+            //mov_var(*parent->parent, reg);
             mov_member(*parent, reg);
             parent->deref_count = parent->kind.pointer_count - 1;
             deref(reg, parent->deref_count);
-            //mov(current.offset, reg, reg);
-            mov(src, off, reg, dest.size);
-            free_reg(reg);
+            //mov_var(current.offset, reg, reg);
+            if (is_float_reg(src))
+                movs.append(src, off, reg, dest.size);
+            else 
+                mov.append(src, off, reg, dest.size);
+            free_int_reg(reg);
             return;
         }
         current = *current.parent;
     }
     if (dest.deref_count > 0) {
         dest.deref_count -= 1;
-        mov(-off, Rbp, reg);
+        mov.append(-off, Rbp, reg);
         deref(reg, dest.deref_count);
-        mov(src, 0, reg, dest.size);
+        if (is_float_reg(src))
+            movs.append(src, 0, reg, dest.size);
+        else 
+            mov.append(src, 0, reg, dest.size);
     } else {
-        mov(src, -off, Rbp, dest.size);
+        if (is_float_reg(src))
+            movs.append(src, -off, Rbp, dest.size);
+        else 
+            mov.append(src, -off, Rbp, dest.size);
     }
-    free_reg(reg);
+    free_int_reg(reg);
 }
 void gnu_asm::mov_member(Variable src, Register dest) {
     Variable current = src;
@@ -773,67 +747,78 @@ void gnu_asm::mov_member(Variable src, Register dest) {
         if (parent->kind.pointer_count == 0) {
         } else {
             //std::println("deref => curr {}, par {}", current.name, parent->name);
-            auto reg = get_available_reg();
+            auto reg = get_available_int_reg();
             mov_member(*parent, reg);
             parent->deref_count = parent->kind.pointer_count - 1;
             deref(reg, parent->deref_count);
 
             if (src.deref_count == -1) {
-                lea(off, reg, dest);
+                lea.append(off, reg, dest);
             } else {
-                mov(off, reg, dest, src.size);
+                mov.append(off, reg, dest, src.size);
                 if (src.deref_count > 0) {
                     deref(dest, src.deref_count);
                 }
             }
-            free_reg(reg);
+            free_int_reg(reg);
             return;
         }
         current = *current.parent;
     }
     if (src.deref_count == -1) {
-        lea(-off, Rbp, dest);
+        lea.append(-off, Rbp, dest);
     } else {
-        mov(-off, Rbp, dest, src.size);
-        if (src.deref_count > 0) {
-            deref(dest, src.deref_count);
+        if (is_float_reg(dest)) {
+            movs.append(-off, Rbp, dest, src.size);
+            if (src.deref_count > 0) {
+                deref(dest, src.deref_count);
+            }
+        } else {
+            mov.append(-off, Rbp, dest, src.size);
+            if (src.deref_count > 0) {
+                deref(dest, src.deref_count);
+            }
         }
     }
 }
-void gnu_asm::mov(Variable src, Register dest) {
+void gnu_asm::mov_var(Variable src, Register dest) {
     //std::string_view& reg_name = REG_SIZE(dest, src.size);
 
     if (src.kind.literal && src.type_info.type == Type::String_t)
-        lea(src.name, Rip, dest);
+        lea.append(src.name, Rip, dest);
         //TODO("add lea func");
         //output.appendf("    leaq {}(%rip), {}\n", src.name, reg_name);
     else if (src.kind.literal && is_int_type(src.type_info.type))
-        mov(std::any_cast<int64_t>(src.value), dest);
+        mov.append(std::any_cast<int64_t>(src.value), dest);
     else if (src.kind.literal && is_float_type(src.type_info.type)) {
-        auto reg = get_available_reg();
-        movabs(std::any_cast<int64_t>(src.value), reg);
-        mov(reg, dest);
-        free_reg(reg);
-    } else if (src.kind.global) 
-        mov(src.name, Rip, dest);
-    else if (src.type_info.type == Type::Void_t)
-        mov(0, dest);
+        auto reg = get_available_int_reg();
+        movabs.append(std::any_cast<int64_t>(src.value), reg);
+        mov.append(reg, dest);
+        free_int_reg(reg);
+    } else if (src.kind.global) {
+        if (src.deref_count == -1) {
+            lea.append(src.name, Rip, dest);
+        } else if (src.deref_count > 0) {
+            mov.append(src.name, Rip, dest);
+            deref(dest, src.deref_count);
+        } else {
+            mov.append(src.name, Rip, dest);
+        }
+    } else if (src.type_info.type == Type::Void_t)
+        mov.append(0, dest);
     else if (src.parent != nullptr) {
         mov_member(src, dest);
     } else if (src.deref_count > 0) {
-        mov(-src.offset, Rbp, dest, src.size);
+        mov.append(-src.offset, Rbp, dest, src.size);
         deref(dest, src.deref_count);
     } else if (src.deref_count == -1) {
-        lea(-src.offset, Rbp, dest);
-    } else if (is_float_type(src.type_info.type)) {
-        auto reg = get_available_reg();
-        mov(-src.offset, Rbp, reg, src.size);
-        mov(reg, dest);
-        free_reg(reg);
+        lea.append(-src.offset, Rbp, dest);
+    } else if (is_float_reg(dest)) {
+        movs.append(-src.offset, Rbp, dest, src.size);
     } else
-        mov(-src.offset, Rbp, dest, src.size);
+        mov.append(-src.offset, Rbp, dest, src.size);
 }
-void gnu_asm::mov(Register src, Variable dest) {
+void gnu_asm::mov_var(Register src, Variable dest) {
     if (dest.kind.constant) {
         TODO("can't move into a constant");
     } else if (dest.kind.literal) {
@@ -841,30 +826,36 @@ void gnu_asm::mov(Register src, Variable dest) {
     } else if (dest.type_info.type == Type::Void_t) {
         TODO("can't mov into Void");
     } else if (dest.deref_count > 0) {
-        Register reg = get_available_reg();
+        Register reg = get_available_int_reg();
         dest.deref_count -= 1;
-        mov(dest, reg);
-        mov(src, 0, reg, dest.size);
-        free_reg(reg);
+        mov_var(dest, reg);
+        mov.append(src, 0, reg, dest.size);
+        free_int_reg(reg);
     } else if (dest.kind.global) {
-        mov(src, dest.name, Rip);
+        mov.append(src, dest.name, Rip);
     } else {
         if (dest.parent != nullptr) {
             mov_member(src, dest);
         } else {
             if (dest.deref_count > 0) {
                 dest.deref_count -= 1;
-                mov(-dest.offset, Rbp, Rax);
+                mov.append(-dest.offset, Rbp, Rax);
                 deref(Rax, dest.deref_count);
-                mov(src, 0, Rax, dest.size);
+                if (is_float_reg(src))
+                    movs.append(src, 0, Rax, dest.size);
+                else 
+                    mov.append(src, 0, Rax, dest.size);
             } else {
-                mov(src, -dest.offset, Rbp, dest.size);
+                if (is_float_reg(src))
+                    movs.append(src, -dest.offset, Rbp, dest.size);
+                else 
+                    mov.append(src, -dest.offset, Rbp, dest.size);
             }
         }
     }
 
 }
-void gnu_asm::mov(Variable src, Variable dest) {
+void gnu_asm::mov_var(Variable src, Variable dest) {
     if (dest.kind.literal)
         TODO("can't mov into literals");
     if (dest.kind.constant)
@@ -877,9 +868,9 @@ void gnu_asm::mov(Variable src, Variable dest) {
         if (dest.type_info.type == Type::Struct_t && dest.kind.pointer_count == 0)
             TODO(f("can't mov int literal into var of type {}", dest.type_info.name));
         if (dest.kind.global)
-            mov(std::any_cast<int64_t>(src.value), dest.name, Rip, dest.size);
+            mov.append(std::any_cast<int64_t>(src.value), dest.name, Rip, dest.size);
         else 
-            mov(std::any_cast<int64_t>(src.value), -dest.offset, Rbp, dest.size);
+            mov.append(std::any_cast<int64_t>(src.value), -dest.offset, Rbp, dest.size);
     } else if ((src.type_info.type == Type::Struct_t && src.kind.pointer_count == 0)||(dest.type_info.type == Type::Struct_t && dest.kind.pointer_count == 0)) {
         if (src.type_info.name != dest.type_info.name) 
             TODO(f("error trying assigning different structers to each other, {} {}", src.type_info.name, dest.type_info.name));
@@ -897,83 +888,87 @@ void gnu_asm::mov(Variable src, Variable dest) {
         //       moving this to to a register and taking offset from it
 
         if (dest.kind.pointer_count > 0) {
-            auto reg1 = get_available_reg();
-            auto reg2 = get_available_reg();
+            auto reg1 = get_available_int_reg();
+            auto reg2 = get_available_int_reg();
             
             if (src_real_ptr_count != dest_real_ptr_count)
                 TODO(f("trying to move Variable {} into {}, but kind is not the same", src.name, dest.name));
             if (dest_real_ptr_count == 0) {
                 output.appendf("    cld\n");
                 dest.deref_count -= 1;
-                mov(dest, Rdi);
+                mov_var(dest, Rdi);
 
                 if (src.kind.pointer_count > 0) {
                     src.deref_count -= 1;
-                    mov(src, Rsi);
+                    mov_var(src, Rsi);
                 } else {
-                    lea(-src.offset, Rbp, Rsi);
+                    lea.append(-src.offset, Rbp, Rsi);
                 }
 
-                mov(strct.size, Rcx);
+                mov.append(strct.size, Rcx);
                 output.appendf("    rep movsb\n");
             } else if (dest_real_ptr_count > 0) {
-                mov(src, reg1);
-                mov(reg1, dest);
+                mov_var(src, reg1);
+                mov_var(reg1, dest);
             } else 
                 TODO("trying to store into a non lvalue");
-            free_reg(reg1);
-            free_reg(reg2);
+            free_int_reg(reg1);
+            free_int_reg(reg2);
         } else {
             output.appendf("    cld\n");
             src.deref_count = src.kind.pointer_count - 1;
             dest.deref_count = dest.kind.pointer_count - 1;
-            mov(src, Rsi);
-            mov(dest, Rdi);
-            mov(strct.size, Rcx);
+            mov_var(src, Rsi);
+            mov_var(dest, Rdi);
+            mov.append(strct.size, Rcx);
             output.appendf("    rep movsb\n");
         }
     } else {
-        auto reg = get_available_reg();
-        mov(src, reg);
-        mov(reg, dest);
-        
-        free_reg(reg);
+        if (is_float_type(dest.type_info.type) && dest.type_info.type != src.type_info.type) {
+            auto reg = get_available_float_reg();
+            mov_var(src, reg);
+            cast_float_size(reg, src.size, dest.size);
+            mov_var(reg, dest);
+
+            free_float_reg(reg);
+        } else {
+            auto reg = get_available_int_reg();
+            mov_var(src, reg);
+            mov_var(reg, dest);
+            free_int_reg(reg);
+        }
     }
 }
 void gnu_asm::deref(Register reg, int64_t deref_count) {
     if (deref_count == -1) {
-        lea(reg, reg);
+        lea.append(reg, reg);
         return;
     } 
     while (deref_count > 0) {
-        mov(0, reg, reg);
+        mov.append(0, reg, reg);
         deref_count -= 1;
     }
 }
-void gnu_asm::lea(Register src, Register dest) {
-    output.appendf("    lea {}, {}\n", src._64, dest._64);
+void gnu_asm::cast_float_size(Register reg, size_t orig_size, size_t new_size) {
+    if (orig_size == new_size) return;
+    if (orig_size > new_size)
+        output.appendf("    cvtsd2ss {}, {}\n", reg._64, reg._64);
+    else if (orig_size < new_size)
+        output.appendf("    cvtss2sd {}, {}\n", reg._64, reg._64);
 }
-void gnu_asm::lea(std::string label, Register src, Register dest) {
-    output.appendf("    lea {}({}), {}\n", label, src._64, dest._64);
-
-}
-void gnu_asm::lea(int64_t offset, Register src, Register dest) {
-    output.appendf("    lea {}({}), {}\n", offset, src._64, dest._64);
-}
-
 void gnu_asm::function_prologue() {
-    output.appendf("    pushq %rbp\n");
-    output.appendf("    movq %rsp, %rbp\n");
-    output.appendf("    pushq %rbx\n");
-    output.appendf("    pushq %r13\n");
-    output.appendf("    pushq %r14\n");
-    output.appendf("    pushq %r15\n");
+    output.append("    pushq %rbp\n");
+    output.append("    movq %rsp, %rbp\n");
+    output.append("    pushq %rbx\n");
+    output.append("    pushq %r13\n");
+    output.append("    pushq %r14\n");
+    output.append("    pushq %r15\n");
 }
 void gnu_asm::function_epilogue() {
-    output.appendf("    popq %r15\n");
-    output.appendf("    popq %r14\n");
-    output.appendf("    popq %r13\n");
-    output.appendf("    popq %rbx\n");
-    output.appendf("    movq %rbp, %rsp\n");
-    output.appendf("    popq %rbp\n");
+    output.append("    popq %r15\n");
+    output.append("    popq %r14\n");
+    output.append("    popq %r13\n");
+    output.append("    popq %rbx\n");
+    output.append("    movq %rbp, %rsp\n");
+    output.append("    popq %rbp\n");
 }

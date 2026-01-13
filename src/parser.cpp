@@ -222,7 +222,7 @@ Struct& Parser::get_struct_from_name(std::string& name) {
     }
     TODO("struct not found");
 }
-Variable Parser::initStruct(std::string type_name, std::string struct_name, bool member) {
+Variable Parser::initStruct(std::string type_name, std::string struct_name, bool member, bool save_defaults) {
     //default
     int strct_offset = 0;
     Struct* strct = nullptr;
@@ -250,13 +250,13 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
         // I think this should be removed
         if (var.type_info.type == Type::Struct_t) {
             size_t temp_offset = current_offset;
-            std::vector<Instruction> body = m_currentFunc->body;
-            
-            auto strct_ = initStruct(var.type_info.name, var.name, true);
-
+            Variable strct_;
             if (var.kind.pointer_count > 0) {
-                m_currentFunc->body = body;
+                strct_ = initStruct(var.type_info.name, var.name, true, false);
+            } else {
+                strct_ = initStruct(var.type_info.name, var.name, true);
             }
+
 
             current_offset = temp_offset;
             strct_.parent = struct_var;
@@ -269,7 +269,7 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
         } else
             struct_var->members.push_back(var);
 
-        if (strct->defaults.contains(i)) {
+        if (strct->defaults.contains(i) && save_defaults) {
             auto def = strct->defaults.at(i);
             if (var.type_info.type == Type::String_t) {
                 m_currentFunc->body.push_back({Op::INIT_STRING, {var}});
@@ -379,7 +379,8 @@ Variable Parser::parseConstant() {
     auto [rhs, lvalue] = parseExpression();
     var.type_info = rhs.type_info;
     var.size    = rhs.size;
-    var.value   = rhs.value;
+    if (var.type_info.type != Type::Struct_t)
+        var.value   = rhs.value;
     var.members = rhs.members;
     var.parent  = rhs.parent;
     var.kind    = rhs.kind;
@@ -1093,7 +1094,8 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     // saving offset to make struct literal temporary
                     auto save = current_offset;
                     var = initStruct(name, "struct literal");
-                    for (size_t i; i < var.members.size() && i < v.size(); i++) {
+                    for (size_t i = 0; i < var.members.size() && i < v.size(); i++) {
+                        var.members[i].value = v[i].value;
                         m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
                     }
                     current_offset = save;

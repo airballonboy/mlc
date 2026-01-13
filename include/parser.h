@@ -17,7 +17,7 @@ public:
     void     parseExtern();
     void     parseStatement();
     void     parseBlock();
-    Variable initStruct(std::string type_name, std::string struct_name, bool member = false);
+    Variable initStruct(std::string type_name, std::string struct_name, bool member = false, bool save_defaults = true);
     ExprResult parsePrimaryExpression(Variable this_ptr = {type_infos.at("void")}, Variable this_ = {type_infos.at("void")}, std::string func_prefix = {});
     ExprResult parseDotExpression(Variable this_ptr = {type_infos.at("void")}, Variable this_ = {type_infos.at("void")}, std::string func_prefix = {});
     ExprResult parseUnaryExpression();
