@@ -35,6 +35,7 @@ public:
     void mov_member(Variable src, Register dest);
     void mov_member(Register src, Variable dest);
     void deref(Register, int64_t deref_count);
+    void cast_float_size(Register reg, size_t orig_size, size_t new_size);
 
     Struct& get_struct_from_name(std::string& name);
 private:

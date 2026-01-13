@@ -4,9 +4,12 @@ func printfl(double f) {
     c_std::printf("%.2f\n", f);
 }
 
+struct Vec2 {
+    float x = 0.0;
+    float y = 0.0;
+}
 func main() {
-    double x = 10.0;
-    double y = 0.6;
-    double z = x * y;
+    Vec2 v = Vec2{0.2, 0.3};
+    double z = v.x * v.y;
     printfl(z);
 }

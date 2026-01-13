@@ -356,6 +356,9 @@ void gnu_asm::compileFunction(Func func) {
                     mov_var(rhs, reg2);
 
                     size_t size = std::max<size_t>(result.size, 4);
+                    cast_float_size(reg1, lhs.size, size);
+                    cast_float_size(reg2, rhs.size, size);
+
                     adds.append(reg2, reg1, size);
                     mov_var(reg1, result);
                     free_float_reg(reg1);
@@ -390,6 +393,9 @@ void gnu_asm::compileFunction(Func func) {
                     mov_var(rhs, reg2);
 
                     size_t size = std::max<size_t>(result.size, 4);
+                    cast_float_size(reg1, lhs.size, size);
+                    cast_float_size(reg2, rhs.size, size);
+
                     subs.append(reg2, reg1, size);
                     mov_var(reg1, result);
                     free_float_reg(reg1);
@@ -418,6 +424,9 @@ void gnu_asm::compileFunction(Func func) {
                     mov_var(rhs, reg2);
 
                     size_t size = std::max<size_t>(result.size, 4);
+                    cast_float_size(reg1, lhs.size, size);
+                    cast_float_size(reg2, rhs.size, size);
+
                     muls.append(reg2, reg1, size);
                     mov_var(reg1, result);
                     free_float_reg(reg1);
@@ -676,7 +685,10 @@ void gnu_asm::mov_member(Register src, Variable dest) {
             parent->deref_count = parent->kind.pointer_count - 1;
             deref(reg, parent->deref_count);
             //mov_var(current.offset, reg, reg);
-            mov.append(src, off, reg, dest.size);
+            if (is_float_reg(src))
+                movs.append(src, off, reg, dest.size);
+            else 
+                mov.append(src, off, reg, dest.size);
             free_int_reg(reg);
             return;
         }
@@ -686,9 +698,15 @@ void gnu_asm::mov_member(Register src, Variable dest) {
         dest.deref_count -= 1;
         mov.append(-off, Rbp, reg);
         deref(reg, dest.deref_count);
-        mov.append(src, 0, reg, dest.size);
+        if (is_float_reg(src))
+            movs.append(src, 0, reg, dest.size);
+        else 
+            mov.append(src, 0, reg, dest.size);
     } else {
-        mov.append(src, -off, Rbp, dest.size);
+        if (is_float_reg(src))
+            movs.append(src, -off, Rbp, dest.size);
+        else 
+            mov.append(src, -off, Rbp, dest.size);
     }
     free_int_reg(reg);
 }
@@ -731,9 +749,16 @@ void gnu_asm::mov_member(Variable src, Register dest) {
     if (src.deref_count == -1) {
         lea.append(-off, Rbp, dest);
     } else {
-        mov.append(-off, Rbp, dest, src.size);
-        if (src.deref_count > 0) {
-            deref(dest, src.deref_count);
+        if (is_float_reg(dest)) {
+            movs.append(-off, Rbp, dest, src.size);
+            if (src.deref_count > 0) {
+                deref(dest, src.deref_count);
+            }
+        } else {
+            mov.append(-off, Rbp, dest, src.size);
+            if (src.deref_count > 0) {
+                deref(dest, src.deref_count);
+            }
         }
     }
 }
@@ -880,11 +905,19 @@ void gnu_asm::mov_var(Variable src, Variable dest) {
             output.appendf("    rep movsb\n");
         }
     } else {
-        auto reg = get_available_int_reg();
-        mov_var(src, reg);
-        mov_var(reg, dest);
-        
-        free_int_reg(reg);
+        if (is_float_type(dest.type_info.type) && dest.type_info.type != src.type_info.type) {
+            auto reg = get_available_float_reg();
+            mov_var(src, reg);
+            cast_float_size(reg, src.size, dest.size);
+            mov_var(reg, dest);
+
+            free_float_reg(reg);
+        } else {
+            auto reg = get_available_int_reg();
+            mov_var(src, reg);
+            mov_var(reg, dest);
+            free_int_reg(reg);
+        }
     }
 }
 void gnu_asm::deref(Register reg, int64_t deref_count) {
@@ -896,6 +929,13 @@ void gnu_asm::deref(Register reg, int64_t deref_count) {
         mov.append(0, reg, reg);
         deref_count -= 1;
     }
+}
+void gnu_asm::cast_float_size(Register reg, size_t orig_size, size_t new_size) {
+    if (orig_size == new_size) return;
+    if (orig_size > new_size)
+        output.appendf("    cvtsd2ss {}, {}\n", reg._64, reg._64);
+    else if (orig_size < new_size)
+        output.appendf("    cvtss2sd {}, {}\n", reg._64, reg._64);
 }
 void gnu_asm::function_prologue() {
     output.append("    pushq %rbp\n");
