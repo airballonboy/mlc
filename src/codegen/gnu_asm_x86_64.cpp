@@ -247,10 +247,16 @@ void gnu_asm::compileFunction(Func func) {
             mov_var(arg_register[i], func.arguments[j]);       
             i++;
             j++;
+#ifdef WIN32
+            f++;
+#endif
         } else if (f < std::size(arg_register_float)) {
             mov_var(arg_register_float[f], func.arguments[j]);       
+            i++;
             f++;
+#ifdef WIN32
             j++;
+#endif
         }
     }
 
@@ -618,7 +624,7 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
     if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
     size_t float_count = 0;
 
-    for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register) && float_count < std::size(arg_register_float); i++, j++) {
+    for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register) && float_count < std::size(arg_register_float); i++, j++, float_count++) {
         if (args[i].type_info.type == Type::Struct_t) {
             if (args[i].deref_count > 0) {
                 if (args[i].kind.pointer_count == args[i].deref_count)
@@ -644,17 +650,30 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
                 args[i].deref_count = -1;
                 mov_var(args[i], arg_register[j]);
             }
-        } else {
+        }
+        else {
             if (is_float_type(args[i].type_info.type)) {
-                mov_var(args[i], arg_register_float[float_count++]);
+                mov_var(args[i], arg_register_float[float_count]);
+#ifdef WIN32
+                if (func.c_variadic)
+                    mov_var(args[i], arg_register[j]);
+#else
                 j--;
-            } else
+#endif
+            }
+            else {
+#ifndef WIN32 
+                float_count--;
+#endif
                 mov_var(args[i], arg_register[j]);
+            }
         }
     }
 
+#ifndef WIN32 
     if (func.c_variadic)
         mov.append(float_count, Rax);
+#endif
     output.appendf("    call {}\n", func.name);
 }
 

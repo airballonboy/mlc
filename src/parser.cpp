@@ -1094,7 +1094,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     // saving offset to make struct literal temporary
                     auto save = current_offset;
                     var = initStruct(name, "struct literal");
-                    for (size_t i; i < var.members.size() && i < v.size(); i++) {
+                    for (size_t i = 0; i < var.members.size() && i < v.size(); i++) {
                         var.members[i].value = v[i].value;
                         m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
                     }

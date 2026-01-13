@@ -4,6 +4,7 @@
 #include <typeindex>
 #include <vector>
 #include <any>
+#include <variant>
 #include <unordered_map>
 
 enum class TokenType {
