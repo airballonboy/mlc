@@ -8,13 +8,13 @@
 #include <cassert>
 #include <vector>
 
-enum class Platform {
+enum class BuildTarget {
     ir,
     gnu_asm_86_64,
 };
-inline std::unordered_map<std::string, Platform> PLATFORMS = {
-    {"gnu_x64_64", Platform::gnu_asm_86_64},
-    {"ir",         Platform::ir},
+inline std::unordered_map<std::string, BuildTarget> PLATFORMS = {
+    {"gnu_x64_64", BuildTarget::gnu_asm_86_64},
+    {"ir",         BuildTarget::ir},
 };
 
 

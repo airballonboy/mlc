@@ -381,11 +381,17 @@ struct Struct {
 };
 typedef std::vector<Struct> StructStorage;
 
+enum class Platform {
+    Linux,
+    Windows,
+};
+
 struct Program {
     ModuleStorage   module_storage;
     FunctionStorage func_storage;
     VariableStorage var_storage;
     StructStorage   struct_storage;
+    Platform platform;
 };
 
 namespace fs = std::filesystem;
