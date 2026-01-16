@@ -21,8 +21,7 @@
         exit(1); \
     } while (0)
 
-int stringLiteralCount = 0;
-int stringCount = 0;
+int64_t literal_count = 0;
 size_t current_offset = 0;
 size_t max_locals_offset = 8;
 size_t statement_count = 0;
@@ -315,19 +314,19 @@ void Parser::parseStructDeclaration() {
             size_t temp_offset = current_offset;
             size_t func_index = m_program.func_storage.size();
             parseFunction(true, current_struct);
-            auto& member_func = m_program.func_storage[func_index];
-            member_func.name = struct_name + "___" + member_func.name;
-            Variable this_pointer = {
-                .type_info  = type_infos.at(struct_name),
-                .name       = "this", .offset = 8,
-                .size       = 8,
-                .members    = current_struct.var_storage,
-                .kind       = {
-                    .pointer_count = 1
-                },
-            };
-            member_func.arguments.emplace(member_func.arguments.begin(), this_pointer);
-            member_func.arguments_count++;
+            //auto& member_func = m_program.func_storage[func_index];
+            //member_func.name = struct_name + "___" + member_func.name;
+            //Variable this_pointer = {
+            //    .type_info  = type_infos.at(struct_name),
+            //    .name       = "this", .offset = 8,
+            //    .size       = 8,
+            //    .members    = current_struct.var_storage,
+            //    .kind       = {
+            //        .pointer_count = 1
+            //    },
+            //};
+            //member_func.arguments.emplace(member_func.arguments.begin(), this_pointer);
+            //member_func.arguments_count++;
 
             m_currentLexar->getNext();
             current_offset = temp_offset;
@@ -584,15 +583,17 @@ void Parser::parseModulePrefix() {
 Func Parser::parseFunction(bool member, Struct parent) {
     tkn = &m_currentLexar->currentToken;
     current_offset = 0;
-    Func func;
+    Func func = {0};
     m_currentFunc = &func;
+    if (member)
+        func.name = parent.name + "___";
     m_currentLexar->getAndExpectNext(TokenType::ID);
     current_module_prefix = "";
     if (m_currentLexar->peek()->type == TokenType::ColonColon) {
         parseModulePrefix();
         m_currentLexar->getAndExpectNext(TokenType::ID);
     }
-    func.name = current_module_prefix + m_currentLexar->currentToken->string_value;
+    func.name += current_module_prefix + m_currentLexar->currentToken->string_value;
     current_module_prefix = "";
 
     if (member) {
@@ -606,6 +607,8 @@ Func Parser::parseFunction(bool member, Struct parent) {
             }
         };
         func.local_variables.push_back(this_pointer);
+        func.arguments.push_back(this_pointer);
+        func.arguments_count++;
         current_offset += 8;
     }
     m_currentLexar->getAndExpectNext(TokenType::OParen);
@@ -645,18 +648,18 @@ Func Parser::parseFunction(bool member, Struct parent) {
     }
                 
     if (func.return_type.size > 16 && func.return_kind.pointer_count == 0) {
+        current_offset += 8;
         Variable ret = {
             .type_info = TypeInfo(func.return_type),
             .name = "return_register",
-            .offset = 8,
+            .offset = current_offset,
             .size = 8,
             .kind = {
                 .pointer_count = 1
             }
         };
-        current_offset += 8;
-        func.arguments.emplace(func.arguments.begin(), ret);
         func.arguments_count++;
+        func.arguments.emplace(func.arguments.begin(), ret);
     }
     for (int i = args_temp_storage.size()-1;i >= 0; i--) {
         auto var = args_temp_storage[i];
@@ -960,20 +963,18 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
 
     if ((*tkn)->type == TokenType::DQoute) {
         m_currentLexar->getAndExpectNext(TokenType::StringLit);
-        if ((*tkn)->type == TokenType::StringLit) {
-            var = {
-                .type_info = type_infos.at("string"),
-                .name = f("string_literal_{}", stringLiteralCount++),
-                .value = (*tkn)->string_value,
-                .size = 8,
-                .kind = {
-                    .constant = true,
-                    .literal = true,
-                },
-            };
-            m_program.var_storage.push_back(var);
-            m_currentLexar->getAndExpectNext(TokenType::DQoute);
-        }
+        var = {
+            .type_info = type_infos.at("string"),
+            .name = f("literal_{}", literal_count++),
+            .value = (*tkn)->string_value,
+            .size = 8,
+            .kind = {
+                .constant = true,
+                .literal = true,
+            },
+        };
+        m_program.var_storage.push_back(var);
+        m_currentLexar->getAndExpectNext(TokenType::DQoute);
         return {var, ret_lvalue};
     }
 
@@ -993,17 +994,17 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         return {var, ret_lvalue};
     }
     if ((*tkn)->type == TokenType::DoubleLit) {
-        int64_t value = std::bit_cast<int64_t>((*tkn)->double_value);
         var = {
             .type_info = type_infos.at("double"),
-            .name  = "Double_Lit",
-            .value = value,
+            .name  = f("literal_{}", literal_count++),
+            .value = (*tkn)->double_value,
             .size  = 8,
             .kind  = {
                 .constant = true,
                 .literal = true,
             },
         };
+        m_program.var_storage.push_back(var);
         return {var, ret_lvalue};
     }
     
@@ -1108,7 +1109,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     m_currentLexar->getAndExpectNext(TokenType::CCurly);
                     // saving offset to make struct literal temporary
                     auto save = current_offset;
-                    var = initStruct(name, "struct literal", false, false);
+                    var = initStruct(name, "struct literal");
                     for (size_t i = 0; i < var.members.size() && i < v.size(); i++) {
                         var.members[i].value = v[i].value;
                         m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
@@ -1338,12 +1339,12 @@ void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address
     std::string loc = std::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
-    if (this_ptr.type_info.type != Type::Void_t) args.push_back(this_ptr);
     if (func.return_type.size > 16) {
         return_address.deref_count -= 1;
         args.push_back(return_address);
         return_address.deref_count += 1;
     }
+    if (this_ptr.type_info.type != Type::Void_t) args.push_back(this_ptr);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
         m_currentLexar->getNext();
         args.push_back(std::get<0>(parseExpression()));
@@ -1353,11 +1354,17 @@ void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address
     }
     m_currentLexar->getAndExpectNext(TokenType::CParen);
     if (!func.variadic && !func.c_variadic) {
-        if (func.arguments.size() != args.size()) 
+        if (func.arguments_count != args.size()) {
+            for (auto& arg : args)
+                std::println("{} {}", arg.name, arg.type_info.name);
+            std::println("----------------------");
+            for (auto& arg : func.arguments)
+                std::println("{} {}", arg.name, arg.type_info.name);
             TODO(f("\n"
                    "{} incorrect amount of function arguments got {} but expected {}",
-                   loc, args.size(), func.arguments.size())
+                   loc, args.size(), func.arguments_count)
                  );
+        }
         // TODO: check every argument
     }
     m_currentFunc->body.push_back({Op::CALL, {func, args, return_address}});

@@ -184,8 +184,14 @@ void gnu_asm::compileProgram() {
 
     output.append(".section .rodata\n");
     for (const auto& var : m_program->var_storage) {
-        if (var.kind.literal && var.type_info.type == Type::String_t)
-            output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
+        if (var.kind.literal && var.type_info.type == Type::String_t) {
+            output.appendf("{}: .string \"{}\"\n", var.name, std::any_cast<std::string>(var.value));
+            continue;
+        }
+        if (var.kind.literal && var.type_info.type == Type::Double_t) {
+            output.appendf("{}: .double {}\n", var.name, std::any_cast<double>(var.value));
+            continue;
+        }
         if (var.kind.constant && var.kind.global) {
             output.appendf("{}:\n", var.name);
             compileConstant(var);
@@ -803,7 +809,7 @@ void gnu_asm::mov_var(Variable src, Register dest) {
         mov.append(std::any_cast<int64_t>(src.value), dest);
     else if (src.kind.literal && is_float_type(src.type_info.type)) {
         auto reg = get_available_int_reg();
-        movabs.append(std::any_cast<int64_t>(src.value), reg);
+        mov.append(src.name, Rip, reg);
         mov.append(reg, dest);
         free_int_reg(reg);
     } else if (src.kind.global) {

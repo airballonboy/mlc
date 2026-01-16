@@ -48,8 +48,6 @@ func main() {
     vec.print();
 
     v.type_info().print();
-    Vec3 vec2;
-    vec2.print();
 
     v.init();
     v.print();
