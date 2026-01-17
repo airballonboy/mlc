@@ -74,5 +74,5 @@ jobs:
       if: matrix.os == 'windows-latest'
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       shell: powershell
-      run: .\mlc-test
+      run: .\Release\mlc-test.exe
 
