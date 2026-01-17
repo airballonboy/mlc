@@ -29,7 +29,11 @@ int main () {
     for (auto& [test, output] : tests_and_outputs) {
         string output_file = test;
         output_file.erase(output_file.size() - 6);
+#ifdef WIN32
+        auto [build_status, _] = cmd_with_output("{}\\Release\\mlc {} -o {}", OUTPUT_PATH, test, output_file);
+#else
         auto [build_status, _] = cmd_with_output("{}mlc {} -o {}", OUTPUT_PATH, test, output_file);
+#endif
         if (build_status != 0) number_of_faild_builds += 1;
         
         auto [test_status, test_output] = cmd_with_output("{}", output_file);
