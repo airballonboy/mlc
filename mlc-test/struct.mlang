@@ -1,0 +1,22 @@
+#include <c_std.mlang>
+struct Vec3 {
+    int x;    
+    int y;    
+    int z;    
+    func print() {
+        c_std::printf("{%d, %d, %d}\n", this.x, this.y, this.z);
+    }
+}
+struct State {
+    Vec3 pos;
+    int speed;
+}
+func main() {
+    State s;
+    s.pos.x = 12;
+    s.pos.y = 43;
+    s.pos.z = 54;
+    s.speed = 422;
+    s.pos.print();
+    c_std::printf("%d\n", s.speed);
+}

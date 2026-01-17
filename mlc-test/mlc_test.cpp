@@ -13,6 +13,7 @@ using std::println;
 vector<tuple<string, string>> tests_and_outputs = {
     {MTEST_PATH"function_return.mlang", "12\n"},
     {MTEST_PATH"binary_operations.mlang", "18\n6\n72\n2\n"},
+    {MTEST_PATH"struct.mlang", "{12, 43, 54}\n422\n"},
 };
 std::string remove_substr(const string str, const string sub) {
     size_t pos = str.find(sub);
@@ -34,15 +35,16 @@ int main () {
 #else
         auto [build_status, _] = cmd_with_output("{}mlc {} -o {}", OUTPUT_PATH, test, output_file);
 #endif
-        if (build_status != 0) number_of_faild_builds += 1;
         
         auto [test_status, test_output] = cmd_with_output("{}", output_file);
         bool test_resault = (test_status == 0) && (test_output == output);
-        if (!test_resault) number_of_faild_tests += 1;
         string pretty_test_name = remove_substr(test, "mlc-test/");
         print("{:30} | ", pretty_test_name);
         print("{:^12} | ", build_status == 0 ? "[OK]" : "[FAIL]");
         print("{:^12}\n", test_resault ? "[OK]" : "[FAIL]");
+
+        if (build_status != 0) number_of_faild_builds += 1;
+        if (!test_resault)     number_of_faild_tests  += 1;
     }
     println("-------------------------------------------------------------");
     println("Number of Builds failed {}", number_of_faild_builds);
