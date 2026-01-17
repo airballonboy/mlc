@@ -1,0 +1,9 @@
+#include <c_std.mlang>
+
+func function () -> int {
+    return 12;
+}
+
+func main() {
+    c_std::printf("%d\n", function());
+}

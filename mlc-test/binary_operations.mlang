@@ -1,0 +1,8 @@
+#include <c_std.mlang>
+
+func main() {
+    c_std::printf("%hhd\n", 12 + 6);
+    c_std::printf("%hhd\n", 12 - 6);
+    c_std::printf("%hhd\n", 12 * 6);
+    c_std::printf("%hhd\n", 12 / 6);
+}
