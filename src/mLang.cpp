@@ -154,7 +154,11 @@ int main(int argc, char* argv[])
                     link_flags += " -l" + (std::string)lib;
             }
 
-            cmd(CC" -g -x assembler {}.s -o {}{} {}", (build_path/input_no_extension).string(), output_path.string(), EXECUTABLE_EXTENSION, link_flags);
+            int ret = cmd(CC" -g -x assembler {}.s -o {}{} {}", (build_path/input_no_extension).string(), output_path.string(), EXECUTABLE_EXTENSION, link_flags);
+            if (ret != 0) {
+                mlog::error("Program aborted");
+                exit(ret);
+            }
         }break;
     }
 
