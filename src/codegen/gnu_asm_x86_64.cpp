@@ -669,8 +669,7 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
             if (is_float_type(args[i].type_info.type)) {
                 mov_var(args[i], arg_register_float[float_count]);
                 cast_float_size(arg_register_float[float_count], args[i].size, temp_float_size);
-                if (m_program->platform == Platform::Windows) {
-                    if (func.c_variadic)
+                if (m_program->platform == Platform::Windows && func.c_variadic)
                         mov_var(args[i], arg_register[j]);
                 } else {
                     j--;
@@ -680,6 +679,12 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
                     float_count--;
                 }
                 mov_var(args[i], arg_register[j]);
+                if (func.c_variadic) {
+                    if (args[i].size == 1)
+                        output.appendf("    movsbl {}, {}\n", arg_register[j]._8, arg_register[j]._32);
+                    if (args[i].size == 2)
+                        output.appendf("    movswl {}, {}\n", arg_register[j]._16, arg_register[j]._32);
+                }
             }
         }
     }
