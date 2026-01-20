@@ -619,7 +619,7 @@ void gnu_asm::compileFunction(Func func) {
         }
     }
     if (!returned) {
-        mov_var({.type_info = type_infos.at("int8"), .name = "Int_lit", .value = (int64_t)0, .size = 1, .kind = {.literal = true}}, Rax);
+        mov.append(0, Rax, 8);
         function_epilogue();
         output.appendf("    ret\n");
     }
@@ -669,7 +669,8 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
             if (is_float_type(args[i].type_info.type)) {
                 mov_var(args[i], arg_register_float[float_count]);
                 cast_float_size(arg_register_float[float_count], args[i].size, temp_float_size);
-                if (m_program->platform == Platform::Windows && func.c_variadic)
+                if (m_program->platform == Platform::Windows) {
+                    if (func.c_variadic)
                         mov_var(args[i], arg_register[j]);
                 } else {
                     j--;
@@ -689,9 +690,8 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
         }
     }
 
-    if (m_program->platform != Platform::Windows) {
-        if (func.c_variadic)
-            mov.append(float_count, Rax);
+    if (m_program->platform != Platform::Windows && func.c_variadic) {
+        mov.append(float_count, Rax);
     }
     output.appendf("    call {}\n", func.name);
 }
