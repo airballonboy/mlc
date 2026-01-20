@@ -98,7 +98,8 @@ int main(int argc, char* argv[])
     input_no_extension = inputFilePath.stem();
     input_path = inputFilePath.parent_path();
     build_path = input_path/".build";
-    output_path = build_path/"output";
+    if (!output_flag.exists)
+        output_path = build_path/"output";
 
     ctx.includePaths.push_back(".");
     ctx.includePaths.push_back(MSTD_PATH);

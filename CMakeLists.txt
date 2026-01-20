@@ -8,26 +8,34 @@ option(PRODUCTION_BUILD "Make this a production build" OFF)
 
 project(mlc)
 
-file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS
+file(GLOB_RECURSE MLC_SOURCES CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
+file(GLOB_RECURSE MLC_TEST_SOURCES CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/mlc-test/*.cpp"
+)
 
-add_executable("${CMAKE_PROJECT_NAME}" ${MY_SOURCES})
+add_executable("mlc" ${MLC_SOURCES})
+add_executable("mlc-test" ${MLC_TEST_SOURCES})
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 #set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 23)
 
-target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC PROJECT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
-target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC MSTD_PATH="${CMAKE_CURRENT_SOURCE_DIR}/mlang-std/")
+target_compile_definitions("mlc" PUBLIC PROJECT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
+target_compile_definitions("mlc" PUBLIC MSTD_PATH="${CMAKE_CURRENT_SOURCE_DIR}/mlang-std/")
+target_compile_definitions("mlc" PUBLIC OUTPUT_PATH="${CMAKE_BINARY_DIR}/")
+target_compile_definitions("mlc-test" PUBLIC OUTPUT_PATH="${CMAKE_BINARY_DIR}/")
+target_compile_definitions("mlc-test" PUBLIC MTEST_PATH="${CMAKE_CURRENT_SOURCE_DIR}/mlc-test/")
 
 if(MSVC) # If using the VS compiler...
 
-    target_compile_definitions("${CMAKE_PROJECT_NAME}"
-                             PUBLIC _CRT_SECURE_NO_WARNINGS)
+    target_compile_definitions("mlc" PUBLIC _CRT_SECURE_NO_WARNINGS)
+    target_compile_definitions("mlc-test" PUBLIC _CRT_SECURE_NO_WARNINGS)
 
-    target_compile_features("${CMAKE_PROJECT_NAME}" PRIVATE cxx_std_23)
+    target_compile_features("mlc" PRIVATE cxx_std_23)
+    target_compile_features("mlc-test" PRIVATE cxx_std_23)
 
     # this is for my version of msvc you can change the path if you need
     set(CMAKE_AR 'C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.43.34808/bin/Hostx64/x64/lib.exe'
@@ -47,7 +55,10 @@ else()
 endif()
 
 
-target_include_directories("${CMAKE_PROJECT_NAME}"
+target_include_directories("mlc"
+                           PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+)
+target_include_directories("mlc-test"
                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/"
 )
 

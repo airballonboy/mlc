@@ -1,0 +1,40 @@
+#include <c_std.mlang>
+
+struct Color {
+    char r;
+    char g;
+    char b;
+    char a;
+}
+func Color_ret() -> Color {
+    return Color{0xff, 0x18, 0x18, 0xff};
+}
+struct Vec3 {
+    int x;
+    int y;
+    int z;
+}
+func Vec3_ret() -> Vec3 {
+    return Vec3{120, 120, 435};
+}
+struct Vec4 {
+    int64 x;
+    int64 y;
+    int64 w;
+    int64 h;
+}
+func Vec4_ret() -> Vec4 {
+    return Vec4{505, 123, 533, 476};
+}
+
+
+func main() {
+    Color c = Color_ret();
+    Vec3 v3 = Vec3_ret();
+    Vec4 v4 = Vec4_ret();
+
+    c_std::printf("0x%hhX, 0x%hhX, 0x%hhX, 0x%hhX\n", c.r, c.g, c.b, c.a);
+    c_std::printf("%d, %d, %d\n", v3.x, v3.y, v3.z);
+    c_std::printf("%ld, %ld, %ld, %ld\n", v4.x, v4.y, v4.w, v4.h);
+
+}

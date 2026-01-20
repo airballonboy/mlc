@@ -61,3 +61,37 @@ inline int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
     #endif
 
 }
+template<typename... _Args>
+inline std::tuple<int, std::string> cmd_with_output(std::format_string<_Args...> __fmt, _Args&&... __args) {
+    int status = 0;
+    std::string output{};
+    std::array<char, 4096> buffer = {};
+    std::string command = std::format(__fmt, std::forward<_Args>(__args)...);
+#ifdef _WIN32
+    FILE* pipe = _popen(command.c_str(), "r");
+    if (!pipe) {
+        std::println(" _popen() failed");
+        std::exit(1);
+    }
+
+    while (fgets(buffer.data(), (int)buffer.size(), pipe)) {
+        output += buffer.data();
+    }
+
+    status = _pclose(pipe);
+#else
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        std::println("popen() failed");
+        exit(1);
+    }
+
+    while (fgets(buffer.data(), buffer.size(), pipe)) {
+        output += buffer.data();
+    }
+
+    status = pclose(pipe);
+    status = WEXITSTATUS(status);  // POSIX-style exit status extraction
+#endif
+    return {status, output};
+}
