@@ -48,7 +48,7 @@ Flag<std::vector<std::string>> include_flag  ("-I"            , "[-I include_dir
 int main(int argc, char* argv[])
 {
     bool run = false;
-    Platform platform = Platform::gnu_asm_86_64;
+    BuildTarget platform = BuildTarget::gnu_asm_86_64;
     programName = shift_args(&argc, &argv);
     auto args = FLAG_BASE::parse_flags(argc, argv);
 
@@ -128,14 +128,19 @@ int main(int argc, char* argv[])
     Parser parser(&lexar);
 
     auto prog = parser.parse();
+#ifdef WIN32
+    prog->platform = Platform::Windows;
+#else
+    prog->platform = Platform::Linux;
+#endif
 
     switch (platform) {
-        case Platform::ir: {
+        case BuildTarget::ir: {
             ir compiler_ir(prog);
             compiler_ir.compileProgram();
         }break;
         default:
-        case Platform::gnu_asm_86_64: {
+        case BuildTarget::gnu_asm_86_64: {
             gnu_asm compiler(prog);
             compiler.compileProgram();
 

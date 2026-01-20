@@ -2,17 +2,21 @@
 #include "codegen/instruction.h"
 #include "codegen/base.h"
 #include "types.h"
+#include <array>
 #include <unordered_set>
 
 class gnu_asm : public BaseCodegenerator {
 public:
 
-    gnu_asm(Program* prog) : BaseCodegenerator(prog) {}
+    gnu_asm(Program* prog);
 
     void call_func(Func func_name, VariableStorage args);
     void compileProgram() override;
     void compileFunction(Func func) override;
     void compileConstant(Variable var);
+
+    std::vector<Register> arg_register;
+    std::vector<Register> arg_register_float;
 
     AsmInstruction movabs = AsmInstruction("movabs", output);
     AsmInstruction lea    = AsmInstruction("lea", output);
@@ -27,7 +31,6 @@ public:
     AsmInstruction subs   = AsmInstruction("subs", output, {"d", "s", "s", "s"});
     AsmInstruction muls   = AsmInstruction("muls", output, {"d", "s", "s", "s"});
     AsmInstruction divs   = AsmInstruction("divs", output, {"d", "s", "s", "s"});
-
 
     void mov_var(Variable src   , Register dest);
     void mov_var(Register src   , Variable dest);

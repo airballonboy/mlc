@@ -1,6 +1,7 @@
 #include "codegen/gnu_asm_x86_64.h"
 #include "context.h"
 #include "tools/logger.h"
+#include "tools/utils.h"
 #include "types.h"
 #include "tools/format.h"
 #include <any>
@@ -137,23 +138,25 @@ Func get_func_from_program(Program prog, std::string name) {
 
 
 #define REG_SIZE(REG, SIZE)   (SIZE) == 8 ? (REG)._64 : (SIZE) == 4 ? (REG)._32 : (SIZE) == 2 ? (REG)._16 : (REG)._8 
+gnu_asm::gnu_asm(Program *prog) : BaseCodegenerator(prog) {
+    if (m_program->platform == Platform::Windows) {
+        arg_register = {
+            Rcx, Rdx, R8, R9
+        };
+        arg_register_float = {
+            Xmm0, Xmm1, Xmm2, Xmm3
+        };
+    } else if (m_program->platform == Platform::Linux) {
+        arg_register = {
+            Rdi, Rsi, Rdx, Rcx, R8, R9
+        };
 
-#ifdef WIN32
-static const Register arg_register[] = {
-    Rcx, Rdx, R8, R9
-};
-static const Register arg_register_float[] = {
-    Xmm0, Xmm1, Xmm2, Xmm3
-};
-#else	
-static const Register arg_register[] = {
-    Rdi, Rsi, Rdx, Rcx, R8, R9
-};
-static const Register arg_register_float[] = {
-    Xmm0, Xmm1, Xmm2, Xmm3,
-    Xmm4, Xmm5, Xmm6, Xmm7
-};
-#endif
+        arg_register_float = {
+            Xmm0, Xmm1, Xmm2, Xmm3,
+            Xmm4, Xmm5, Xmm6, Xmm7
+        };
+    }
+}
 
 void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
@@ -181,8 +184,14 @@ void gnu_asm::compileProgram() {
 
     output.append(".section .rodata\n");
     for (const auto& var : m_program->var_storage) {
-        if (var.kind.literal && var.type_info.type == Type::String_t)
-            output.appendf("{}: .string \"{}\" \n", var.name, std::any_cast<std::string>(var.value));
+        if (var.kind.literal && var.type_info.type == Type::String_t) {
+            output.appendf("{}: .string \"{}\"\n", var.name, std::any_cast<std::string>(var.value));
+            continue;
+        }
+        if (var.kind.literal && var.type_info.type == Type::Double_t) {
+            output.appendf("{}: .double {}\n", var.name, std::any_cast<double>(var.value));
+            continue;
+        }
         if (var.kind.constant && var.kind.global) {
             output.appendf("{}:\n", var.name);
             compileConstant(var);
@@ -242,21 +251,17 @@ void gnu_asm::compileFunction(Func func) {
     func.stack_size = ((func.stack_size + 15) & ~15) + 32;
     output.appendf("    subq ${}, %rsp\n", func.stack_size);
 
-    for (int j = 0, i = 0, f = 0; j < func.arguments_count;) {
+    for (int j = 0, i = 0, f = 0; j < func.arguments_count; i++, j++, f++) {
         if (!is_float_type(func.arguments[j].type_info.type) && i < std::size(arg_register)) {
             mov_var(arg_register[i], func.arguments[j]);       
-            i++;
-            j++;
-#ifdef WIN32
-            f++;
-#endif
+
+            if(m_program->platform != Platform::Windows)
+                f--;
         } else if (f < std::size(arg_register_float)) {
             mov_var(arg_register_float[f], func.arguments[j]);       
-            j++;
-            f++;
-#ifdef WIN32
-            i++;
-#endif
+
+            if(m_program->platform != Platform::Windows)
+                i--;
         }
     }
 
@@ -664,25 +669,25 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
             if (is_float_type(args[i].type_info.type)) {
                 mov_var(args[i], arg_register_float[float_count]);
                 cast_float_size(arg_register_float[float_count], args[i].size, temp_float_size);
-#ifdef WIN32
-                if (func.c_variadic)
-                    mov_var(args[i], arg_register[j]);
-#else
-                j--;
-#endif
+                if (m_program->platform == Platform::Windows) {
+                    if (func.c_variadic)
+                        mov_var(args[i], arg_register[j]);
+                } else {
+                    j--;
+                }
             } else {
-#ifndef WIN32 
-                float_count--;
-#endif
+                if (m_program->platform != Platform::Windows) {
+                    float_count--;
+                }
                 mov_var(args[i], arg_register[j]);
             }
         }
     }
 
-#ifndef WIN32 
-    if (func.c_variadic)
-        mov.append(float_count, Rax);
-#endif
+    if (m_program->platform != Platform::Windows) {
+        if (func.c_variadic)
+            mov.append(float_count, Rax);
+    }
     output.appendf("    call {}\n", func.name);
 }
 
@@ -804,7 +809,7 @@ void gnu_asm::mov_var(Variable src, Register dest) {
         mov.append(std::any_cast<int64_t>(src.value), dest);
     else if (src.kind.literal && is_float_type(src.type_info.type)) {
         auto reg = get_available_int_reg();
-        movabs.append(std::any_cast<int64_t>(src.value), reg);
+        mov.append(src.name, Rip, reg);
         mov.append(reg, dest);
         free_int_reg(reg);
     } else if (src.kind.global) {
