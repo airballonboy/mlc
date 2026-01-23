@@ -637,7 +637,7 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
             temp_float_size = 8;
         else
             temp_float_size = args[i].type_info.size;
-        bool is_stack      = j > arg_register.size()-1;
+        bool is_stack      = j   > arg_register.size()-1;
         bool is_next_stack = j+1 > arg_register.size()-1;
         if (is_stack) {
             reg1 = get_available_int_reg();
@@ -706,15 +706,15 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
             if (args[i].size > 8) {
                 mov.append(reg2, current_stack_offset+8, Rsp);
             }
-            if(is_float_type(args[j].type_info.type))
+            if(is_float_type(args[i].type_info.type))
                 mov.append(reg3, current_stack_offset, Rsp);
             current_stack_offset += std::max(8, (int)args[i].size);
         }
         if (is_next_stack) {
             if (args[i].size > 8) {
                 mov.append(reg2, current_stack_offset+8, Rsp);
+                current_stack_offset += 8;
             }
-            current_stack_offset += 8;
         }
         free_int_reg(reg1);
         free_int_reg(reg2);
