@@ -95,3 +95,11 @@ inline std::tuple<int, std::string> cmd_with_output(std::format_string<_Args...>
 #endif
     return {status, output};
 }
+inline std::string& escape_new_lines(std::string& str) {
+    size_t i = str.find('\n');
+    while (i != std::string::npos) {
+        str.replace(i, 1, "\\n");
+        i = str.find('\n', i+2);
+    }
+    return str;
+}

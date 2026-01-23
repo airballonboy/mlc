@@ -1,4 +1,5 @@
 #include "tools/utils.h"
+#include <format>
 #include <string>
 #include <array>
 #include <print>
@@ -9,6 +10,7 @@ using std::tuple;
 using std::string;
 using std::print;
 using std::println;
+using std::format;
 
 vector<tuple<string, string>> tests_and_outputs = {
     {MTEST_PATH"function_return.mlang", "12\n"},
@@ -28,6 +30,7 @@ int main () {
     println("{:^30} | {:^12} | {:^12}", "test name", "build status", "test status");
     int number_of_faild_builds = 0;
     int number_of_faild_tests  = 0;
+    string total_output{};
     for (auto& [test, output] : tests_and_outputs) {
         string output_file = test;
         output_file.erase(output_file.size() - 6);
@@ -38,18 +41,25 @@ int main () {
 #endif
         
         auto [test_status, test_output] = cmd_with_output("{}", output_file);
-        bool test_resault = (test_status == 0) && (test_output == output);
+        bool test_output_match = (test_output == output);
+        bool test_result = (test_status == 0) && test_output_match;
         string pretty_test_name = remove_substr(test, "mlc-test/");
-        print("{:30} | ", pretty_test_name);
+        print("{:30} | " , pretty_test_name);
         print("{:^12} | ", build_status == 0 ? "[OK]" : "[FAIL]");
-        print("{:^12}\n", test_resault ? "[OK]" : "[FAIL]");
+        print("{:^12}\n" , test_result ? "[OK]" : "[FAIL]");
+        if (!test_output_match) {
+            total_output += format("[ERROR] output mismatch\n");
+            total_output += format("  expected \"{}\"\n", escape_new_lines(output));
+            total_output += format("  but got  \"{}\"\n", escape_new_lines(test_output));
+        }
 
         if (build_status != 0) number_of_faild_builds += 1;
-        if (!test_resault)     number_of_faild_tests  += 1;
+        if (!test_result)      number_of_faild_tests  += 1;
     }
     println("-------------------------------------------------------------");
     println("Number of Builds failed {}", number_of_faild_builds);
     println("Number of Tests failed  {}", number_of_faild_tests);
+    print("{}", total_output);
     if (number_of_faild_builds > 0 || number_of_faild_tests > 0)
         return 1;
     return 0;
