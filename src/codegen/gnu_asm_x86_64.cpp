@@ -7,6 +7,7 @@
 #include "tools/format.h"
 #include <any>
 #include <cassert>
+#include <complex>
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
@@ -725,11 +726,34 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
 void gnu_asm::call_func_linux(Func func, VariableStorage args) {
     size_t f = 0;
     size_t temp_float_size;
-    for (size_t i = 0, j = 0; i < args.size() && j < std::size(arg_register) && f < std::size(arg_register_float); i++, j++, f++) {
+    Register reg1;
+    Register reg2;
+    Register reg3;
+    size_t current_stack_offset = 0;
+
+    for (size_t i = 0, j = 0; i < args.size(); i++, j++, f++) {
         if (is_float_type(args[i].type_info.type) && func.c_variadic)
             temp_float_size = 8;
         else
             temp_float_size = args[i].type_info.size;
+        bool is_stack       = j   > arg_register.size()-1;
+        bool is_next_stack  = j+1 > arg_register.size()-1;
+        bool is_stack_float = f+1 > arg_register_float.size()-1;
+        if (is_stack) {
+            reg1 = get_available_int_reg();
+            reg2 = get_available_int_reg();
+        } else if (is_next_stack) {
+            reg1 = arg_register[j];
+            reg2 = get_available_int_reg();
+        } else {
+            reg1 = arg_register[j];
+            reg2 = arg_register[j+1];
+        }
+        if (is_stack_float) {
+            reg3 = get_available_float_reg();
+        } else {
+            reg3 = arg_register_float[f];
+        }
         if (args[i].type_info.type == Type::Struct_t) {
             auto strct = get_struct_from_name(args[i].type_info.name);
             if (args[i].deref_count > 0) {
@@ -738,45 +762,65 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
             }
             if (args[i].size <= 8) {
                 if (strct.is_float_only) {
-                    mov_var(args[i], arg_register_float[f]);
+                    mov_var(args[i], reg3);
                     j--;
                 } else {
-                    mov_var(args[i], arg_register[j]);
+                    mov_var(args[i], reg1);
                 }
             } else if (args[i].size <= 16) {
                 size_t orig_size = args[i].size;
                 args[i].size = 8;
-                mov_var(args[i], arg_register[j++]);
+                mov_var(args[i], reg1);
                 if (args[i].deref_count == 0) {
                     args[i].size = orig_size-8;
                     args[i].offset -= 8;
-                    mov_var(args[i], arg_register[j]);
+                    mov_var(args[i], reg2);
                 } else {
                     args[i].deref_count -= 1;
-                    mov_var(args[i], arg_register[j]);
-                    mov.append(8, arg_register[j], arg_register[j], orig_size-8);
+                    mov_var(args[i], reg2);
+                    mov.append(8, reg2, reg2, orig_size-8);
 
                 }
             } else {
                 args[i].deref_count = -1;
-                mov_var(args[i], arg_register[j]);
+                mov_var(args[i], reg1);
             }
         } else {
             if (is_float_type(args[i].type_info.type)) {
-                mov_var(args[i], arg_register_float[f]);
-                cast_float_size(arg_register_float[f], args[i].size, temp_float_size);
+                mov_var(args[i], reg3);
+                cast_float_size(reg3, args[i].size, temp_float_size);
                 j--;
             } else {
                 f--;
-                mov_var(args[i], arg_register[j]);
+                mov_var(args[i], reg1);
                 if (func.c_variadic) {
                     if (args[i].size == 1)
-                        output.appendf("    movsbl {}, {}\n", arg_register[j]._8, arg_register[j]._32);
+                        output.appendf("    movsbl {}, {}\n", reg1._8, reg1._32);
                     if (args[i].size == 2)
-                        output.appendf("    movswl {}, {}\n", arg_register[j]._16, arg_register[j]._32);
+                        output.appendf("    movswl {}, {}\n", reg1._16, reg1._32);
                 }
             }
         }
+        if (is_stack) {
+            mov.append(reg1, current_stack_offset, Rsp);
+            if (args[i].size > 8) {
+                mov.append(reg2, current_stack_offset+8, Rsp);
+            }
+            current_stack_offset += std::max(8, (int)args[i].size);
+        }
+        if (is_stack_float) {
+            mov.append(reg3, current_stack_offset, Rsp);
+            current_stack_offset += std::max(8, (int)args[i].size);
+        }
+        if (is_next_stack) {
+            if (args[i].size > 8) {
+                mov.append(reg2, current_stack_offset+8, Rsp);
+                current_stack_offset += 8;
+            }
+        }
+        free_int_reg(reg1);
+        free_int_reg(reg2);
+        free_float_reg(reg3);
     }
 
     if (func.c_variadic) {
