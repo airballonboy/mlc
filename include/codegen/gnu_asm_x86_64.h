@@ -11,6 +11,8 @@ public:
     gnu_asm(Program* prog);
 
     void call_func(Func func_name, VariableStorage args);
+    void call_func_windows(Func func_name, VariableStorage args);
+    void call_func_linux(Func func_name, VariableStorage args);
     void compileProgram() override;
     void compileFunction(Func func) override;
     void compileConstant(Variable var);

@@ -359,17 +359,21 @@ void Parser::parseStructDeclaration() {
             current_struct.defaults.emplace(var_index, var2);
         } else if (var.type_info.type != Type::String_t && var.type_info.type != Type::Struct_t) {
             Variable default_val;
+            default_val.name = "def_value";
+            default_val.kind.literal   = true;
+            default_val.kind.constant = true;
             if (var.type_info.type == Type::Double_t || var.type_info.type == Type::Float_t) {
-                default_val.type_info = type_infos.at("float");
-                default_val.size = 4;
+                default_val.type_info = type_infos.at("double");
+                default_val.size = 8;
+                default_val.value = std::any_cast<double>(variable_default_value(default_val.type_info.type));
+                if(!variable_exist_in_storage(default_val.name, m_program.var_storage))
+                    m_program.var_storage.push_back(default_val);
             } else {
                 default_val.type_info = type_infos.at("int8");
+                default_val.value = std::any_cast<int64_t>(variable_default_value(default_val.type_info.type));
                 default_val.size = 1;
             }
-            default_val.kind.literal   = true;
 
-            default_val.name = "def_value";
-            default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info.type));
             current_struct.defaults.emplace(var_index, default_val);
         }
         m_currentLexar->getAndExpectNext(TokenType::SemiColon);
@@ -860,18 +864,21 @@ void Parser::parseStatement() {
                 m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
             } else if (var.type_info.type != Type::String_t && var.type_info.type != Type::Struct_t) {
                 Variable default_val;
+                default_val.kind.literal = true;
+                default_val.kind.constant = true;
+                default_val.name = "def_value";
                 if (var.type_info.type == Type::Double_t || var.type_info.type == Type::Float_t) {
-                    default_val.type_info = type_infos.at("float");
-                    default_val.size = 4;
+                    default_val.type_info = type_infos.at("double");
+                    default_val.size = 8;
+                    default_val.value = std::any_cast<double>(variable_default_value(var.type_info.type));
+                    if(!variable_exist_in_storage(default_val.name, m_program.var_storage))
+                        m_program.var_storage.push_back(default_val);
                 } else {
                     default_val.type_info = type_infos.at("int8");
                     default_val.size = 1;
+                    default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info.type));
                 }
-                default_val.kind.literal = true;
-                default_val.kind.constant = true;
 
-                default_val.name = "def_value";
-                default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info.type));
                 m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
             } else if (var.kind.pointer_count > 0) {
                 Variable default_val;
@@ -1198,7 +1205,10 @@ ExprResult Parser::parseUnaryExpression() {
         auto rhs = std::get<0>(parseUnaryExpression());
         Variable result = make_temp_var(rhs.type_info.type, 8);
         if (rhs.kind.literal) {
-            rhs.value = -std::any_cast<int64_t>(rhs.value);
+            if (rhs.type_info.type == Type::Double_t || rhs.type_info.type == Type::Float_t)
+                rhs.value = -std::any_cast<double>(rhs.value);
+            else
+                rhs.value = -std::any_cast<int64_t>(rhs.value);
             m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, result}});
         } else {
             Variable zero   = {
@@ -1415,7 +1425,7 @@ std::any Parser::variable_default_value(Type t) {
         case Type::Bool_t:
         case Type::Int64_t: return (int64_t)0; break;
         case Type::Double_t:
-        case Type::Float_t: return std::bit_cast<int64_t>(0.0); break;
+        case Type::Float_t: return (double)0.0; break;
 
         case Type::String_t: return ""   ; break;
         case Type::Void_t:   return (int64_t)0    ; break;
