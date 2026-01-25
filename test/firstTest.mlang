@@ -26,9 +26,12 @@ const ONE = 1;
 
 func main() {
     Vec3* v = Vec3.new();
-
-    v.init();
-    v.print();
-    v.add(3);
-    v.print();
+    if (v == 0) {
+        c_std::printf("[Error] couldn't create v");
+    } else {
+        v.init();
+        v.print();
+        v.add(3);
+        v.print();
+    }
 }

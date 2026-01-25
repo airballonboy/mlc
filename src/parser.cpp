@@ -828,9 +828,23 @@ void Parser::parseStatement() {
             size_t jmp_if_not = m_currentFunc->body.size();
             m_currentFunc->body.push_back({Op::JUMP_IF_NOT, {"", expr}});
             parseStatement();
-            std::string label = std::format("{:06x}", statement_count++);
-            m_currentFunc->body.push_back({Op::LABEL, {label}});
-            m_currentFunc->body[jmp_if_not].args[0] = label;
+            if (m_currentLexar->peek()->type == TokenType::Else) {
+                size_t jmp_else = m_currentFunc->body.size();
+                m_currentFunc->body.push_back({Op::JUMP, {""}});
+                std::string label = std::format("{:06x}", statement_count++);
+                m_currentFunc->body.push_back({Op::LABEL, {label}});
+                m_currentFunc->body[jmp_if_not].args[0] = label;
+                m_currentLexar->getAndExpectNext(TokenType::Else);
+                m_currentLexar->getNext();
+                parseStatement();
+                label = std::format("{:06x}", statement_count++);
+                m_currentFunc->body.push_back({Op::LABEL, {label}});
+                m_currentFunc->body[jmp_else].args[0] = label;
+            } else {
+                std::string label = std::format("{:06x}", statement_count++);
+                m_currentFunc->body.push_back({Op::LABEL, {label}});
+                m_currentFunc->body[jmp_if_not].args[0] = label;
+            }
         }break;//TokenType::If
         case TokenType::While: {
             m_currentLexar->getAndExpectNext(TokenType::OParen);
