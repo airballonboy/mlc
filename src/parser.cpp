@@ -583,7 +583,7 @@ void Parser::parseModulePrefix() {
 Func Parser::parseFunction(bool member, Struct parent) {
     tkn = &m_currentLexar->currentToken;
     current_offset = 0;
-    Func func = {0};
+    Func func = {};
     std::string name{};
     m_currentFunc = &func;
     if (m_currentLexar->peek()->type == TokenType::Static) {
@@ -657,7 +657,10 @@ Func Parser::parseFunction(bool member, Struct parent) {
             parseModulePrefix();
             m_currentLexar->getNext();
         }
-        func.return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
+        if (type_infos.contains(current_module_prefix + (*tkn)->string_value))
+            func.return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
+        else 
+            TODO("Type does not exist");
         if (m_currentLexar->peek()->type == TokenType::OBracket) {
             m_currentLexar->getNext();
             m_currentLexar->getAndExpectNext(TokenType::CBracket);
@@ -668,6 +671,8 @@ Func Parser::parseFunction(bool member, Struct parent) {
             func.return_kind.pointer_count += 1;
         }
         current_module_prefix = "";
+    } else {
+        func.return_type = type_infos.at("void");
     }
                 
     if (func.return_type.size > 16 && func.return_kind.pointer_count == 0) {
