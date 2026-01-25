@@ -1,14 +1,5 @@
 #include <c_std.mlang>
 
-//func shift_args(int* argc, string** argv) -> string {
-//    string ret = **argv;
-//    *argc -= 1;
-//    *argv += 8;
-//    return ret;
-//}
-func TypeInfo.print() {
-    c_std::printf("TypeInfo{name = %s, id = %ld, type = %d, size = %ld}\n", this.name, this.id, this.type, this.size);
-}
 struct Vec3 {
     int x = 0; 
     int y = 0;
@@ -17,12 +8,6 @@ struct Vec3 {
         this.x += amount;
         this.y += amount;
         this.z += amount;
-    }
-//    func static type_info() -> TypeInfo {
-//        return TypeInfo{Vec3, 1, 12, "Vec3"};
-//    }
-    func print() {
-        c_std::printf("Vec3[%d, %d, %d]\n", this.x, this.y, this.z);
     }
     func init() {
         this.x = 0;
@@ -33,12 +18,14 @@ struct Vec3 {
 func static Vec3.new() -> Vec3* {
     return c_std::malloc(Vec3.type_info().size);
 }
+func Vec3.print() {
+    c_std::printf("Vec3[%d, %d, %d]\n", this.x, this.y, this.z);
+}
 
 const ONE = 1;
 
 func main() {
     Vec3* v = Vec3.new();
-    v.type_info().print();
 
     v.init();
     v.print();

@@ -862,9 +862,12 @@ void Parser::parseStatement() {
                 type_name = current_module_prefix + m_currentLexar->currentToken->string_value;
                 current_module_prefix = "";
             }
+            auto peek = m_currentLexar->peek();
             m_currentLexar->currentTokenIndex = current_point - 1;
             m_currentLexar->getNext();
             if (!TypeIds.contains(type_name)) {
+                goto defau;
+            } else if (peek->type == TokenType::Dot) {
                 goto defau;
             }
             auto saved_body = m_currentFunc->body;

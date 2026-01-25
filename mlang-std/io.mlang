@@ -5,6 +5,9 @@ module io;
 func io::print(string s) {
     c_std::printf("%s", s);
 }
+func TypeInfo.print() {
+    c_std::printf("TypeInfo{name = %s, id = %ld, type = %d, size = %ld}\n", this.name, this.id, this.type, this.size);
+}
 func io::println(string s) {
     c_std::printf("%s\n", s);
 }
