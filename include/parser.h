@@ -43,5 +43,5 @@ private:
     Variable& get_var_from_name(std::string_view name, VariableStorage& var_storage);
     static std::any  variable_default_value(Type t);
     static size_t    variable_size_bytes(Type t);
-    static Struct& get_struct_from_name(std::string& name);
+    static Struct& get_struct_from_name(std::string name);
 };

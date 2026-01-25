@@ -122,7 +122,7 @@ int main(int argc, char* argv[])
 
     std::string file_data{};
     // should add the functions somehow else
-    file_data += "func string___len(string* this)->int{int len=0; while(**this){*this+=1;len+=1;}return len;}";
+    file_data += "func string.len()->int{int len=0; while(**this){*this+=1;len+=1;}return len;}";
     file_data += readFileToString(inputFile);
 	auto lexar = Lexar(file_data, inputFile);
 

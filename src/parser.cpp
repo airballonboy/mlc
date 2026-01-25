@@ -154,7 +154,7 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     }
 
 
-    if (variable_exist_in_storage(m_currentLexar->currentToken->string_value, var_store) && var.type_info.type != Type::Struct_t) 
+    if (variable_exist_in_storage(m_currentLexar->currentToken->string_value, var_store))
         ERROR(m_currentLexar->currentToken->loc, f("redifinition of {}", m_currentLexar->currentToken->string_value));
     else 
         var.name = m_currentLexar->currentToken->string_value;    
@@ -217,7 +217,7 @@ Program* Parser::parse() {
     return &m_program;
 
 }
-Struct& Parser::get_struct_from_name(std::string& name) {
+Struct& Parser::get_struct_from_name(std::string name) {
     for (auto& strct_ : m_program.struct_storage) {
         if (strct_.name == name) return strct_;
     }
@@ -588,19 +588,42 @@ Func Parser::parseFunction(bool member, Struct parent) {
     tkn = &m_currentLexar->currentToken;
     current_offset = 0;
     Func func = {0};
+    std::string name{};
     m_currentFunc = &func;
-    if (member)
-        func.name = parent.name + "___";
-    m_currentLexar->getAndExpectNext(TokenType::ID);
+    if (m_currentLexar->peek()->type == TokenType::Static) {
+        m_currentLexar->getAndExpectNext(TokenType::Static);
+        func.is_static = true;
+    }
+    m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID});
     current_module_prefix = "";
     if (m_currentLexar->peek()->type == TokenType::ColonColon) {
         parseModulePrefix();
         m_currentLexar->getAndExpectNext(TokenType::ID);
     }
-    func.name += current_module_prefix + m_currentLexar->currentToken->string_value;
+    if (member) {
+        name = parent.name + "___" + current_module_prefix + (*tkn)->string_value;
+    } else if (!member && m_currentLexar->peek()->type == TokenType::Dot) {
+        std::string type_name = current_module_prefix + (*tkn)->string_value;
+        if (type_infos.contains(type_name)) {
+            auto type = type_infos.at(type_name);
+            if (type.type == Type::Struct_t)
+                parent = get_struct_from_name(type_name);
+            else 
+                parent.name = type_name;
+        }
+        member = true;
+        m_currentLexar->getAndExpectNext(TokenType::Dot);
+        m_currentLexar->getAndExpectNext(TokenType::ID);
+        name = type_name + "___" + current_module_prefix + (*tkn)->string_value;
+    } else {
+        name = current_module_prefix + (*tkn)->string_value;
+    }
+    if (func.is_static && !member) 
+        TODO("cannot have static non member functions");
+    func.name = name;
     current_module_prefix = "";
 
-    if (member) {
+    if (member && !func.is_static) {
         Variable this_pointer = {
             .type_info  = type_infos.at(parent.name),
             .name       = "this", .offset = 8,
@@ -1096,7 +1119,12 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             if (var.type_info.type == Type::Struct_t) {
                 var.members = get_struct_from_name(var.type_info.name).var_storage;
             }
-            parseFuncCall(func, this_ptr, var);
+            if(!func.is_static && this_.type_info.type == Type::Typeid_t)
+                TODO("cannot use Typeid to call a non static function");
+            if (!func.is_static)
+                parseFuncCall(func, this_ptr, var);
+            else 
+                parseFuncCall(func, {type_infos.at("void")}, var);
             var.parent = nullptr;
             return {var, ret_lvalue};
         }
@@ -1126,8 +1154,8 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                 }
             }
             var.name = type.name;
-            var.size = 4;
-            var.type_info = type_infos.at("int32");
+            var.size = 8;
+            var.type_info = type_infos.at("typeid");
             var.kind.constant = true,
             var.kind.literal = true;
             var.value = (int64_t)type.id;
@@ -1171,25 +1199,26 @@ ExprResult Parser::parseDotExpression(Variable this_ptr, Variable this_, std::st
         m_currentLexar->getAndExpectNext(TokenType::Dot);
         m_currentLexar->getNext();
 
-        Variable strct = std::get<0>(lhs);
-        if (strct.parent == nullptr) {
-            this_ptr = strct;
-            this_    = strct;
+        Variable lhs_var = std::get<0>(lhs);
+        if (lhs_var.parent == nullptr) {
+            this_ptr = lhs_var;
+            this_    = lhs_var;
             this_ptr.deref_count = this_ptr.kind.pointer_count - 1;
             this_ptr.kind.pointer_count = 1;
             this_ptr.size = 8;
         } else {
-            strct.parent = new Variable;
-            *strct.parent = this_;
-            this_    = strct;
-            this_ptr = strct;
+            lhs_var.parent = new Variable;
+            *lhs_var.parent = this_;
+            this_    = lhs_var;
+            this_ptr = lhs_var;
             this_ptr.deref_count = this_ptr.kind.pointer_count - 1;
             this_ptr.kind.pointer_count = 1;
             this_ptr.size = 8;
-            func_prefix = strct.type_info.name;
-            func_prefix += "___";
         }
-        func_prefix = strct.type_info.name;
+        if (lhs_var.type_info.type == Type::Typeid_t)
+            func_prefix = lhs_var.name;
+        else
+            func_prefix = lhs_var.type_info.name;
         func_prefix += "___";
 
         auto rhs = parseDotExpression(this_ptr, this_, func_prefix);
@@ -1423,6 +1452,7 @@ std::any Parser::variable_default_value(Type t) {
         case Type::Int32_t:
         case Type::Char_t:
         case Type::Bool_t:
+        case Type::Typeid_t:
         case Type::Int64_t: return (int64_t)0; break;
         case Type::Double_t:
         case Type::Float_t: return (double)0.0; break;
@@ -1443,12 +1473,13 @@ size_t Parser::variable_size_bytes(Type t) {
         case Type::Int16_t:  return 2; break;
         case Type::Int32_t:  return 4; break;
         case Type::Int64_t:  return 8; break;
+        case Type::Typeid_t: return 8; break;
         case Type::Ptr_t:    return 8; break;
         case Type::Size_t:   return 8; break;
         case Type::Float_t:  return 4; break;
-        case Type::Double_t:  return 8; break;
+        case Type::Double_t: return 8; break;
 
-        case Type::String_t:   return 8; break;
+        case Type::String_t: return 8; break;
         case Type::Void_t:   return 0; break;
 
         default: 

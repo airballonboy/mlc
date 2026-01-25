@@ -44,17 +44,18 @@ enum class TokenType {
     //Float_t, Size_t,
     TypeID,
     // Keywords
-    Extern, Case, If,
-    Else, While, Switch,
-    Goto, Return, Import,
+    Extern, If, Else,
+    While, Return, Import,
     Func, From, Include,
     Module, Struct, Const,
+    Static,
 };
 enum class Type : int {
     Void_t = 0, 
     Struct_t,
     Int8_t, Int16_t, 
     Int32_t, Int64_t,
+    Typeid_t,
     Ptr_t, Size_t,
     String_t, Char_t,
     Float_t, Double_t,
@@ -94,6 +95,7 @@ inline std::unordered_map<std::string, Type> TypeIds = {
     {"int"    , Type::Int32_t},
     {"int32"  , Type::Int32_t},
     {"int64"  , Type::Int64_t},
+    {"typeid" , Type::Typeid_t},
     {"pointer", Type::Ptr_t},
     {"usize"  , Type::Size_t},
     {"long"   , Type::Int64_t},
@@ -109,6 +111,7 @@ inline std::unordered_map<Type, std::string> printableTypeIds = {
     {Type::Int16_t , "int16"  },
     {Type::Int32_t , "int32"  },
     {Type::Int64_t , "int64"  },
+    {Type::Typeid_t, "typeid" },
     {Type::Ptr_t   , "pointer"},
     {Type::Size_t  , "usize"  },
     {Type::String_t, "string" },
@@ -178,12 +181,9 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     // Keyword
     {TokenType::TypeID     ,"typeid"},
     {TokenType::Extern     ,"keyword `extern`"},
-    {TokenType::Case       ,"keyword `case`"},
     {TokenType::If         ,"keyword `if`"},
     {TokenType::Else       ,"keyword `else`"},
     {TokenType::While      ,"keyword `while`"},
-    {TokenType::Switch     ,"keyword `switch`"},
-    {TokenType::Goto       ,"keyword `goto`"},
     {TokenType::Return     ,"keyword `return`"},
     {TokenType::Import     ,"keyword `import`"},
     {TokenType::Func       ,"keyword `func`"},
@@ -192,6 +192,7 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
     {TokenType::Module     ,"keyword `module`"},
     {TokenType::Struct     ,"keyword `struct`"},
     {TokenType::Const      ,"keyword `const`"},
+    {TokenType::Static     ,"keyword `static`"},
 };
 
 static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
@@ -247,12 +248,9 @@ static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
 
 static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     {"extern" , TokenType::Extern},
-    {"case"   , TokenType::Case},
     {"if"     , TokenType::If},
     {"else"   , TokenType::Else},
     {"while"  , TokenType::While},
-    {"switch" , TokenType::Switch},
-    {"goto"   , TokenType::Goto},
     {"return" , TokenType::Return},
     {"import" , TokenType::Import},
     {"func"   , TokenType::Func},
@@ -261,6 +259,7 @@ static const std::unordered_map<std::string, TokenType> KEYWORDS = {
     {"module" , TokenType::Module},
     {"struct" , TokenType::Struct},
     {"const"  , TokenType::Const},
+    {"static" , TokenType::Static},
 };
 
 
@@ -316,8 +315,8 @@ inline std::unordered_map <std::string, TypeInfo> type_infos = {
     {"int16"  , {.id = current_typeid_max++ , .type = Type::Int16_t , .size = 2, .name = "int16"}},
     {"int"    , {.id = current_typeid_max   , .type = Type::Int32_t , .size = 4, .name = "int32"}},
     {"int32"  , {.id = current_typeid_max++ , .type = Type::Int32_t , .size = 4, .name = "int32"}},
-    {"int64"  , {.id = current_typeid_max   , .type = Type::Int64_t , .size = 8, .name = "int64"}},
-    {"long"   , {.id = current_typeid_max++ , .type = Type::Int64_t , .size = 8, .name = "int64"}},
+    {"int64"  , {.id = current_typeid_max++ , .type = Type::Int64_t , .size = 8, .name = "int64"}},
+    {"typeid" , {.id = current_typeid_max++ , .type = Type::Typeid_t, .size = 8, .name = "typeid"}},
     {"pointer", {.id = current_typeid_max++ , .type = Type::Ptr_t   , .size = 8, .name = "pointer"}},
     {"usize"  , {.id = current_typeid_max++ , .type = Type::Size_t  , .size = 8, .name = "uint64"}},
     {"string" , {.id = current_typeid_max++ , .type = Type::String_t, .size = 8, .name = "string"}},
@@ -353,6 +352,7 @@ struct Func {
     bool external = false;
     bool variadic = false;
     bool c_variadic = false;
+    bool is_static = false;
     std::string link_name{};
     std::string lib{};
     std::string search_path{};
