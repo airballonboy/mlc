@@ -6,14 +6,8 @@
 //    *argv += 8;
 //    return ret;
 //}
-struct TypeInfo {
-    typeid id;
-    int    type;
-    int64  size;
-    string name;
-    func print() {
-        c_std::printf("TypeInfo{name = %s, id = %ld, type = %d, size = %ld}\n", this.name, this.id, this.type, this.size);
-    }
+func TypeInfo.print() {
+    c_std::printf("TypeInfo{name = %s, id = %ld, type = %d, size = %ld}\n", this.name, this.id, this.type, this.size);
 }
 struct Vec3 {
     int x = 0; 
@@ -24,9 +18,9 @@ struct Vec3 {
         this.y += amount;
         this.z += amount;
     }
-    func static type_info() -> TypeInfo {
-        return TypeInfo{Vec3, 1, 12, "Vec3"};
-    }
+//    func static type_info() -> TypeInfo {
+//        return TypeInfo{Vec3, 1, 12, "Vec3"};
+//    }
     func print() {
         c_std::printf("Vec3[%d, %d, %d]\n", this.x, this.y, this.z);
     }
@@ -37,7 +31,6 @@ struct Vec3 {
     }
 }
 func static Vec3.new() -> Vec3* {
-    c_std::printf("%ld\n", Vec3.type_info().size);
     return c_std::malloc(Vec3.type_info().size);
 }
 
@@ -45,6 +38,7 @@ const ONE = 1;
 
 func main() {
     Vec3* v = Vec3.new();
+    v.type_info().print();
 
     v.init();
     v.print();

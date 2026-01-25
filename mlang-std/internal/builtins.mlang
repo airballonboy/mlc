@@ -1,0 +1,16 @@
+struct TypeInfo {
+    typeid id;
+    int    type;
+    int64  size;
+    string name;
+}
+
+
+func string.len() -> int {
+    int len=0;
+    while (**this) {
+        *this += 1;
+        len += 1;
+    }
+    return len;
+}

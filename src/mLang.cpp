@@ -120,11 +120,10 @@ int main(int argc, char* argv[])
     }
 
 
-    std::string file_data{};
-    // should add the functions somehow else
-    file_data += "func string.len()->int{int len=0; while(**this){*this+=1;len+=1;}return len;}";
-    file_data += readFileToString(inputFile);
-	auto lexar = Lexar(file_data, inputFile);
+    auto builtin_lexar = add_builtin_file("internal/builtins.mlang");
+	auto lexar = Lexar(readFileToString(inputFile), inputFile);
+    //lexar.pushtokensaftercurrent(&builtin_lexar);
+    lexar.pushTokensAt(0, &builtin_lexar);
 
     Parser parser(&lexar);
 

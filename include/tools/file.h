@@ -4,6 +4,9 @@
 #include <fstream>
 #include <string_view>
 #include <vector>
+#include "context.h"
+#include "lexar.h"
+#include "tools/logger.h"
 
 static std::string readFileToString(std::string filePath) {
     std::string fileContent;
@@ -36,4 +39,16 @@ static std::string getFilePathFromPaths(const std::string& filename, const std::
     }
     throw "error couldn't find file";
     return "";
+}
+static Lexar add_builtin_file(std::string file_name) {
+    Lexar l{};
+    if (fileExistsInPaths(file_name, ctx.includePaths)) {
+        std::string file_path = getFilePathFromPaths(file_name, ctx.includePaths);
+
+        l = Lexar(readFileToString(file_path), file_path);
+
+    } else {
+        TODO("file not found");
+    };
+    return l;
 }

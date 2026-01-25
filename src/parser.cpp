@@ -289,6 +289,7 @@ static size_t current_struct_id = 1;
 void Parser::parseStructDeclaration() {
     m_currentLexar->getAndExpectNext(TokenType::ID);
     tkn = &m_currentLexar->currentToken;
+
     current_module_prefix = "";
     if (m_currentLexar->peek()->type == TokenType::ColonColon) {
         parseModulePrefix();
@@ -297,36 +298,28 @@ void Parser::parseStructDeclaration() {
     current_offset = 0;
     std::string struct_name = current_module_prefix + m_currentLexar->currentToken->string_value;
     current_module_prefix = "";
+
     size_t struct_index = m_program.struct_storage.size();
     m_program.struct_storage.push_back({});
     Struct& current_struct = m_program.struct_storage[struct_index];
     current_struct.id = current_struct_id++;
     current_struct.is_float_only = true;
-    
-    m_currentLexar->getAndExpectNext(TokenType::OCurly);
 
     TypeIds.emplace(struct_name, Type::Struct_t);
     size_t struct_info_index = type_infos.size();
     type_infos.emplace(struct_name, TypeInfo{.id = current_typeid_max++, .type = Type::Struct_t, .size = 0, .name = struct_name});
+
+    size_t type_info_func_index = m_program.func_storage.size();
+    m_program.func_storage.push_back({.return_type = type_infos.at("TypeInfo"), .name = struct_name + "___" +"type_info", .is_static = true});
+    
+    m_currentLexar->getAndExpectNext(TokenType::OCurly);
+
     current_struct.name = struct_name;
     while ((*tkn)->type != TokenType::CCurly) {
         if ((*tkn)->type == TokenType::Func) {
             size_t temp_offset = current_offset;
             size_t func_index = m_program.func_storage.size();
             parseFunction(true, current_struct);
-            //auto& member_func = m_program.func_storage[func_index];
-            //member_func.name = struct_name + "___" + member_func.name;
-            //Variable this_pointer = {
-            //    .type_info  = type_infos.at(struct_name),
-            //    .name       = "this", .offset = 8,
-            //    .size       = 8,
-            //    .members    = current_struct.var_storage,
-            //    .kind       = {
-            //        .pointer_count = 1
-            //    },
-            //};
-            //member_func.arguments.emplace(member_func.arguments.begin(), this_pointer);
-            //member_func.arguments_count++;
 
             m_currentLexar->getNext();
             current_offset = temp_offset;
@@ -380,6 +373,7 @@ void Parser::parseStructDeclaration() {
         m_currentLexar->getNext();
     }
     type_infos.at(struct_name).size = current_struct.size;
+    m_program.func_storage[type_info_func_index] = make_type_info_func(current_struct);
     current_offset = 0;
 }
 Variable Parser::parseConstant() {
@@ -422,7 +416,7 @@ void Parser::parseModuleDeclaration() {
 }
 void Parser::parseHash() {
     m_currentLexar->getAndExpectNext({TokenType::Import, TokenType::Include, TokenType::Extern});
-    switch ((*tkn)->type ) {
+    switch ((*tkn)->type) {
         case TokenType::Include: {
             if (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
                 m_currentLexar->getAndExpectNext(TokenType::Less);
@@ -436,6 +430,8 @@ void Parser::parseHash() {
             }
             m_currentLexar->getNext();
             for (std::string& file : included_files) if (file == file_name) goto end_of_include;
+            if (file_name == (*tkn)->loc.inputPath)
+                TODO("cannot include the current file");
             if (fileExistsInPaths(file_name, ctx.includePaths)) {
                 std::string file_path = getFilePathFromPaths(file_name, ctx.includePaths);
 
@@ -1410,6 +1406,45 @@ void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address
 
     m_currentFuncStorage = &m_program.func_storage;
     current_module_prefix = "";
+}
+Func Parser::make_type_info_func(Struct s) {
+    auto save = current_offset;
+    auto orig = m_currentFunc;
+    Kind literal = {
+        .constant = true,
+        .literal = true,
+    };
+    Func fn;
+    m_currentFunc = &fn;
+    fn.name = s.name + "___" + "type_info";
+    fn.return_type = type_infos.at("TypeInfo");
+    fn.is_static = true;
+    Variable typeinfo;
+    typeinfo = initStruct("TypeInfo", "struct literal");
+    Variable id   = {.type_info = type_infos.at("int64") , .value = (int64_t)type_infos.at(s.name).id      , .kind = literal};
+    Variable type = {.type_info = type_infos.at("int32") , .value = (int64_t)type_infos.at(s.name).type        , .kind = literal};
+    Variable size = {.type_info = type_infos.at("int64") , .value = (int64_t)type_infos.at(s.name).size    , .kind = literal};
+    Variable name = {
+        .type_info = type_infos.at("string"),
+        .name  = f("literal_{}", literal_count++),
+        .value = (std::string)type_infos.at(s.name).name,
+        .kind  = literal
+    };
+    fn.arguments = {Variable{.type_info = type_infos.at("TypeInfo"), .offset = 8, .size = 8, .kind = {.pointer_count = 1}}};
+    fn.arguments_count = 1;
+    fn.stack_size = 48;
+    m_program.var_storage.push_back(name);
+    fn.body = {
+        {Op::INIT_STRING, {typeinfo.members[3]}},
+        {Op::STORE_VAR, {id  , typeinfo.members[0]}},
+        {Op::STORE_VAR, {type, typeinfo.members[1]}},
+        {Op::STORE_VAR, {size, typeinfo.members[2]}},
+        {Op::STORE_VAR, {name, typeinfo.members[3]}},
+        {Op::RETURN   , {typeinfo}}
+    };
+    current_offset = save;
+    m_currentFunc = orig;
+    return fn;
 }
 
 bool Parser::function_exist_in_storage(std::string_view func_name, const FunctionStorage& func_storage) {
