@@ -633,6 +633,7 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
     Register reg1;
     Register reg2;
     Register reg3;
+    Register reg4;
     size_t current_stack_offset = 32;
     for (size_t i = 0, j = 0; i < args.size(); i++, j++) {
         if (is_float_type(args[i].type_info.type) && func.c_variadic)
@@ -645,14 +646,17 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
             reg1 = get_available_int_reg();
             reg2 = get_available_int_reg();
             reg3 = get_available_float_reg();
+            reg4 = get_available_float_reg();
         } else if (is_next_stack) {
             reg1 = arg_register[j];
             reg2 = get_available_int_reg();
             reg3 = arg_register_float[j];
+            reg4 = get_available_float_reg();
         } else {
             reg1 = arg_register[j];
             reg2 = arg_register[j+1];
             reg3 = arg_register_float[j];
+            reg4 = arg_register_float[j+1];
         }
         if (args[i].type_info.type == Type::Struct_t) {
             auto strct = get_struct_from_name(args[i].type_info.name);
@@ -670,17 +674,29 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
             } else if (args[i].size <= 16) {
                 size_t orig_size = args[i].size;
                 args[i].size = 8;
-                mov_var(args[i], reg3);
                 j++;
-                if (args[i].deref_count == 0) {
-                    args[i].size = orig_size-8;
-                    args[i].offset -= 8;
-                    mov_var(args[i], reg2);
+                if (strct.is_float_only) {
+                    mov_var(args[i], reg3);
+                    if (args[i].deref_count == 0) {
+                        args[i].size = orig_size-8;
+                        args[i].offset -= 8;
+                        mov_var(args[i], reg4);
+                    } else {
+                        args[i].deref_count -= 1;
+                        mov_var(args[i], reg3);
+                        mov.append(8, reg4, reg4, orig_size-8);
+                    }
                 } else {
-                    args[i].deref_count -= 1;
                     mov_var(args[i], reg1);
-                    mov.append(8, reg1, reg1, orig_size-8);
-
+                    if (args[i].deref_count == 0) {
+                        args[i].size = orig_size-8;
+                        args[i].offset -= 8;
+                        mov_var(args[i], reg2);
+                    } else {
+                        args[i].deref_count -= 1;
+                        mov_var(args[i], reg1);
+                        mov.append(8, reg2, reg2, orig_size-8);
+                    }
                 }
                 args[i].size = orig_size;
             } else {
@@ -689,10 +705,12 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
             }
         } else {
             if (is_float_type(args[i].type_info.type)) {
-                mov_var(args[i], reg3);
-                cast_float_size(reg3, args[i].size, temp_float_size);
-                if (func.c_variadic)
+                if (func.c_variadic) {
                     mov_var(args[i], reg1);
+                } else {
+                    mov_var(args[i], reg3);
+                    cast_float_size(reg3, args[i].size, temp_float_size);
+                }
             } else {
                 mov_var(args[i], reg1);
                 if (func.c_variadic) {
@@ -721,6 +739,7 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
         free_int_reg(reg1);
         free_int_reg(reg2);
         free_float_reg(reg3);
+        free_float_reg(reg4);
     }
     output.appendf("    call {}\n", func.name);
 }
@@ -730,6 +749,7 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
     Register reg1;
     Register reg2;
     Register reg3;
+    Register reg4;
     size_t current_stack_offset = 0;
 
     for (size_t i = 0, j = 0; i < args.size(); i++, j++, f++) {
@@ -737,9 +757,10 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
             temp_float_size = 8;
         else
             temp_float_size = args[i].type_info.size;
-        bool is_stack       = j   > arg_register.size()-1;
-        bool is_next_stack  = j+1 > arg_register.size()-1;
-        bool is_stack_float = f+1 > arg_register_float.size()-1;
+        bool is_stack            = j   > arg_register.size()-1;
+        bool is_next_stack       = j+1 > arg_register.size()-1;
+        bool is_stack_float      = f   > arg_register_float.size()-1;
+        bool is_next_stack_float = f+1 > arg_register_float.size()-1;
         if (is_stack) {
             reg1 = get_available_int_reg();
             reg2 = get_available_int_reg();
@@ -752,8 +773,13 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
         }
         if (is_stack_float) {
             reg3 = get_available_float_reg();
+            reg4 = get_available_float_reg();
+        } else if (is_next_stack_float) {
+            reg3 = arg_register_float[f];
+            reg4 = get_available_float_reg();
         } else {
             reg3 = arg_register_float[f];
+            reg4 = arg_register_float[f+1];
         }
         if (args[i].type_info.type == Type::Struct_t) {
             auto strct = get_struct_from_name(args[i].type_info.name);
@@ -769,18 +795,32 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
                     mov_var(args[i], reg1);
                 }
             } else if (args[i].size <= 16) {
-                size_t orig_size = args[i].size;
-                args[i].size = 8;
-                mov_var(args[i], reg1);
-                if (args[i].deref_count == 0) {
-                    args[i].size = orig_size-8;
-                    args[i].offset -= 8;
-                    mov_var(args[i], reg2);
+                if (strct.is_float_only) {
+                    size_t orig_size = args[i].size;
+                    args[i].size = 8;
+                    mov_var(args[i], reg3);
+                    if (args[i].deref_count == 0) {
+                        args[i].size = orig_size-8;
+                        args[i].offset -= 8;
+                        mov_var(args[i], reg4);
+                    } else {
+                        args[i].deref_count -= 1;
+                        mov_var(args[i], reg4);
+                        mov.append(8, reg4, reg4, orig_size-8);
+                    }
                 } else {
-                    args[i].deref_count -= 1;
-                    mov_var(args[i], reg2);
-                    mov.append(8, reg2, reg2, orig_size-8);
-
+                    size_t orig_size = args[i].size;
+                    args[i].size = 8;
+                    mov_var(args[i], reg1);
+                    if (args[i].deref_count == 0) {
+                        args[i].size = orig_size-8;
+                        args[i].offset -= 8;
+                        mov_var(args[i], reg2);
+                    } else {
+                        args[i].deref_count -= 1;
+                        mov_var(args[i], reg2);
+                        mov.append(8, reg2, reg2, orig_size-8);
+                    }
                 }
             } else {
                 args[i].deref_count = -1;
@@ -819,9 +859,16 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
                 current_stack_offset += 8;
             }
         }
+        if (is_next_stack_float) {
+            if (args[i].size > 8) {
+                mov.append(reg4, current_stack_offset+8, Rsp);
+                current_stack_offset += 8;
+            }
+        }
         free_int_reg(reg1);
         free_int_reg(reg2);
         free_float_reg(reg3);
+        free_float_reg(reg4);
     }
 
     if (func.c_variadic) {

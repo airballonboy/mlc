@@ -25,7 +25,7 @@ int64_t literal_count = 0;
 size_t current_offset = 0;
 size_t max_locals_offset = 8;
 size_t statement_count = 0;
-Func default_func = {0};
+Func default_func = {};
 std::string current_module_prefix{};
 std::vector<std::string> included_files;
 uint8_t size_of_signed_int (int64_t i) {
