@@ -251,7 +251,7 @@ void gnu_asm::compileFunction(Func func) {
     output.appendf("{}:\n", func.name);
     function_prologue();
     func.stack_size = ((func.stack_size + 15) & ~15) + 32;
-    output.appendf("    subq ${}, %rsp\n", func.stack_size);
+    sub.append(func.stack_size, Rsp);
 
     for (int j = 0, i = 0, f = 0; j < func.arguments_count; i++, j++, f++) {
         if (!is_float_type(func.arguments[j].type_info.type) && i < std::size(arg_register)) {
@@ -294,6 +294,7 @@ void gnu_asm::compileFunction(Func func) {
 
                     //mov_var(func.arguments[0], Rax);
                 }
+                add.append(func.stack_size, Rsp);
                 function_epilogue();
                 output.append("    ret\n");
                 returned = true;
