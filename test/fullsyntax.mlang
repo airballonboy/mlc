@@ -22,8 +22,8 @@ func game::close(){
 }
 
 // entry point
-func main() -> int{
-    const bool closed = false;
+func main() -> int {
+    const bool pi = 3.1415;
 	// unused return
 	game::init();
 

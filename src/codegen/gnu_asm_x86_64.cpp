@@ -706,7 +706,13 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
         } else {
             if (is_float_type(args[i].type_info.type)) {
                 if (func.c_variadic) {
-                    mov_var(args[i], reg1);
+                    if (args[i].size != temp_float_size) {
+                        mov_var(args[i], reg3);
+                        cast_float_size(reg3, args[i].size, temp_float_size);
+                        mov.append(reg3, reg1);
+                    } else {
+                        mov_var(args[i], reg1);
+                    }
                 } else {
                     mov_var(args[i], reg3);
                     cast_float_size(reg3, args[i].size, temp_float_size);
@@ -722,13 +728,17 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
             }
         }
         if (is_stack) {
-            mov.append(reg1, current_stack_offset, Rsp);
-            if (args[i].size > 8) {
-                mov.append(reg2, current_stack_offset+8, Rsp);
-            }
-            if(is_float_type(args[i].type_info.type))
-                mov.append(reg3, current_stack_offset, Rsp);
-            current_stack_offset += std::max(8, (int)args[i].size);
+            if (is_float_type(args[i].type_info.type)) {
+                if (func.c_variadic) {
+					mov.append(reg1, current_stack_offset, Rsp);
+                } else {
+                    cast_float_size(reg3, args[i].size, temp_float_size);
+					mov.append(reg3, current_stack_offset, Rsp);
+                }
+			} else {
+				mov.append(reg1, current_stack_offset, Rsp);
+			}
+			current_stack_offset += std::max(8, (int)args[i].size);
         }
         if (is_next_stack) {
             if (args[i].size > 8) {
@@ -1002,10 +1012,14 @@ void gnu_asm::mov_var(Variable src, Register dest) {
     else if (src.kind.literal && is_int_type(src.type_info.type))
         mov.append(std::any_cast<int64_t>(src.value), dest);
     else if (src.kind.literal && is_float_type(src.type_info.type)) {
-        auto reg = get_available_int_reg();
-        mov.append(src.name, Rip, reg);
-        mov.append(reg, dest);
-        free_int_reg(reg);
+        //auto reg = get_available_int_reg();
+        if (is_float_reg(dest))
+            movs.append(src.name, Rip, dest, src.size);
+        else
+            mov.append(src.name, Rip, dest, src.size);
+        //mov.append(src.name, Rip, reg);
+        //mov.append(reg, dest);
+        //free_int_reg(reg);
     } else if (src.kind.global) {
         if (src.deref_count == -1) {
             lea.append(src.name, Rip, dest);
@@ -1142,6 +1156,12 @@ void gnu_asm::mov_var(Variable src, Variable dest) {
             mov_var(reg, dest);
 
             free_float_reg(reg);
+        } else if (is_float_type(dest.type_info.type) && is_float_type(src.type_info.type)) {
+            auto reg = get_available_float_reg();
+            mov_var(src, reg);
+            mov_var(reg, dest);
+            free_float_reg(reg);
+
         } else {
             auto reg = get_available_int_reg();
             mov_var(src, reg);
