@@ -36,7 +36,6 @@ enum class TokenType {
     Hash, BSlash,
     SQoute, DQoute,
     Dot, Arrow,
-    UScore,
     // Types
     //Int8_t, Int16_t, 
     //Int32_t, Int64_t, 
@@ -196,7 +195,6 @@ static const std::unordered_map<TokenType, std::string> printableToken = {
 };
 
 static const std::unordered_map<std::string, TokenType> PUNCTUATION = {
-    {"_" ,  TokenType::UScore},
     {"\'" , TokenType::SQoute},
     {"\"" , TokenType::DQoute},
     {"."  , TokenType::Dot},
