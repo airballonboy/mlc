@@ -638,8 +638,8 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
     for (size_t i = 0, j = 0; i < args.size(); i++, j++) {
         if (is_float_type(args[i].type_info.type) && func.c_variadic)
             temp_float_size = 8;
-        else
-            temp_float_size = args[i].type_info.size;
+        else if (!func.c_variadic)
+            temp_float_size = func.arguments[i].size;
         bool is_stack      = j   > arg_register.size()-1;
         bool is_next_stack = j+1 > arg_register.size()-1;
         if (is_stack) {
@@ -765,8 +765,8 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
     for (size_t i = 0, j = 0; i < args.size(); i++, j++, f++) {
         if (is_float_type(args[i].type_info.type) && func.c_variadic)
             temp_float_size = 8;
-        else
-            temp_float_size = args[i].type_info.size;
+        else if (!func.c_variadic)
+            temp_float_size = func.arguments[i].size;
         bool is_stack            = j   > arg_register.size()-1;
         bool is_next_stack       = j+1 > arg_register.size()-1;
         bool is_stack_float      = f   > arg_register_float.size()-1;
@@ -798,11 +798,12 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
                     args[i].size = strct.size;
             }
             if (args[i].size <= 8) {
-                if (strct.is_float_only) {
+                if (strct.is_float_only && args[i].kind.pointer_count == 0) {
                     mov_var(args[i], reg3);
                     j--;
                 } else {
                     mov_var(args[i], reg1);
+                    f--;
                 }
             } else if (args[i].size <= 16) {
                 if (strct.is_float_only) {
@@ -818,6 +819,8 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
                         mov_var(args[i], reg4);
                         mov.append(8, reg4, reg4, orig_size-8);
                     }
+                    f++;
+                    j--;
                 } else {
                     size_t orig_size = args[i].size;
                     args[i].size = 8;
@@ -831,6 +834,7 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
                         mov_var(args[i], reg2);
                         mov.append(8, reg2, reg2, orig_size-8);
                     }
+                    f--;
                 }
             } else {
                 args[i].deref_count = -1;

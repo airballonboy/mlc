@@ -1,25 +1,25 @@
 #include <c_std.mlang>
 
 struct Vec3 {
-    int x = 0; 
-    int y = 0;
-    int z = 0;
-    func add(int amount) {
+    float x = 0; 
+    float y = 0;
+    float z = 0;
+    func add(float amount) {
         this.x += amount;
         this.y += amount;
         this.z += amount;
     }
     func init() {
-        this.x = 0;
-        this.y = 0;
-        this.z = 0;
+        this.x = 0.0;
+        this.y = 0.0;
+        this.z = 0.0;
     }
 }
 func static Vec3.new() -> Vec3* {
     return c_std::malloc(Vec3.type_info().size);
 }
 func Vec3.print() {
-    c_std::printf("Vec3[%d, %d, %d]\n", this.x, this.y, this.z);
+    c_std::printf("Vec3[%.2f, %.2f, %.2f]\n", this.x, this.y, this.z);
 }
 
 const ONE = 1;
@@ -31,7 +31,7 @@ func main() {
     } else {
         v.init();
         v.print();
-        v.add(3);
+        v.add(30.0);
         v.print();
     }
 }
