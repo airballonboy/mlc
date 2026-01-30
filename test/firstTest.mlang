@@ -1,9 +1,9 @@
 #include <c_std.mlang>
 
 struct Vec3 {
-    float x = 0; 
-    float y = 0;
-    float z = 0;
+    float x = 0.0; 
+    float y = 0.0;
+    float z = 0.0;
     func add(float amount) {
         this.x += amount;
         this.y += amount;

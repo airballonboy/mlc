@@ -350,6 +350,8 @@ void gnu_asm::compileFunction(Func func) {
             case Op::STORE_VAR: {
                 Variable var1 = std::get<Variable>(inst.args[0]);
                 Variable var2 = std::get<Variable>(inst.args[1]);
+                if (var1.type_info.type == Type::Void_t || var2.type_info.type == Type::Void_t)
+                    break;
                 if (var1.type_info.type != Type::String_t) {
                     mov_var(var1, var2);
                 } else {

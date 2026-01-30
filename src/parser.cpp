@@ -1161,13 +1161,24 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     }
                     m_currentLexar->getAndExpectNext(TokenType::CCurly);
                     // saving offset to make struct literal temporary
-                    auto save = current_offset;
+                    auto save_off  = current_offset;
+                    auto save_func = m_currentFunc;
+                    auto strct = get_struct_from_name(name);
+                    m_currentFunc = &default_func;
                     var = initStruct(name, "struct literal");
-                    for (size_t i = 0; i < var.members.size() && i < v.size(); i++) {
-                        var.members[i].value = v[i].value;
+                    m_currentFunc  = save_func;
+                    for (size_t i = 0; i < var.members.size(); i++) {
+                        if (i < v.size()) {
+                            var.members[i].value = v[i].value;
+                        } else if (strct.defaults.contains(i)) {
+                            v.push_back(strct.defaults.at(i));
+                            var.members[i].value = v[i].value;
+                        } else {
+                            v.push_back({.type_info = type_infos.at("void")});
+                        }
                         m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
                     }
-                    current_offset = save;
+                    current_offset = save_off;
                     return {var, false};
                 }
             }
