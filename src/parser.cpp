@@ -255,11 +255,11 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
             if (var.kind.pointer_count > 0) {
                 strct_ = initStruct(var.type_info.name, var.name, true, false);
             } else {
-                strct_ = initStruct(var.type_info.name, var.name, true);
+                strct_ = initStruct(var.type_info.name, var.name, true, !strct->defaults.contains(i));
             }
-
-
             current_offset = temp_offset;
+
+
             strct_.parent = struct_var;
             strct_.kind = var.kind;
             strct_.offset = var.offset;
@@ -267,6 +267,7 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
             if (strct_.members[0].parent)
                 *strct_.members[0].parent = strct_;
             struct_var->members.push_back(strct_);
+            var = strct_;
         } else
             struct_var->members.push_back(var);
 
@@ -277,6 +278,21 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
             }
             if (def.type_info.type != Type::Void_t && var.type_info.type != Type::Struct_t) {
                 m_currentFunc->body.push_back({Op::STORE_VAR, {def, var}});
+            }
+            if (def.type_info.type == Type::Struct_t) {
+                for (size_t j = 0; j < def.members.size() && j < var.members.size(); j++) {
+                    def.members[j].kind.literal = true;
+                    if (def.members[j].type_info.type == Type::Float_t) {
+                        def.members[j].type_info = type_infos.at("double");
+                        def.members[j].size = 8;
+                    }
+                    if (def.members[j].type_info.type == Type::String_t) {
+                        m_currentFunc->body.push_back({Op::INIT_STRING, {var.members[j]}});
+                    }
+                    if (def.members[j].type_info.type != Type::Void_t && def.members[j].type_info.type != Type::Struct_t) {
+                        m_currentFunc->body.push_back({Op::STORE_VAR, {def.members[j], var.members[j]}});
+                    }
+                }
             }
         }
     }
@@ -342,9 +358,6 @@ void Parser::parseStructDeclaration() {
             current_struct.is_float_only = false;
 
         // Defaults
-        if (var.type_info.type == Type::String_t) {
-            current_struct.defaults.emplace(var_index, Variable{ type_infos.at("void") });
-        }
         if (m_currentLexar->peek()->type == TokenType::Eq) {
             m_currentLexar->getAndExpectNext(TokenType::Eq);
             m_currentLexar->getNext();
@@ -353,7 +366,7 @@ void Parser::parseStructDeclaration() {
         } else if (var.type_info.type != Type::String_t && var.type_info.type != Type::Struct_t) {
             Variable default_val;
             default_val.name = "def_value";
-            default_val.kind.literal   = true;
+            default_val.kind.literal  = true;
             default_val.kind.constant = true;
             if (var.type_info.type == Type::Double_t || var.type_info.type == Type::Float_t) {
                 default_val.type_info = type_infos.at("double");
@@ -368,6 +381,8 @@ void Parser::parseStructDeclaration() {
             }
 
             current_struct.defaults.emplace(var_index, default_val);
+        } else {
+            current_struct.defaults.emplace(var_index, Variable{ type_infos.at("void") });
         }
         m_currentLexar->getAndExpectNext(TokenType::SemiColon);
         m_currentLexar->getNext();
@@ -1168,6 +1183,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     var = initStruct(name, "struct literal");
                     m_currentFunc  = save_func;
                     for (size_t i = 0; i < var.members.size(); i++) {
+                        var.members[i].name = v[i].name;
                         if (i < v.size()) {
                             var.members[i].value = v[i].value;
                         } else if (strct.defaults.contains(i)) {
