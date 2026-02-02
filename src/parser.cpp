@@ -488,7 +488,6 @@ void Parser::parseExtern() {
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile) {
         if (m_currentLexar->peek()->type == TokenType::Dot) {
-            
             m_currentLexar->getAndExpectNext(TokenType::Dot);
             m_currentLexar->getAndExpectNext(TokenType::Dot);
             m_currentLexar->getAndExpectNext(TokenType::Dot);
@@ -499,10 +498,11 @@ void Parser::parseExtern() {
             func.local_variables.push_back(parseVariable(func.arguments));
             func.arguments_count++;
         }
-        // Process parameter(Local Variables)
         if (m_currentLexar->peek()->type != TokenType::CParen) {
-            m_currentLexar->expectNext(TokenType::Comma);
-            m_currentLexar->getNext();
+            m_currentLexar->getAndExpectNext(TokenType::Comma);
+            if (m_currentLexar->peek()->type == TokenType::CParen) {
+                ERROR((*tkn)->loc, "cannot do trailing commas in function calls");
+            }
         }
     }
 
@@ -523,10 +523,10 @@ void Parser::parseExtern() {
     if (func.return_type.size > 16) {
         Variable ret = {
             .type_info = TypeInfo(func.return_type),
-            .name = "return_register",
+            .name   = "return_register",
             .offset = 8,
-            .size = 8,
-            .kind = {
+            .size   = 8,
+            .kind   = {
                 .pointer_count = 1
             }
         };
@@ -557,7 +557,7 @@ void Parser::parseExtern() {
             } else {
                 m_currentLexar->getAndExpectNext(TokenType::CBracket);
             }
-        }while ((*tkn)->type != TokenType::CBracket);
+        } while ((*tkn)->type != TokenType::CBracket);
     }
 
     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
@@ -1434,6 +1434,9 @@ void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address
         args.push_back(std::get<0>(parseExpression()));
         if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->getAndExpectNext(TokenType::Comma);
+            if (m_currentLexar->peek()->type == TokenType::CParen) {
+                ERROR((*tkn)->loc, "cannot do trailing commas in function calls");
+            }
         }
     }
     m_currentLexar->getAndExpectNext(TokenType::CParen);
