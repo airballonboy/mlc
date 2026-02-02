@@ -393,7 +393,7 @@ struct Program {
 };
 
 namespace fs = std::filesystem;
-inline fs::path input_no_extension;
 inline fs::path input_path;
+inline fs::path input_file;
 inline fs::path build_path;
 

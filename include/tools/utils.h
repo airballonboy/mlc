@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include "types.h"
 #include <string>
 #include <format>
 #include <print>
@@ -12,7 +13,11 @@ enum class BuildTarget {
     ir,
     gnu_asm_86_64,
 };
-inline std::unordered_map<std::string, BuildTarget> PLATFORMS = {
+inline std::unordered_map<std::string, Platform> PLATFORMS = {
+    {"linux",  Platform::Linux},
+    {"windows", Platform::Windows},
+};
+inline std::unordered_map<std::string, BuildTarget> TARGETS = {
     {"gnu_x64_64", BuildTarget::gnu_asm_86_64},
     {"ir",         BuildTarget::ir},
 };
@@ -23,13 +28,6 @@ inline std::unordered_map<std::string, BuildTarget> PLATFORMS = {
 #define CC "gcc -lmsvcrt"
 #else 
 #define CC "gcc -lc"
-#endif
-#endif
-#ifndef EXECUTABLE_EXTENSION
-#ifdef _WIN32
-#define EXECUTABLE_EXTENSION ".exe" 
-#else 
-#define EXECUTABLE_EXTENSION "" 
 #endif
 #endif
 
