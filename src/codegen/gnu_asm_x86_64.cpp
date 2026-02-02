@@ -762,9 +762,8 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
                     args[i].size = strct.size;
             }
             if (args[i].size <= 8) {
-                if (strct.is_float_only) {
+                if (strct.is_float_only && args[i].kind.pointer_count == 0) {
                     mov_var(args[i], reg3);
-                    j--;
                 } else {
                     mov_var(args[i], reg1);
                 }
