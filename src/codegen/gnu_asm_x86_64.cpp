@@ -276,9 +276,9 @@ void gnu_asm::compileFunction(Func func) {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
                 Variable arg = std::get<Variable>(inst.args[0]);
                 if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
-                    if (is_float_type(arg.type_info.type)) {
+                    if (is_float_type(func.return_type.type) && func.return_kind.pointer_count == 0) {
                         mov_var(arg, Xmm0);
-                    } else if (arg.type_info.type == Type::Struct_t) {
+                    } else if (func.return_type.type == Type::Struct_t && func.return_kind.pointer_count == 0) {
                         if (get_struct_from_name(arg.type_info.name).is_float_only)
                             mov_var(arg, Xmm0);
                         else 
@@ -376,9 +376,9 @@ void gnu_asm::compileFunction(Func func) {
                 call_func(func, args);
                 if (ret_address.type_info.type != Type::Void_t) {
                     if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
-                        if (is_float_type(ret_address.type_info.type)) {
+                        if (is_float_type(ret_address.type_info.type) && ret_address.kind.pointer_count == 0) {
                             mov_var(Xmm0, ret_address);
-                        } else if (ret_address.type_info.type == Type::Struct_t) {
+                        } else if (ret_address.type_info.type == Type::Struct_t && ret_address.kind.pointer_count == 0) {
                             if (get_struct_from_name(ret_address.type_info.name).is_float_only)
                                 mov_var(Xmm0, ret_address);
                             else 
