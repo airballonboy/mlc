@@ -34,7 +34,6 @@ struct CTX {
     func update() {
         this.ball.x += this.ball_vel.x;
         this.ball.y += this.ball_vel.y;
-
         if (rl::is_key_down(KEY_W) && this.p1.y > 0)
             this.p1.y -= this.velocity;
         if (rl::is_key_down(KEY_S) && (this.p1.y + this.p1.h) < 675)
@@ -79,8 +78,6 @@ func main() {
             ctx.init();
         rl::draw_rectangle(ctx.p1.x, ctx.p1.y, ctx.p1.w, ctx.p1.h, ctx.color);
         rl::draw_rectangle(ctx.p2.x, ctx.p2.y, ctx.p1.w, ctx.p1.h, ctx.color);
-        c_std::printf("pos %f, %f\n", ctx.ball.x, ctx.ball.y);
-        c_std::printf("size %f, %f\n", ctx.ball_size.x, ctx.ball_size.y);
         rl::draw_rectangle_v(ctx.ball, ctx.ball_size, ctx.color);
 
         rl::draw_fps(10, 10);

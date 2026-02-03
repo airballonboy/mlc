@@ -704,7 +704,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
         func.arguments_count++;
         func.arguments.emplace(func.arguments.begin(), ret);
     }
-    for (int i = args_temp_storage.size()-1;i >= 0; i--) {
+    for (int i = 0; i < args_temp_storage.size(); i++) {
         auto var = args_temp_storage[i];
         if (var.type_info.type == Type::Struct_t) {
             if (var.kind.pointer_count > 0) {
