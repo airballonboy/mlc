@@ -254,11 +254,18 @@ void gnu_asm::compileFunction(Func func) {
     sub.append(func.stack_size, Rsp);
 
     for (int j = 0, i = 0, f = 0; j < func.arguments_count; i++, j++, f++) {
-        if ((is_float_type(func.arguments[j].type_info.type) || (func.arguments[j].type_info.type == Type::Struct_t && get_struct_from_name(func.arguments[j].type_info.name).is_float_only)) && f < std::size(arg_register_float)) {
+        if (is_float_type(func.arguments[j].type_info.type) && f < std::size(arg_register_float)) {
             mov_var(arg_register_float[f], func.arguments[j]);
 
             if (m_program->platform != Platform::Windows)
                 i--;
+        } else if (func.arguments[j].kind.pointer_count == 0 && func.arguments[j].type_info.type == Type::Struct_t && get_struct_from_name(func.arguments[j].type_info.name).is_float_only) {
+            if (m_program->platform == Platform::Windows) {
+                mov_var(arg_register[i], func.arguments[j]);
+            } else {
+                mov_var(arg_register_float[f], func.arguments[j]);
+                i--;
+            }
         } else if (i < std::size(arg_register)) {
             mov_var(arg_register[i], func.arguments[j]);
 
@@ -805,7 +812,7 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
 }
 void gnu_asm::call_func_linux(Func func, VariableStorage args) {
     size_t f = 0;
-    size_t temp_float_size;
+    size_t temp_float_size = 0;
     Register reg1;
     Register reg2;
     Register reg3;
