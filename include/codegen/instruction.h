@@ -20,41 +20,23 @@ public:
     // appends instruction
     void append();
     // appends instruction with `reg`
-    void append(Register reg);
-    // appends instruction with `reg`
-    void append(Register reg, size_t size);
+    void append(Register reg, size_t size = 8);
     // appends instruction with `src` into `dest` with the size of `size`
-    void append(Register src      , Register dest  , size_t   size);
+    void append(Register src      , Register dest  , size_t   size = 8);
     // appends instruction with `src+offset` into `dest` with the size of `size`
-    void append(int64_t  offset   , Register src   , Register dest, size_t size);
+    void append(int64_t  offset   , Register src   , Register dest, size_t size = 8);
     // appends instruction with `src` into `dest+offset` with the size of `size`
-    void append(Register src      , int64_t  offset, Register dest, size_t size);
+    void append(Register src      , int64_t  offset, Register dest, size_t size = 8);
     // appends instruction with `global_label+src` into `dest` with the size of `size`
-    void append(std::string global_label, Register src, Register dest, size_t size);
+    void append(std::string global_label, Register src, Register dest, size_t size = 8);
     // appends instruction with `src` into `global_label+dest` with the size of `size`
-    void append(Register src, std::string global_label, Register dest, size_t size);
-    // appends instruction with `global_label+src` into `dest` with the size of 8
-    void append(std::string global_label, Register src, Register dest);
-    // appends instruction with `src` into `global_label+dest` with the size of 8
-    void append(Register src, std::string global_label, Register dest);
-    // appends instruction with `src` into `dest` with the size of 8
-    void append(Register src      , Register dest);
-    // appends instruction with `src+offset` into `dest` with the size of 8
-    void append(int64_t  offset   , Register src   , Register dest);
-    // appends instruction with `src` into `dest+offset` with the size of 8
-    void append(Register src      , int64_t  offset, Register dest);
-    // appends instruction with `int_value` into `dest+offset` of size 8
-    void append(int64_t  int_value, int64_t  offset, Register dest);
-    // appends instruction with `int_value` into `dest+label` of size 8
-    void append(int64_t  int_value, std::string label, Register dest);
-    // appends instruction with `int_value` into `dest` of size 8
-    void append(int64_t  int_value, Register dest);
+    void append(Register src, std::string global_label, Register dest, size_t size = 8);
     // appends instruction with `int_value` into `dest+offset` of size `size`
-    void append(int64_t  int_value, int64_t  offset, Register dest, size_t size);
+    void append(int64_t  int_value, int64_t  offset, Register dest, size_t size = 8);
     // appends instruction with `int_value` into `dest+offset` of size `size`
-    void append(int64_t  int_value, std::string label, Register dest, size_t size);
+    void append(int64_t  int_value, std::string label, Register dest, size_t size = 8);
     // appends instruction with `int_value` into `dest` of size `size`
-    void append(int64_t  int_value, Register dest, size_t size);
+    void append(int64_t  int_value, Register dest, size_t size = 8);
 
 private:
     std::string& m_output;

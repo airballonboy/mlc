@@ -254,20 +254,21 @@ void gnu_asm::compileFunction(Func func) {
     sub.append(func.stack_size, Rsp);
 
     for (int j = 0, i = 0, f = 0; j < func.arguments_count; i++, j++, f++) {
-        if (is_float_type(func.arguments[j].type_info.type) && f < std::size(arg_register_float)) {
-            mov_var(arg_register_float[f], func.arguments[j]);
+        auto& arg = func.arguments[j];
+        if (is_float_type(arg.type_info.type) && f < std::size(arg_register_float)) {
+            mov_var(arg_register_float[f], arg);
 
             if (m_program->platform != Platform::Windows)
                 i--;
-        } else if (func.arguments[j].kind.pointer_count == 0 && func.arguments[j].type_info.type == Type::Struct_t && get_struct_from_name(func.arguments[j].type_info.name).is_float_only) {
+        } else if (arg.kind.pointer_count == 0 && arg.type_info.type == Type::Struct_t && get_struct_from_name(arg.type_info.name).is_float_only) {
             if (m_program->platform == Platform::Windows) {
-                mov_var(arg_register[i], func.arguments[j]);
+                mov_var(arg_register[i], arg);
             } else {
-                mov_var(arg_register_float[f], func.arguments[j]);
+                mov_var(arg_register_float[f], arg);
                 i--;
             }
         } else if (i < std::size(arg_register)) {
-            mov_var(arg_register[i], func.arguments[j]);
+            mov_var(arg_register[i], arg);
 
             if (m_program->platform != Platform::Windows)
                 f--;

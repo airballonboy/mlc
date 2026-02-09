@@ -97,30 +97,3 @@ void AsmInstruction::append(Register src, std::string global_label, Register des
                        global_label, REG_SIZE(dest, 8)
     );
 }
-void AsmInstruction::append(std::string global_label, Register src, Register dest) {
-    append(global_label, src, dest, 8);
-}
-void AsmInstruction::append(Register src, std::string global_label, Register dest) {
-    append(src, global_label, dest, 8);
-}
-void AsmInstruction::append(int64_t int_value, Register dest) {
-    append(int_value, dest, 8);
-}
-void AsmInstruction::append(int64_t int_value, int64_t offset, Register dest) {
-    append(int_value, offset, dest, 8);
-}
-void AsmInstruction::append(int64_t int_value, std::string label, Register dest) {
-    append(int_value, label, dest, 8);
-}
-void AsmInstruction::append(int64_t offset, Register src, Register dest) {
-    append(offset, src, dest, 8);
-}
-void AsmInstruction::append(Register src, int64_t offset, Register dest) {
-    append(src, offset, dest, 8);
-}
-void AsmInstruction::append(Register src, Register dest) {
-    append(src, dest, 8);
-}
-void AsmInstruction::append(Register reg) {
-    append(reg, 8);
-}
