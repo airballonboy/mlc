@@ -4,7 +4,7 @@
 #include <any>
 #include <vector>
 
-class Variable;
+struct Variable;
 typedef std::vector<Variable> VariableStorage;
 
 struct Variable {

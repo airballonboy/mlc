@@ -1,6 +1,6 @@
 #pragma once 
 #include <unordered_set>
-#include "codegen/instruction.h"
+#include "codegen/asm_instruction.h"
 #include "codegen/base.h"
 #include "type_system/variable.h"
 #include "type_system/func.h"

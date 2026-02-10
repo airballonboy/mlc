@@ -11,7 +11,7 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
-#include "codegen/instruction.h"
+#include "codegen/asm_instruction.h"
 #include "instruction.h"
 #include "context.h"
 #include "tools/logger.h"
