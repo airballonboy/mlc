@@ -3,9 +3,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "type_system/variable.h"
 
-class Struct {
-public:
+struct Struct {
     size_t id = 0;
     std::string name{};
     VariableStorage var_storage;

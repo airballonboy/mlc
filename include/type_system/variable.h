@@ -7,8 +7,7 @@
 class Variable;
 typedef std::vector<Variable> VariableStorage;
 
-class Variable {
-public:
+struct Variable {
     TypeInfo    type_info = type_infos.at("void");
     std::string name{};
     std::any    value{};

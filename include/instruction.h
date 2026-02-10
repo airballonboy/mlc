@@ -5,10 +5,9 @@
 #include "type_system/variable.h"
 #include "operations.h"
 
-class Func;
+struct Func;
 using Arg = std::variant<std::string, Variable, VariableStorage, Func>;
-class Instruction {
-public:
+struct Instruction {
     Op op;
     std::vector<Arg> args;
 };

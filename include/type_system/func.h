@@ -7,13 +7,12 @@
 #include "instruction.h"
 
 
-class Func {
-public:
+struct Func {
     TypeInfo return_type = type_infos.at("void");
     Kind     return_kind{};
 
     int arguments_count = 0;
-    VariableStorage arguments{};
+    VariableStorage arguments;
 
     std::string name{};
     
@@ -28,6 +27,6 @@ public:
     std::string lib{};
     std::string search_path{};
 
-    std::vector<Instruction> body{};
+    std::vector<Instruction> body;
 };
 typedef std::vector<Func> FunctionStorage;

@@ -5,8 +5,7 @@
 #include <type_system/variable.h>
 
 
-class Module {
-public:
+struct Module {
     std::string name{};
     std::unordered_map<std::string, Module> module_storage;
     FunctionStorage func_storage;

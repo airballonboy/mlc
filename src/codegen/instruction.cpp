@@ -1,4 +1,5 @@
 #include <cassert>
+#include <format>
 #include "codegen/instruction.h"
 #include "tools/format.h"
 

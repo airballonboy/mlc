@@ -2,8 +2,7 @@
 #include <string>
 #include "type_system/type.h"
 
-class TypeInfo {
-public:
+struct TypeInfo {
     size_t id = 0;
     Type type = Type::Int32_t;
     size_t size = 0;
