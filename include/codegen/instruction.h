@@ -1,6 +1,5 @@
 #pragma once
 #include <string>
-#include "types.h"
 
 struct Register {
     std::string _64;

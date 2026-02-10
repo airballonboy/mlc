@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
-#include "types.h"
 #include <vector>
+#include "token.h"
 
 
 //Should add TokenType::typeID

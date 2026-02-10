@@ -1,6 +1,7 @@
 #pragma once 
 #include "codegen/base.h"
-#include "types.h"
+#include "type_system/func.h"
+#include "program.h"
 
 class ir : public BaseCodegenerator{
 public:

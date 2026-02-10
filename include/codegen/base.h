@@ -1,5 +1,6 @@
 #pragma once
-#include "types.h"
+#include "type_system/func.h"
+#include "program.h"
 
 class BaseCodegenerator {
 public:
