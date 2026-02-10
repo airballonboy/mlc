@@ -286,6 +286,7 @@ void gnu_asm::compileFunction(Func func) {
                 if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
                     if (is_float_type(func.return_type.type) && func.return_kind.pointer_count == 0) {
                         mov_var(arg, Xmm0);
+                        cast_float_size(Xmm0, arg.size, func.return_type.size);
                     } else if (func.return_type.type == Type::Struct_t && func.return_kind.pointer_count == 0) {
                         if (get_struct_from_name(arg.type_info.name).is_float_only)
                             mov_var(arg, Xmm0);
@@ -681,8 +682,8 @@ void gnu_asm::compileFunction(Func func) {
 
                 auto reg1 = get_available_int_reg();
                 auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg1);
-                mov_var(rhs, reg2);
+                mov_var(lhs, reg2);
+                mov_var(rhs, reg1);
                 cmp.append(reg1, reg2, lhs.size);
                 output.appendf("    setge {}\n", reg1._8);
                 output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);

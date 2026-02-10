@@ -674,7 +674,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
         if (type_infos.contains(current_module_prefix + (*tkn)->string_value))
             func.return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
         else 
-            TODO("Type does not exist");
+            ERROR((*tkn)->loc, f("Type {} does not exist", current_module_prefix + (*tkn)->string_value));
         if (m_currentLexar->peek()->type == TokenType::OBracket) {
             m_currentLexar->getNext();
             m_currentLexar->getAndExpectNext(TokenType::CBracket);
@@ -706,41 +706,44 @@ Func Parser::parseFunction(bool member, Struct parent) {
     for (int i = 0; i < args_temp_storage.size(); i++) {
         auto var = args_temp_storage[i];
         if (var.type_info.type == Type::Struct_t) {
-            if (var.kind.pointer_count > 0) {
-                func.arguments.push_back(var);
-                func.local_variables.push_back(var);
-                func.arguments_count++;
-                continue;
-            }
-            if (var.size <= 8) {
-                //i -= get_struct_from_name(var._type_name).var_storage.size();
-                func.arguments.push_back(var);
-                func.local_variables.push_back(var);
-                func.arguments_count++;
-            } else if (var.size <= 16) {
-                i -= get_struct_from_name(var.type_info.name).var_storage.size();
-                size_t base_offset = var.offset;
-                auto var1 = var;
-                auto var2 = var;
-                var1.size = 8;
-                var2.offset -= 8;
-                var2.size = var.size - 8;
-                func.arguments.push_back(var1);
-                func.local_variables.push_back(var1);
-                func.arguments.push_back(var2);
-                func.local_variables.push_back(var2);
-                func.arguments_count += 2;
-            } else {
-                //i -= get_struct_from_name(var._type_name).var_storage.size();
-                auto var_ptr = var;
-                var_ptr.kind.pointer_count = 1;
-                var_ptr.size = 8;
-                func.arguments.push_back(var_ptr);
-                func.local_variables.push_back(var);
-                var_ptr.deref_count = 1;
-                func.body.push_back({Op::STORE_VAR, {var_ptr, var}});
-                func.arguments_count++;
-            }
+            func.arguments.push_back(var);
+            func.local_variables.push_back(var);
+            func.arguments_count++;
+            //if (var.kind.pointer_count > 0) {
+            //    func.arguments.push_back(var);
+            //    func.local_variables.push_back(var);
+            //    func.arguments_count++;
+            //    continue;
+            //}
+            //if (var.size <= 8) {
+            //    //i -= get_struct_from_name(var._type_name).var_storage.size();
+            //    func.arguments.push_back(var);
+            //    func.local_variables.push_back(var);
+            //    func.arguments_count++;
+            //} else if (var.size <= 16) {
+            //    i -= get_struct_from_name(var.type_info.name).var_storage.size();
+            //    size_t base_offset = var.offset;
+            //    auto var1 = var;
+            //    auto var2 = var;
+            //    var1.size = 8;
+            //    var2.offset -= 8;
+            //    var2.size = var.size - 8;
+            //    func.arguments.push_back(var1);
+            //    func.local_variables.push_back(var1);
+            //    func.arguments.push_back(var2);
+            //    func.local_variables.push_back(var2);
+            //    func.arguments_count += 2;
+            //} else {
+            //    //i -= get_struct_from_name(var._type_name).var_storage.size();
+            //    auto var_ptr = var;
+            //    var_ptr.kind.pointer_count = 1;
+            //    var_ptr.size = 8;
+            //    func.arguments.push_back(var_ptr);
+            //    func.local_variables.push_back(var);
+            //    var_ptr.deref_count = 1;
+            //    func.body.push_back({Op::STORE_VAR, {var_ptr, var}});
+            //    func.arguments_count++;
+            //}
         } else {
             func.arguments.push_back(var);
             func.local_variables.push_back(var);
