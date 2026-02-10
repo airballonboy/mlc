@@ -1,9 +1,10 @@
 #pragma once 
-#include "codegen/instruction.h"
-#include "codegen/base.h"
-#include "types.h"
-#include <array>
 #include <unordered_set>
+#include "codegen/asm_instruction.h"
+#include "codegen/base.h"
+#include "type_system/variable.h"
+#include "type_system/func.h"
+#include "program.h"
 
 class gnu_asm : public BaseCodegenerator {
 public:

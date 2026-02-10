@@ -1,10 +1,4 @@
 #include "codegen/gnu_asm_x86_64.h"
-#include "codegen/instruction.h"
-#include "context.h"
-#include "tools/logger.h"
-#include "tools/utils.h"
-#include "types.h"
-#include "tools/format.h"
 #include <any>
 #include <cassert>
 #include <complex>
@@ -17,6 +11,12 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
+#include "codegen/asm_instruction.h"
+#include "instruction.h"
+#include "context.h"
+#include "tools/logger.h"
+#include "tools/utils.h"
+#include "tools/format.h"
 
 int op = 0;
 #define MAX_STRING_SIZE 2048

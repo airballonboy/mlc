@@ -11,7 +11,6 @@
 #include "context.h"
 #include "flag.h"
 #include "parser.h"
-#include "types.h"
 #include "tools/file.h"
 #include "codegen/ir.h"
 #include "tools/logger.h"

@@ -1,12 +1,12 @@
 #include "lexar.h"
-#include "tools/logger.h"
-#include "tools/format.h"
-#include "types.h"
 #include <cctype>
 #include <cmath>
 #include <print>
 #include <string>
 #include <vector>
+#include "tools/logger.h"
+#include "tools/format.h"
+#include "type_system/type.h"
 
 // Current Character
 #define c  m_source[m_currentCharIndex]

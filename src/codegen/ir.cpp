@@ -1,12 +1,14 @@
 #include "codegen/ir.h"
-#include "types.h"
-#include "tools/format.h"
 #include <any>
 #include <cstdint>
 #include <cstdio>
-#include <print>
 #include <string>
 #include <fstream>
+#include "tools/format.h"
+#include "context.h"
+#include "operations.h"
+#include "type_system/variable.h"
+#include "type_system/type.h"
 
 void ir::compileProgram() {
     if (m_program == nullptr) return;

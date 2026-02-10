@@ -1,8 +1,11 @@
 #pragma once
-
-#include "lexar.h"
-#include "types.h"
 #include <any>
+#include "lexar.h"
+#include "type_system/variable.h"
+#include "type_system/struct.h"
+#include "type_system/func.h"
+#include "program.h"
+
 typedef std::tuple<Variable, bool> ExprResult;
 class Parser {
 public:
