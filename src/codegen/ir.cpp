@@ -6,6 +6,9 @@
 #include <fstream>
 #include "tools/format.h"
 #include "context.h"
+#include "operations.h"
+#include "type_system/variable.h"
+#include "type_system/type.h"
 
 void ir::compileProgram() {
     if (m_program == nullptr) return;
