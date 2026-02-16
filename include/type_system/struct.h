@@ -5,7 +5,12 @@
 #include <vector>
 #include "type_system/variable.h"
 
+class Struct;
+typedef std::vector<Struct> StructStorage;
+
 class Struct {
+public:
+    static Struct& get_from_name(std::string& name, StructStorage& storage);
 public:
     size_t id = 0;
     std::string name{};
@@ -15,4 +20,3 @@ public:
     size_t alignment;
     bool is_float_only = false;
 };
-typedef std::vector<Struct> StructStorage;

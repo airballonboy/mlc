@@ -84,9 +84,9 @@ size_t Parser::align(size_t current_offset, Type type, std::string type_name) {
     size_t alignment = 0;
     if (type != Type::Struct_t) {
         if (type == Type::Void_t) return current_offset;
-        alignment = variable_size_bytes(type);
+        alignment = Variable::size_in_bytes(type);
     } else {
-        alignment = get_struct_from_name(type_name).alignment;
+        alignment = Struct::get_from_name(type_name, m_program.struct_storage).alignment;
     }
     return (current_offset + alignment - 1) & ~(alignment-1);
 }
@@ -116,7 +116,7 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     } else if (TypeIds.contains((*tkn)->string_value)) {
         type_name = printableTypeIds.at(TypeIds.at(type_name));
         var.type_info = type_infos.at(type_name);
-        var.size = variable_size_bytes(var.type_info.type);
+        var.size = Variable::size_in_bytes(var.type_info.type);
     } else {
         ERROR((*tkn)->loc, "type was not found");
     }
@@ -154,7 +154,7 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     }
 
 
-    if (variable_exist_in_storage(m_currentLexar->currentToken->string_value, var_store))
+    if (Variable::is_in_storage(m_currentLexar->currentToken->string_value, var_store))
         ERROR(m_currentLexar->currentToken->loc, f("redifinition of {}", m_currentLexar->currentToken->string_value));
     else 
         var.name = m_currentLexar->currentToken->string_value;    
@@ -217,18 +217,12 @@ Program* Parser::parse() {
     return &m_program;
 
 }
-Struct& Parser::get_struct_from_name(std::string name) {
-    for (auto& strct_ : m_program.struct_storage) {
-        if (strct_.name == name) return strct_;
-    }
-    TODO("struct not found");
-}
 Variable Parser::initStruct(std::string type_name, std::string struct_name, bool member, bool save_defaults) {
     //default
     int strct_offset = 0;
     Struct* strct = nullptr;
 
-    strct = &get_struct_from_name(type_name); 
+    strct = &Struct::get_from_name(type_name, m_program.struct_storage); 
 
     if (strct == nullptr) TODO("trying to access a struct that doesn't exist");
     // maybe shared pointers??
@@ -347,7 +341,7 @@ void Parser::parseStructDeclaration() {
         int var_index = current_struct.var_storage.size()-1;
         current_struct.size = align(current_struct.size, var.type_info.type, var.type_info.name);
         if (var.type_info.type == Type::Struct_t) {
-            current_struct.alignment = std::max((int)current_struct.alignment, (int)get_struct_from_name(var.type_info.name).alignment);
+            current_struct.alignment = std::max((int)current_struct.alignment, (int)Struct::get_from_name(var.type_info.name, m_program.struct_storage).alignment);
         } else {
             current_struct.alignment = std::max((int)current_struct.alignment, (int)var.size);
         }
@@ -371,12 +365,12 @@ void Parser::parseStructDeclaration() {
             if (var.type_info.type == Type::Double_t || var.type_info.type == Type::Float_t) {
                 default_val.type_info = type_infos.at("double");
                 default_val.size = 8;
-                default_val.value = std::any_cast<double>(variable_default_value(default_val.type_info.type));
-                if(!variable_exist_in_storage(default_val.name, m_program.var_storage))
+                default_val.value = std::any_cast<double>(Variable::default_value(default_val.type_info.type));
+                if(!Variable::is_in_storage(default_val.name, m_program.var_storage))
                     m_program.var_storage.push_back(default_val);
             } else {
                 default_val.type_info = type_infos.at("int8");
-                default_val.value = std::any_cast<int64_t>(variable_default_value(default_val.type_info.type));
+                default_val.value = std::any_cast<int64_t>(Variable::default_value(default_val.type_info.type));
                 default_val.size = 1;
             }
 
@@ -625,7 +619,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
         if (type_infos.contains(type_name)) {
             auto type = type_infos.at(type_name);
             if (type.type == Type::Struct_t)
-                parent = get_struct_from_name(type_name);
+                parent = Struct::get_from_name(type_name, m_program.struct_storage);
             else 
                 parent.name = type_name;
         }
@@ -724,12 +718,12 @@ Func Parser::parseFunction(bool member, Struct parent) {
             //    continue;
             //}
             //if (var.size <= 8) {
-            //    //i -= get_struct_from_name(var._type_name).var_storage.size();
+            //    //i -= Struct::get_from_name(var._type_name, m_program.struct_storage)).var_storage.size();
             //    func.arguments.push_back(var);
             //    func.local_variables.push_back(var);
             //    func.arguments_count++;
             //} else if (var.size <= 16) {
-            //    i -= get_struct_from_name(var.type_info.name).var_storage.size();
+            //    i -= Struct::get_from_name(var.type_info.name, m_program.struct_storage)).var_storage.size();
             //    size_t base_offset = var.offset;
             //    auto var1 = var;
             //    auto var2 = var;
@@ -742,7 +736,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
             //    func.local_variables.push_back(var2);
             //    func.arguments_count += 2;
             //} else {
-            //    //i -= get_struct_from_name(var._type_name).var_storage.size();
+            //    //i -= Struct::get_from_name(var._type_name, m_program.struct_storage)).var_storage.size();
             //    auto var_ptr = var;
             //    var_ptr.kind.pointer_count = 1;
             //    var_ptr.size = 8;
@@ -936,13 +930,13 @@ void Parser::parseStatement() {
                 if (var.type_info.type == Type::Double_t || var.type_info.type == Type::Float_t) {
                     default_val.type_info = type_infos.at("double");
                     default_val.size = 8;
-                    default_val.value = std::any_cast<double>(variable_default_value(var.type_info.type));
-                    if(!variable_exist_in_storage(default_val.name, m_program.var_storage))
+                    default_val.value = std::any_cast<double>(Variable::default_value(var.type_info.type));
+                    if(!Variable::is_in_storage(default_val.name, m_program.var_storage))
                         m_program.var_storage.push_back(default_val);
                 } else {
                     default_val.type_info = type_infos.at("int8");
                     default_val.size = 1;
-                    default_val.value = std::any_cast<int64_t>(variable_default_value(var.type_info.type));
+                    default_val.value = std::any_cast<int64_t>(Variable::default_value(var.type_info.type));
                 }
 
                 m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
@@ -954,7 +948,7 @@ void Parser::parseStatement() {
                 default_val.size = 1;
 
                 default_val.name = "def_value";
-                default_val.value = std::any_cast<int64_t>(variable_default_value(default_val.type_info.type));
+                default_val.value = std::any_cast<int64_t>(Variable::default_value(default_val.type_info.type));
                 m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
             }
 
@@ -1153,14 +1147,14 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
     std::string func_name = current_module_prefix + func_prefix + m_currentLexar->currentToken->string_value;
     if ((*tkn)->type == TokenType::ID || (*tkn)->type == TokenType::TypeID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
-            if (!function_exist_in_storage(func_name, m_program.func_storage)) 
+            if (!Func::is_in_storage(func_name, m_program.func_storage)) 
                 TODO(f("func {} doesn't exist", func_name));
-            auto& func = get_func_from_name(func_name, m_program.func_storage);
+            auto& func = Func::get_from_name(func_name, m_program.func_storage);
             var = make_temp_var(func.return_type, func.return_kind);
             if (var.kind.pointer_count > 0)
                 var.size = 8;
             if (var.type_info.type == Type::Struct_t) {
-                var.members = get_struct_from_name(var.type_info.name).var_storage;
+                var.members = Struct::get_from_name(var.type_info.name, m_program.struct_storage).var_storage;
             }
             if(!func.is_static && this_.type_info.type == Type::Typeid_t)
                 TODO("cannot use Typeid to call a non static function");
@@ -1188,7 +1182,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     // saving offset to make struct literal temporary
                     auto save_off  = current_offset;
                     auto save_func = m_currentFunc;
-                    auto strct = get_struct_from_name(name);
+                    auto strct = Struct::get_from_name(name, m_program.struct_storage);
                     m_currentFunc = &default_func;
                     var = initStruct(name, "struct literal");
                     m_currentFunc  = save_func;
@@ -1217,15 +1211,15 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             return {var, false};
         }
         if (this_ptr.type_info.type != Type::Void_t) {
-            auto var_ = get_var_from_name(name, this_.members);
+            auto var_ = Variable::get_from_name(name, this_.members);
             var_.parent = new Variable;
             *var_.parent = this_;
             return {var_, true};
-        } else if (variable_exist_in_storage((*tkn)->string_value, m_program.var_storage)) {
-            var = get_var_from_name((*tkn)->string_value, m_program.var_storage);
+        } else if (Variable::is_in_storage((*tkn)->string_value, m_program.var_storage)) {
+            var = Variable::get_from_name((*tkn)->string_value, m_program.var_storage);
             return {var, true};
-        } else if (variable_exist_in_storage(name, m_currentFunc->local_variables)) {
-            var = get_var_from_name(name, m_currentFunc->local_variables);
+        } else if (Variable::is_in_storage(name, m_currentFunc->local_variables)) {
+            var = Variable::get_from_name(name, m_currentFunc->local_variables);
             ret_lvalue = true;
             return {var, ret_lvalue};
         } else {
@@ -1313,7 +1307,7 @@ ExprResult Parser::parseUnaryExpression() {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
         auto type = Type::Bool_t;
-        Variable result = make_temp_var(type, variable_size_bytes(type));
+        Variable result = make_temp_var(type, Variable::size_in_bytes(type));
         Variable zero   = {
             .type_info = type_infos.at("int8"),
             .name = "Int_Lit",
@@ -1344,7 +1338,7 @@ ExprResult Parser::parseMultiplicativeExpression() {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
 
-        Variable result = make_temp_var(lhs.type_info.type, variable_size_bytes(lhs.type_info.type));
+        Variable result = make_temp_var(lhs.type_info.type, Variable::size_in_bytes(lhs.type_info.type));
 
         if (op_type == TokenType::Mul) {
             m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
@@ -1373,7 +1367,7 @@ ExprResult Parser::parseAdditiveExpression() {
         auto rhs = std::get<0>(parseMultiplicativeExpression());
 
 
-        Variable result = make_temp_var(lhs.type_info.type, variable_size_bytes(lhs.type_info.type));
+        Variable result = make_temp_var(lhs.type_info.type, Variable::size_in_bytes(lhs.type_info.type));
         if (op_type == TokenType::Plus) {
             m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
         } else {
@@ -1415,7 +1409,7 @@ ExprResult Parser::parseCondition(int min_prec) {
 
         Variable rhs = std::get<0>(parseCondition(prec + 1));
 
-        Variable result = make_temp_var(Type::Bool_t, variable_size_bytes(Type::Bool_t));
+        Variable result = make_temp_var(Type::Bool_t, Variable::size_in_bytes(Type::Bool_t));
 
         m_currentFunc->body.push_back({ op, { lhs, rhs, result } });
 
@@ -1507,80 +1501,4 @@ Func Parser::make_type_info_func(Struct s) {
     current_offset = save;
     m_currentFunc = orig;
     return fn;
-}
-
-bool Parser::function_exist_in_storage(std::string_view func_name, const FunctionStorage& func_storage) {
-    for (auto& func : func_storage) {
-        if (func.name == func_name) return true;
-    }
-    return false;
-}
-Func& Parser::get_func_from_name(std::string_view name, FunctionStorage& func_storage) {
-
-    if (!function_exist_in_storage(name, func_storage)) {std::println("{}", name); TODO("func doesn't exist");}
-
-    for (auto& func : func_storage) {
-        if (func.name == name) return func;
-    }
-    std::println("func {} was not found", name);
-    TODO("func doesn't exist");
-}
-// OUTDATED:
-bool Parser::variable_exist_in_storage(std::string_view var_name, const VariableStorage& var_storage) {
-    for (const auto& var : var_storage) {
-        if (var.name == var_name) return true;
-    }
-    return false;
-}
-Variable& Parser::get_var_from_name(std::string_view name, VariableStorage& var_storage) {
-    Variable& get_var_from_name(std::string_view name, VariableStorage& var_storage);
-    for (auto& var : var_storage) {
-        if (var.name == name) return var;
-    }
-    std::println("{} was not found", name);
-    TODO("var doesn't exist");
-    ERROR((*tkn)->loc, "");
-}
-std::any Parser::variable_default_value(Type t) {
-    switch (t) {
-        case Type::Size_t:
-        case Type::Int8_t:
-        case Type::Int16_t:
-        case Type::Int32_t:
-        case Type::Char_t:
-        case Type::Bool_t:
-        case Type::Typeid_t:
-        case Type::Int64_t: return (int64_t)0; break;
-        case Type::Double_t:
-        case Type::Float_t: return (double)0.0; break;
-
-        case Type::String_t: return ""   ; break;
-        case Type::Void_t:   return (int64_t)0    ; break;
-
-        default: 
-            TODO(f("type {} doesn't have default", (int)t));
-    }
-    return 0;
-}
-size_t Parser::variable_size_bytes(Type t) {
-    switch (t) {
-        case Type::Bool_t:   return 1; break;
-        case Type::Char_t:   return 1; break;
-        case Type::Int8_t:   return 1; break;
-        case Type::Int16_t:  return 2; break;
-        case Type::Int32_t:  return 4; break;
-        case Type::Int64_t:  return 8; break;
-        case Type::Typeid_t: return 8; break;
-        case Type::Ptr_t:    return 8; break;
-        case Type::Size_t:   return 8; break;
-        case Type::Float_t:  return 4; break;
-        case Type::Double_t: return 8; break;
-
-        case Type::String_t: return 8; break;
-        case Type::Void_t:   return 0; break;
-
-        default: 
-            TODO(f("type {} doesn't have default size", (int)t));
-    }
-    return 0;
 }

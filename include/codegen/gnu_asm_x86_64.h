@@ -43,7 +43,6 @@ public:
     void deref(Register, int64_t deref_count);
     void cast_float_size(Register reg, size_t orig_size, size_t new_size);
 
-    Struct& get_struct_from_name(std::string& name);
 private:
     void function_prologue();
     void function_epilogue();

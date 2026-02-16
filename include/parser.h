@@ -40,12 +40,5 @@ private:
     VariableStorage* m_current_var_store;
     FunctionStorage* m_currentFuncStorage;
 
-    bool variable_exist_in_storage(std::string_view varName, const VariableStorage&);
-    bool function_exist_in_storage(std::string_view funcName, const FunctionStorage&);
-    Func& get_func_from_name(std::string_view name, FunctionStorage& func_storage);
     Func make_type_info_func(Struct s);
-    Variable& get_var_from_name(std::string_view name, VariableStorage& var_storage);
-    static std::any  variable_default_value(Type t);
-    static size_t    variable_size_bytes(Type t);
-    static Struct& get_struct_from_name(std::string name);
 };

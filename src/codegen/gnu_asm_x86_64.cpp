@@ -17,6 +17,7 @@
 #include "tools/logger.h"
 #include "tools/utils.h"
 #include "tools/format.h"
+#include "type_system/struct.h"
 
 int op = 0;
 #define MAX_STRING_SIZE 2048
@@ -113,27 +114,6 @@ bool is_float_type(Type t) {
 }
 bool is_float_reg(Register reg) {
     return xmm.contains(reg._64);
-}
-Func get_func_from_module(Module mod, std::string name) {
-    for (const auto& func : mod.func_storage) {
-        if (name == func.name) return func;
-    }
-    for (auto [prefix, module] : mod.module_storage) {
-        if (name.starts_with(prefix))
-            return get_func_from_module(mod, name.erase(0, prefix.size()));
-    }
-    return {};
-}
-Func get_func_from_program(Program prog, std::string name) {
-    for (auto func : prog.func_storage) 
-        if (func.name == name) 
-            return func;
-    for (auto [prefix, mod] : prog.module_storage) {
-        if (name.starts_with(prefix))
-            return get_func_from_module(mod, name.erase(0, prefix.size()));
-    }
-    mlog::error(f("function {} was not found", name).c_str());
-    exit(1);
 }
 
 #define WARNING(...) std::println("\nWarning: {}\n", f(__VA_ARGS__))
@@ -260,7 +240,7 @@ void gnu_asm::compileFunction(Func func) {
 
             if (m_program->platform != Platform::Windows)
                 i--;
-        } else if (arg.kind.pointer_count == 0 && arg.type_info.type == Type::Struct_t && get_struct_from_name(arg.type_info.name).is_float_only) {
+        } else if (arg.kind.pointer_count == 0 && arg.type_info.type == Type::Struct_t && Struct::get_from_name(arg.type_info.name, m_program->struct_storage).is_float_only) {
             if (m_program->platform == Platform::Windows) {
                 mov_var(arg_register[i], arg);
             } else {
@@ -288,7 +268,7 @@ void gnu_asm::compileFunction(Func func) {
                         mov_var(arg, Xmm0);
                         cast_float_size(Xmm0, arg.size, func.return_type.size);
                     } else if (func.return_type.type == Type::Struct_t && func.return_kind.pointer_count == 0) {
-                        if (get_struct_from_name(arg.type_info.name).is_float_only)
+                        if (Struct::get_from_name(arg.type_info.name, m_program->struct_storage).is_float_only)
                             mov_var(arg, Xmm0);
                         else 
                             mov_var(arg, Rax);
@@ -296,7 +276,7 @@ void gnu_asm::compileFunction(Func func) {
                         mov_var(arg, Rax);
                     }
                 } else if (func.return_type.size <= 16) {
-                    if (get_struct_from_name(arg.type_info.name).is_float_only) {
+                    if (Struct::get_from_name(arg.type_info.name, m_program->struct_storage).is_float_only) {
                         size_t size = arg.size;
                         arg.size = 8;
                         TypeInfo ti = arg.type_info;
@@ -310,7 +290,7 @@ void gnu_asm::compileFunction(Func func) {
                         bool first_xmm = true;
                         size_t current_size = 0;
                         size_t i = 0;
-                        for (auto elem : get_struct_from_name(arg.type_info.name).var_storage) {
+                        for (auto elem : Struct::get_from_name(arg.type_info.name, m_program->struct_storage).var_storage) {
                             current_size += elem.size;
                             if (current_size <= 8) {
                                 if (is_float_type(elem.type_info.type)) {
@@ -388,7 +368,7 @@ void gnu_asm::compileFunction(Func func) {
                         if (is_float_type(ret_address.type_info.type) && ret_address.kind.pointer_count == 0) {
                             mov_var(Xmm0, ret_address);
                         } else if (ret_address.type_info.type == Type::Struct_t && ret_address.kind.pointer_count == 0) {
-                            if (get_struct_from_name(ret_address.type_info.name).is_float_only)
+                            if (Struct::get_from_name(ret_address.type_info.name, m_program->struct_storage).is_float_only)
                                 mov_var(Xmm0, ret_address);
                             else 
                                 mov_var(Rax, ret_address);
@@ -396,7 +376,7 @@ void gnu_asm::compileFunction(Func func) {
                             mov_var(Rax, ret_address);
                         }
                     } else if (func.return_type.size <= 16) {
-                        if (get_struct_from_name(ret_address.type_info.name).is_float_only) {
+                        if (Struct::get_from_name(ret_address.type_info.name, m_program->struct_storage).is_float_only) {
                             size_t size = ret_address.size;
                             ret_address.size = 8;
                             TypeInfo ti = ret_address.type_info;
@@ -410,7 +390,7 @@ void gnu_asm::compileFunction(Func func) {
                             bool first_xmm = true;
                             size_t current_size = 0;
                             size_t i = 0;
-                            for (auto elem : get_struct_from_name(ret_address.type_info.name).var_storage) {
+                            for (auto elem : Struct::get_from_name(ret_address.type_info.name, m_program->struct_storage).var_storage) {
                                 current_size += elem.size;
                                 if (current_size <= 8) {
                                     if (is_float_type(elem.type_info.type)) {
@@ -757,7 +737,7 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
             reg2 = arg_register_float[j];
         }
         if (args[i].type_info.type == Type::Struct_t) {
-            auto strct = get_struct_from_name(args[i].type_info.name);
+            auto strct = Struct::get_from_name(args[i].type_info.name, m_program->struct_storage);
             if (args[i].deref_count > 0) {
                 if (args[i].kind.pointer_count == args[i].deref_count)
                     args[i].size = strct.size;
@@ -851,7 +831,7 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
             reg4 = arg_register_float[f+1];
         }
         if (args[i].type_info.type == Type::Struct_t) {
-            auto strct = get_struct_from_name(args[i].type_info.name);
+            auto strct = Struct::get_from_name(args[i].type_info.name, m_program->struct_storage);
             if (args[i].deref_count > 0) {
                 if (args[i].kind.pointer_count == args[i].deref_count)
                     args[i].size = strct.size;
@@ -956,14 +936,6 @@ void gnu_asm::call_func(Func func, VariableStorage args) {
     } else if (m_program->platform == Platform::Linux) {
         call_func_linux(func, args);
     }
-}
-
-Struct& gnu_asm::get_struct_from_name(std::string& name) {
-    for (auto& strct_ : m_program->struct_storage) {
-        if (strct_.name == name) return strct_;
-    }
-    std::println("{}", name);
-    TODO("struct not found");
 }
 void gnu_asm::mov_member(Register src, Variable dest) {
     Variable current = dest;
