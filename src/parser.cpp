@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "context.h"
 #include "lexar.h"
+#include "token.h"
 #include "tools/file.h"
 #include "tools/logger.h"
 #include <algorithm>
@@ -429,8 +430,15 @@ void Parser::parseModuleDeclaration() {
     m_currentLexar->getAndExpectNext(TokenType::SemiColon);
 }
 void Parser::parseHash() {
-    m_currentLexar->getAndExpectNext({TokenType::Import, TokenType::Include, TokenType::Extern});
+    m_currentLexar->getAndExpectNext({TokenType::Import, TokenType::Include, TokenType::Extern, TokenType::Not});
     switch ((*tkn)->type) {
+        case TokenType::Not: {
+            // Ignore shebangs
+            auto line = (*tkn)->loc.line;
+            while (m_currentLexar->peek()->loc.line == line) {
+                m_currentLexar->getNext();
+            }
+        }break;//TokenType::Not
         case TokenType::Include: {
             if (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
                 m_currentLexar->getAndExpectNext(TokenType::Less);
