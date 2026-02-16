@@ -5,7 +5,8 @@
 #include <vector>
 #include "type_system/variable.h"
 
-struct Struct {
+class Struct {
+public:
     size_t id = 0;
     std::string name{};
     VariableStorage var_storage;

@@ -2,7 +2,8 @@
 #include <cstddef>
 #include <cstdint>
 
-struct Kind {
+class Kind {
+public:
     bool constant = false;
     bool global   = false;
     bool literal  = false;

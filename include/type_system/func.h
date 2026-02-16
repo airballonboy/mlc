@@ -7,7 +7,8 @@
 #include "instruction.h"
 
 
-struct Func {
+class Func {
+public:
     TypeInfo return_type = type_infos.at("void");
     Kind     return_kind{};
 

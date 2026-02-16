@@ -4,10 +4,11 @@
 #include <any>
 #include <vector>
 
-struct Variable;
+class Variable;
 typedef std::vector<Variable> VariableStorage;
 
-struct Variable {
+class Variable {
+public:
     TypeInfo    type_info = type_infos.at("void");
     std::string name{};
     std::any    value{};
