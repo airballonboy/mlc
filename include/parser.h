@@ -28,7 +28,7 @@ public:
     ExprResult parseAdditiveExpression();
     ExprResult parseCondition(int min_prec);
     ExprResult parseExpression();
-    void     parseFuncCall(Func func, Variable this_ptr = {type_infos.at("void")}, Variable return_address = {type_infos.at("void")});
+    void     parseFuncCall(Func& func, Variable this_ptr = {type_infos.at("void")}, Variable return_address = {type_infos.at("void")});
     void     parseHash();
     static size_t align(size_t current_offset, Type type, std::string type_name = "");
 

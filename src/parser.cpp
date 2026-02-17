@@ -634,6 +634,8 @@ Func Parser::parseFunction(bool member, Struct parent) {
         TODO("cannot have static non member functions");
     func.name = name;
     current_module_prefix = "";
+    if (name == "main") 
+        func.is_used = true;
 
     if (member && !func.is_static) {
         Variable this_pointer = {
@@ -1423,7 +1425,7 @@ ExprResult Parser::parseExpression() {
     return parseCondition(0);
 }
 
-void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address) {
+void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_address) {
     std::string loc = std::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
     VariableStorage args{};
     m_currentLexar->getAndExpectNext(TokenType::OParen);
@@ -1459,6 +1461,7 @@ void Parser::parseFuncCall(Func func, Variable this_ptr, Variable return_address
         // TODO: check every argument
     }
     m_currentFunc->body.push_back({Op::CALL, {func, args, return_address}});
+    func.is_used = true;
 
     m_currentFuncStorage = &m_program.func_storage;
     current_module_prefix = "";

@@ -29,10 +29,11 @@ public:
     VariableStorage local_variables{};
     size_t stack_size = 0;
 
-    bool external = false;
-    bool variadic = false;
+    bool external   = false;
+    bool variadic   = false;
     bool c_variadic = false;
-    bool is_static = false;
+    bool is_static  = false;
+    bool is_used    = false;
     std::string link_name{};
     std::string lib{};
     std::string search_path{};
