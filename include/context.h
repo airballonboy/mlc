@@ -8,6 +8,8 @@ struct CONTEXT {
     std::vector<std::string_view> includePaths;
     std::unordered_set<std::string_view> libs;
     std::unordered_set<std::string_view> search_paths;
+    bool lib    = false;
+    bool shared = false;
 };
 
 namespace fs = std::filesystem;

@@ -144,7 +144,7 @@ void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
     output.append(".section .text\n");
     for (const auto& func : m_program->func_storage) {
-        if(!func.external && func.is_used) {
+        if(!func.external && (func.is_used || ctx.lib)) {
             compileFunction(func);
         }
     }
@@ -188,7 +188,7 @@ void gnu_asm::compileProgram() {
     output.append(".section .text\n");
     output.append("// Externals\n");
     for (const auto& func : m_program->func_storage) {
-        if (func.external && func.is_used) {
+        if (func.external && (func.is_used || ctx.lib)) {
             output.appendf(".global {}\n", func.name);
             output.appendf(".extern {}\n", func.link_name);
             if (func.name != func.link_name)

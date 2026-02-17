@@ -44,6 +44,8 @@ void print_help_message() {
 
 Flag<bool>                     help_flag     ({"-h", "--help"}, "[-h] [--help]    prints this message");
 Flag<bool>                     run_flag      ("-run"          , "[-run]           runs the program after compilation");
+Flag<bool>                     lib_flag      ("-lib"          , "[-lib]           compiles the file and outputs a static library");
+Flag<bool>                     sharedlib_flag("-shared"       , "[-shared]        compiles the file and outputs a shared library");
 Flag<std::string>              output_flag   ("-o"            , "[-o output]      outputs the program into the name provided");
 Flag<std::string>              platform_flag ("-p"            , "[-p platform]    chooses which platform to compile to, can use `-p list` to list platforms");
 Flag<std::string>              target_flag   ("-t"            , "[-t target]      chooses which target to compile to, can use `-t list` to list targets");
@@ -51,7 +53,7 @@ Flag<std::vector<std::string>> include_flag  ("-I"            , "[-I include_dir
 
 int main(int argc, char* argv[])
 {
-    bool run = false;
+    bool run    = false;
     programName = shift_args(&argc, &argv);
     auto args = FLAG_BASE::parse_flags(argc, argv);
 
@@ -96,6 +98,13 @@ int main(int argc, char* argv[])
     if (run_flag.exists) {
         run = *run_flag.value;
     }
+    if (lib_flag.exists) {
+        ctx.lib = true;
+    }
+    if (sharedlib_flag.exists) {
+        ctx.lib    = true;
+        ctx.shared = true;
+    }
     if (output_flag.exists) {
         output_path = *output_flag.value;
     }
@@ -112,6 +121,8 @@ int main(int argc, char* argv[])
         mlog::error("Program aborted");
         exit(1);
     }
+    if (run && ctx.lib)
+        mlog::error("PROGRAM: ", "cannot run a library");
     
     std::string input_file_name = std::string(shift_args(args));
     
@@ -186,14 +197,44 @@ int main(int argc, char* argv[])
             }
 
             std::string output_name;
-            if (platform == Platform::Windows)
-                output_name = output_path.string()+".exe";
-            if (platform == Platform::Linux)
-                output_name = output_path.string();
-            int ret = cmd(CC" -g -x assembler {}.s -o {} {}", (build_path/input_file.stem()).string(), output_name, link_flags);
-            if (ret != 0) {
-                mlog::error("Program aborted");
-                exit(ret);
+            if (platform == Platform::Windows) {
+                // Should change when we use windows linker and assembler
+                if (ctx.shared)
+                    output_name = output_path.string()+".dll";
+                else if (ctx.lib)
+                    output_name = output_path.string()+".a";
+                else 
+                    output_name = output_path.string()+".exe";
+            }
+            if (platform == Platform::Linux) {
+                if (ctx.shared)
+                    output_name = output_path.string()+".so";
+                else if (ctx.lib)
+                    output_name = (output_path.parent_path()/("lib"+output_path.stem().string())).string()+".a";
+                else 
+                    output_name = output_path.string();
+            }
+
+            if (!ctx.lib) {
+                int ret = cmd(CC" -g -x assembler {}.s -o {} {}", (build_path/input_file.stem()).string(), output_name, link_flags);
+                if (ret != 0) {
+                    mlog::error("Program aborted");
+                    exit(ret);
+                }
+            } else {
+                int ret = 0;
+                if (ctx.shared) {
+                    ret = cmd(CC" -fPIC -shared -g -x assembler {}.s -o {} {}", (build_path/input_file.stem()).string(), output_name, link_flags);
+                } else {
+                    ret = cmd(CC" -g -c {}.s -o {} {}", (build_path/input_file.stem()).string(), output_path.string()+".o", link_flags);
+                    if (ret == 0)
+                        ret = cmd("gcc-ar rcs {} {}", output_name, output_path.string()+".o");
+                }
+
+                if (ret != 0) {
+                    mlog::error("Program aborted");
+                    exit(ret);
+                }
             }
         }break;
     }

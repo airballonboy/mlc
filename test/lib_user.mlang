@@ -1,0 +1,8 @@
+#include <c_std.mlang>
+
+module lib;
+#extern func lib::function() -> int [lib=":output.so -Wl,-rpath,/home/ahmed/dev/cpp/mlc/test/.build/", search_path="./.build/"];
+
+func main() {
+    c_std::printf("%d\n", lib::function());
+}
