@@ -708,17 +708,17 @@ void gnu_asm::get_func_args_windows(Func func) {
 
     for (int j = 0, i = 0, f = 0; j < func.arguments.size(); i++, j++, f++) {
         auto& arg = func.arguments[j];
-        bool is_stack      = j   > arg_register.size()-1;
-        bool is_next_stack = j+1 > arg_register.size()-1;
+        bool is_stack      = i   > arg_register.size()-1;
+        bool is_next_stack = i+1 > arg_register.size()-1;
         if (is_stack) {
             reg1 = get_available_int_reg();
             reg2 = get_available_float_reg();
         } else if (is_next_stack) {
-            reg1 = arg_register[j];
-            reg2 = arg_register_float[j];
+            reg1 = arg_register[i];
+            reg2 = arg_register_float[f];
         } else {
-            reg1 = arg_register[j];
-            reg2 = arg_register_float[j];
+            reg1 = arg_register[i];
+            reg2 = arg_register_float[f];
         }
         if (is_stack) {
             if (is_float_type(arg.type_info.type) && !func.c_variadic) {
@@ -768,19 +768,19 @@ void gnu_asm::get_func_args_linux(Func func) {
 
     for (int j = 0, i = 0, f = 0; j < func.arguments.size(); i++, j++, f++) {
         auto& arg = func.arguments[j];
-        bool is_stack            = j   > arg_register.size()-1;
-        bool is_next_stack       = j+1 > arg_register.size()-1;
+        bool is_stack            = i   > arg_register.size()-1;
+        bool is_next_stack       = i+1 > arg_register.size()-1;
         bool is_stack_float      = f   > arg_register_float.size()-1;
         bool is_next_stack_float = f+1 > arg_register_float.size()-1;
         if (is_stack) {
             reg1 = get_available_int_reg();
             reg2 = get_available_int_reg();
         } else if (is_next_stack) {
-            reg1 = arg_register[j];
+            reg1 = arg_register[i];
             reg2 = get_available_int_reg();
         } else {
-            reg1 = arg_register[j];
-            reg2 = arg_register[j+1];
+            reg1 = arg_register[i];
+            reg2 = arg_register[i+1];
         }
         if (is_stack_float) {
             reg3 = get_available_float_reg();
