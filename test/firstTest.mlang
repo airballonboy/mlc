@@ -23,6 +23,12 @@ func Vec3.print() {
 }
 
 const ONE = 1;
+func Vec3.add_vec(Vec3 v) -> Vec3 {
+    v.x += this.x;
+    v.y += this.y;
+    v.z += this.z;
+    return v;
+}
 
 func main() {
     Vec3* v = Vec3.new();
@@ -30,8 +36,10 @@ func main() {
         c_std::printf("[Error] couldn't create v");
     } else {
         v.init();
-        v.print();
         v.add(30.0);
+        v.print();
+        Vec3 ve = Vec3{0.0, 12.0, 0.0};
+        ve.add_vec(*v).print();
         v.print();
     }
 }

@@ -638,9 +638,11 @@ Func Parser::parseFunction(bool member, Struct parent) {
         func.is_used = true;
 
     if (member && !func.is_static) {
+        current_offset += 8;
         Variable this_pointer = {
             .type_info  = type_infos.at(parent.name),
-            .name       = "this", .offset = 8,
+            .name       = "this",
+            .offset = current_offset,
             .size       = 8,
             .members    = parent.var_storage,
             .kind       = {
@@ -649,8 +651,6 @@ Func Parser::parseFunction(bool member, Struct parent) {
         };
         func.local_variables.push_back(this_pointer);
         func.arguments.push_back(this_pointer);
-        func.arguments_count++;
-        current_offset += 8;
     }
     m_currentLexar->getAndExpectNext(TokenType::OParen);
     VariableStorage args_temp_storage{};
@@ -704,7 +704,6 @@ Func Parser::parseFunction(bool member, Struct parent) {
                 .pointer_count = 1
             }
         };
-        func.arguments_count++;
         func.arguments.emplace(func.arguments.begin(), ret);
     }
     for (int i = 0; i < args_temp_storage.size(); i++) {
@@ -1428,8 +1427,9 @@ ExprResult Parser::parseExpression() {
 void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_address) {
     std::string loc = std::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
     VariableStorage args{};
+    size_t given_args_count = 0;
     m_currentLexar->getAndExpectNext(TokenType::OParen);
-    if (func.return_type.size > 16) {
+    if (func.return_type.size > 16 && func.return_kind.pointer_count == 0) {
         return_address.deref_count -= 1;
         args.push_back(return_address);
         return_address.deref_count += 1;
@@ -1444,10 +1444,11 @@ void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_addres
                 ERROR((*tkn)->loc, "cannot do trailing commas in function calls");
             }
         }
+        given_args_count++;
     }
     m_currentLexar->getAndExpectNext(TokenType::CParen);
     if (!func.variadic && !func.c_variadic) {
-        if (func.arguments_count != args.size()) {
+        if (func.arguments_count != given_args_count) {
             for (auto& arg : args)
                 std::println("{} {}", arg.name, arg.type_info.name);
             std::println("----------------------");
@@ -1455,7 +1456,7 @@ void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_addres
                 std::println("{} {}", arg.name, arg.type_info.name);
             TODO(f("\n"
                    "{} incorrect amount of function arguments got {} but expected {}",
-                   loc, args.size(), func.arguments_count)
+                   loc, given_args_count, func.arguments_count)
                  );
         }
         // TODO: check every argument
@@ -1490,7 +1491,7 @@ Func Parser::make_type_info_func(Struct s) {
         .kind  = literal
     };
     fn.arguments = {Variable{.type_info = type_infos.at("TypeInfo"), .offset = 8, .size = 8, .kind = {.pointer_count = 1}}};
-    fn.arguments_count = 1;
+    fn.arguments_count = 0;
     fn.stack_size = 48;
     m_program.var_storage.push_back(name);
     fn.body = {
