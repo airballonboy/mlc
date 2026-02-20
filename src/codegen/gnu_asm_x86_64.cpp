@@ -1,13 +1,10 @@
 #include "codegen/gnu_asm_x86_64.h"
 #include <any>
 #include <cassert>
-#include <complex>
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
-#include <iterator>
 #include <string>
-#include <string_view>
 #include <unordered_set>
 #include <vector>
 #include "codegen/asm_instruction.h"
@@ -15,7 +12,6 @@
 #include "context.h"
 #include "platform.h"
 #include "tools/logger.h"
-#include "tools/utils.h"
 #include "tools/format.h"
 #include "type_system/struct.h"
 #include "type_system/type_info.h"
