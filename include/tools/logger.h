@@ -2,6 +2,7 @@
 #define MASTERLOGGER
 
 #include "tools/format.h"
+#include <cstdio>
 
 namespace mlog {
 
@@ -22,7 +23,7 @@ inline void println(const std::string& fmt, Args&&... args) {
     puts((mlog::format(fmt, std::forward<Args>(args)...)).c_str());
 }
 template<typename... Args>
-inline void println(FILE*& fd, const std::string& fmt, Args&&... args) {
+inline void println(FILE* fd, const std::string& fmt, Args&&... args) {
     fputs((mlog::format(fmt, std::forward<Args>(args)...) + '\n').c_str(), fd);
 }
 template<typename... Args>
@@ -30,7 +31,7 @@ void print(const std::string& fmt, Args&&... args) {
     fputs((mlog::format(fmt, std::forward<Args>(args)...)).c_str(), stdout);
 }
 template<typename... Args>
-inline void print(FILE*& fd, const std::string& fmt, Args&&... args) {
+inline void print(FILE* fd, const std::string& fmt, Args&&... args) {
     fputs((mlog::format(fmt, std::forward<Args>(args)...)).c_str(), fd);
 }
 
@@ -73,7 +74,7 @@ inline void error(const char* prefix, const char* errorMassage)
 #ifdef _WIN32
 #define TODO(x) \
     do { \
-        mlog::log("TODO: ", mlog::Blue, f("\n   {}:{} \033[{}m{}\033[0m", "filePath"/*__FILE_NAME__*/, __LINE__, mlog::Red, x).c_str()); \
+        mlog::log("TODO: ", mlog::Blue, mlog::format("\n   {}:{} \033[{}m{}\033[0m", "filePath"/*__FILE_NAME__*/, __LINE__, mlog::Red, x).c_str()); \
         exit(1); \
     }while(0)
 #else 
