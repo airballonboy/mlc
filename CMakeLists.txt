@@ -21,7 +21,6 @@ add_executable("mlc-test" ${MLC_TEST_SOURCES})
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-#set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 23)
 
 target_compile_definitions("mlc" PUBLIC PROJECT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
 target_compile_definitions("mlc" PUBLIC MSTD_PATH="${CMAKE_CURRENT_SOURCE_DIR}/mlang-std/")
@@ -34,8 +33,8 @@ if(MSVC) # If using the VS compiler...
     target_compile_definitions("mlc" PUBLIC _CRT_SECURE_NO_WARNINGS)
     target_compile_definitions("mlc-test" PUBLIC _CRT_SECURE_NO_WARNINGS)
 
-    target_compile_features("mlc" PRIVATE cxx_std_23)
-    target_compile_features("mlc-test" PRIVATE cxx_std_23)
+    target_compile_features("mlc" PRIVATE cxx_std_20)
+    target_compile_features("mlc-test" PRIVATE cxx_std_20)
 
     # this is for my version of msvc you can change the path if you need
     set(CMAKE_AR 'C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.43.34808/bin/Hostx64/x64/lib.exe'
