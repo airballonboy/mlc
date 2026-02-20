@@ -1,22 +1,24 @@
 #pragma once
+#include <cctype>
 #include <iomanip>
+#include <ios>
 #include <sstream>
 #include <optional>
 #include <stdexcept>
+#include <type_traits>
 
-//important for std::string
-#define appendf(...) append(std::format(__VA_ARGS__))
+namespace mlog {
 
-// don't worry too much it's chat gpt implementation of std::format
 struct FormatSpec {
     char fill = ' ';
     int width = 0;
+    char type = 'd';
 };
 
 static FormatSpec parse_format_spec(const std::string& fmt, size_t& i) {
     FormatSpec spec;
     if (fmt[i] == ':') {
-        ++i; // skip ':'
+        ++i;
         if (fmt[i] == '0') {
             spec.fill = '0';
             ++i;
@@ -28,26 +30,110 @@ static FormatSpec parse_format_spec(const std::string& fmt, size_t& i) {
         if (!width_str.empty()) {
             spec.width = std::stoi(width_str);
         }
+        if (i < fmt.size() && std::isalpha(fmt[i])) {
+            spec.type = fmt[i++];
+        }
     }
     if (i >= fmt.size() || fmt[i] != '}') {
-        throw std::runtime_error("Malformed format specifier");
+        fputs("Malformed format specifier", stderr);
+        exit(1);
     }
-    ++i; // skip '}'
+    ++i;
     return spec;
+}
+template<typename T>
+std::string format_unsigned_integral(T val, char type) {
+    static_assert(std::is_unsigned_v<T>, "format_unsigned_integral requires unsigned type");
+
+    if (type == 'b') {
+        if (val == 0) return "0";
+        std::string tmp{};
+        while (val) {
+            tmp.insert(tmp.begin(), (val & 1) ? '1' : '0');            
+            val >>= 1;
+        }
+        return tmp;
+    } else {
+        std::ostringstream tmp{};
+        switch (type) {
+        case 'X': 
+            tmp << std::hex << std::uppercase << val;
+            break;
+        case 'x': 
+            tmp << std::hex << std::nouppercase << val;
+            break;
+        default:
+            tmp << std::dec << val;
+        }
+        return tmp.str();
+    }
+}
+template<typename T>
+std::string format_signed_integral(T val, char type) {
+    static_assert(std::is_signed_v<T>  , "format_signed_integral requires signed type");
+
+    if (type == 'd') {
+        std::ostringstream tmp{};
+        tmp << std::dec << val;
+        return tmp.str();
+    } else {
+        using U = std::make_unsigned_t<T>;        
+        U unsigned_val = static_cast<U>(val);
+        return format_unsigned_integral(unsigned_val, type);
+    }
+}
+template<typename T>
+inline std::string format_integral(T val, char type) {
+    static_assert(std::is_integral_v<T>, "format_integral requires integral type");
+    if constexpr (std::is_unsigned_v<T>) {
+        return format_unsigned_integral(val, type);
+    } else {
+        return format_signed_integral(val, type);
+    }
 }
 
 template<typename T>
 void append_arg(std::ostringstream& oss, const T& arg, const FormatSpec& spec = {}) {
-    if (spec.width > 0) {
-        oss << std::setfill(spec.fill) << std::setw(spec.width);
+    if constexpr (std::is_integral_v<T>) {
+        std::string out{};
+        bool negative = false;
+        if constexpr (std::is_signed_v<T>) {
+            if (spec.type) {
+                if (arg < 0)
+                    negative = true;
+            }
+        }
+        if (negative) {
+            using U = std::make_unsigned_t<T>;
+            U unsigned_arg = static_cast<U>(-(arg + 0));
+            out = format_unsigned_integral(unsigned_arg, 'd');
+        } else {
+            out = format_integral(arg, spec.type);
+        }
+        size_t len = out.size() + (negative ? 1 : 0);
+        size_t pad = (spec.width > len) ? (spec.width - len) : 0;
+
+        if (spec.fill == '0') {
+            if (negative) oss << '-';
+            for (size_t i = 0; i < pad; i++) oss << '0';
+        } else {
+            for (size_t i = 0; i < pad; i++) oss << spec.fill;
+            if (negative) oss << '-';
+        }
+        oss << out;
+    } else {
+        if (spec.width > 0) {
+            oss << std::setfill(spec.fill) << std::setw(spec.width);
+        }
+        oss << arg;
     }
-    oss << arg;
 }
 
 inline void format_recursive(std::ostringstream& oss, const std::string& fmt, size_t& i) {
     while (i < fmt.size()) {
         if (fmt[i] == '{' && i + 1 < fmt.size() && fmt[i + 1] == '}') {
-            throw std::runtime_error("Too few arguments for format string");
+            fputs("Too few arguments for format string", stderr);
+            exit(1);
         } else {
             oss << fmt[i++];
         }
@@ -67,27 +153,29 @@ void format_recursive(std::ostringstream& oss, const std::string& fmt, size_t& i
             oss << fmt[i++];
         }
     }
-    throw std::runtime_error("Too many arguments for format string");
+    fputs("Too many arguments for format string", stderr);
+    exit(1);
 }
 
+
 template<typename... Args>
-std::string f(const std::string& fmt, const Args&... args) {
+std::string format(const std::string& fmt, const Args&... args) {
     std::ostringstream oss;
     size_t i = 0;
     format_recursive(oss, fmt, i, args...);
     return oss.str();
 }
 
+}
+
 
 inline std::string optional_to_string(std::optional<std::string> opt){
     if (opt.has_value())
         return opt.value();
-    return std::string("null");
+    return std::string("(nil)");
 }
 
-//inline std::string Token_to_string(Token t){
-//  // all weird stuff for cool colors :)
-//  return f("\033[35mToken\033[0m(\033[36m{}\033[0m, \033[32m{}\033[0m) at({}:{})", TokenType_to_string(t.type), optional_to_string(t.value),
-//              t.loc.line, t.loc.col);
-//}
+
+//important for std::string
+#define appendf(...) append(mlog::format(__VA_ARGS__))
 

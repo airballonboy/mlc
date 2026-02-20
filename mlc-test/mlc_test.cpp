@@ -1,16 +1,14 @@
+#include "tools/logger.h"
 #include "tools/utils.h"
-#include <format>
 #include <string>
-#include <array>
-#include <print>
 #include <tuple>
 #include <vector>
 using std::vector;
 using std::tuple;
 using std::string;
-using std::print;
-using std::println;
-using std::format;
+using mlog::println;
+using mlog::print;
+using mlog::format;
 
 vector<tuple<string, string>> tests_and_outputs = {
     {MTEST_PATH"function_return.mlang", "12\n"},

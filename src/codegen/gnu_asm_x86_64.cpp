@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <fstream>
 #include <iterator>
-#include <print>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -118,7 +117,7 @@ bool is_float_reg(Register reg) {
     return xmm.contains(reg._64);
 }
 
-#define WARNING(...) std::println("\nWarning: {}\n", f(__VA_ARGS__))
+#define WARNING(...) mlog::println("\nWarning: {}\n", mlog::format(__VA_ARGS__))
 
 
 #define REG_SIZE(REG, SIZE)   (SIZE) == 8 ? (REG)._64 : (SIZE) == 4 ? (REG)._32 : (SIZE) == 2 ? (REG)._16 : (REG)._8 
@@ -146,7 +145,7 @@ void gnu_asm::compileProgram() {
     if (m_program == nullptr) return;
     output.append(".section .text\n");
     for (const auto& func : m_program->func_storage) {
-        if(!func.external && (func.is_used || ctx.lib)) {
+        if (!func.external && (func.is_used || ctx.lib)) {
             compileFunction(func);
         }
     }
@@ -202,7 +201,7 @@ void gnu_asm::compileProgram() {
         }
     }
 
-    std::ofstream outfile(f("{}.s", (build_path/input_file.stem()).string()));
+    std::ofstream outfile(mlog::format("{}.s", (build_path/input_file.stem()).string()));
     outfile << output;
     outfile.flush();
     outfile.close();
@@ -1102,7 +1101,7 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
 }
 void gnu_asm::call_func(Func func, VariableStorage args) {
     //if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
-    if(m_program->platform == Platform::Windows) {
+    if (m_program->platform == Platform::Windows) {
         call_func_windows(func, args);
     } else if (m_program->platform == Platform::Linux) {
         call_func_linux(func, args);
@@ -1167,11 +1166,11 @@ void gnu_asm::mov_member(Variable src, Register dest) {
             off = current.offset - off;
             break;
         }
-        //std::println("curr {}, par {}", current.name, parent->name);
+        //mlog::println("curr {}, par {}", current.name, parent->name);
         off += current.offset;
         if (parent->kind.pointer_count == 0) {
         } else {
-            //std::println("deref => curr {}, par {}", current.name, parent->name);
+            //mlog::println("deref => curr {}, par {}", current.name, parent->name);
             auto reg = get_available_int_reg();
             mov_member(*parent, reg);
             parent->deref_count = parent->kind.pointer_count - 1;
@@ -1298,14 +1297,14 @@ void gnu_asm::mov_var(Variable src, Variable dest) {
 
     if (src.kind.literal && is_int_type(src.type_info.type) && dest.parent == nullptr) {
         if (dest.type_info.type == Type::Struct_t && dest.kind.pointer_count == 0)
-            TODO(f("can't mov int literal into var of type {}", dest.type_info.name));
+            TODO(mlog::format("can't mov int literal into var of type {}", dest.type_info.name));
         if (dest.kind.global)
             mov.append(std::any_cast<int64_t>(src.value), dest.name, Rip, dest.size);
         else 
             mov.append(std::any_cast<int64_t>(src.value), -dest.offset, Rbp, dest.size);
     } else if ((src.type_info.type == Type::Struct_t && src.kind.pointer_count == 0)||(dest.type_info.type == Type::Struct_t && dest.kind.pointer_count == 0)) {
         if (src.type_info.name != dest.type_info.name) 
-            TODO(f("error trying assigning different structers to each other, {} {}", src.type_info.name, dest.type_info.name));
+            TODO(mlog::format("error trying assigning different structers to each other, {} {}", src.type_info.name, dest.type_info.name));
         Struct strct{};
         bool found = false;
         for (const auto& strct_ : m_program->struct_storage) {
@@ -1315,7 +1314,7 @@ void gnu_asm::mov_var(Variable src, Variable dest) {
                 break;
             }
         }
-        if (!found) TODO(f("struct {} wasn't found", src.type_info.name));
+        if (!found) TODO(mlog::format("struct {} wasn't found", src.type_info.name));
         // TODO: bug found where if you have something like this.color = ... it will be offset(%Rbp) instead of
         //       moving this to to a register and taking offset from it
 
@@ -1324,7 +1323,7 @@ void gnu_asm::mov_var(Variable src, Variable dest) {
             auto reg2 = get_available_int_reg();
             
             if (src_real_ptr_count != dest_real_ptr_count)
-                TODO(f("trying to move Variable {} into {}, but kind is not the same", src.name, dest.name));
+                TODO(mlog::format("trying to move Variable {} into {}, but kind is not the same", src.name, dest.name));
             if (dest_real_ptr_count == 0) {
                 output.appendf("    cld\n");
                 dest.deref_count -= 1;

@@ -1,12 +1,12 @@
 #pragma once
 
 #include "platform.h"
+#include "tools/logger.h"
 #include <string>
-#include <format>
-#include <print>
 #include <unordered_map>
 #include <cassert>
 #include <vector>
+#include <array>
 
 enum class BuildTarget {
     ir,
@@ -47,10 +47,10 @@ inline std::string_view shift_args(std::vector<std::string_view>& args) {
 }
 
 template<typename... _Args>
-inline int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
-    std::print("Running: ");
-    std::println(__fmt, std::forward<_Args>(__args)...);
-    int result = std::system(std::format(__fmt, std::forward<_Args>(__args)...).c_str());
+inline int cmd(const std::string& __fmt, _Args&&... __args) {
+    printf("Running: ");
+    mlog::println(__fmt, std::forward<_Args>(__args)...);
+    int result = std::system(mlog::format(__fmt, std::forward<_Args>(__args)...).c_str());
     #ifdef _WIN32
     return result;  // On Windows, std::system returns exit code directly
     #else
@@ -59,15 +59,15 @@ inline int cmd(std::format_string<_Args...> __fmt, _Args&&... __args) {
 
 }
 template<typename... _Args>
-inline std::tuple<int, std::string> cmd_with_output(std::format_string<_Args...> __fmt, _Args&&... __args) {
+inline std::tuple<int, std::string> cmd_with_output(const std::string& __fmt, _Args&&... __args) {
     int status = 0;
     std::string output{};
     std::array<char, 4096> buffer = {};
-    std::string command = std::format(__fmt, std::forward<_Args>(__args)...);
+    std::string command = mlog::format(__fmt, std::forward<_Args>(__args)...);
 #ifdef _WIN32
     FILE* pipe = _popen(command.c_str(), "r");
     if (!pipe) {
-        std::println(" _popen() failed");
+        mlog::println(" _popen() failed");
         std::exit(1);
     }
 
@@ -79,7 +79,7 @@ inline std::tuple<int, std::string> cmd_with_output(std::format_string<_Args...>
 #else
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
-        std::println("popen() failed");
+        mlog::println("popen() failed");
         exit(1);
     }
 

@@ -1,6 +1,6 @@
-#pragma once 
+#pragma once
+#include "tools/logger.h"
 #include <cstdio>
-#include <print>
 #include <string_view>
 #include <type_traits>
 #include <vector>
@@ -25,7 +25,7 @@ public:
                 }
             }
             if (!is_flag && m_args[current_iteratior].starts_with("-")) {
-                std::println(stderr, "flag {} was not found", m_args[current_iteratior]);
+                mlog::println(stderr, "flag {} was not found", m_args[current_iteratior]);
                 exit(1);
             }
             current_iteratior++;
@@ -98,7 +98,7 @@ public:
             argc -= 1;
         } else if constexpr (std::is_same_v<FlagType, int>) {
             if (current_iteratior+1 >= m_args.size()) {
-                std::println(stderr, "flag {} expects to have an integer value after it", name);
+                mlog::println(stderr, "flag {} expects to have an integer value after it", name);
                 exit(1);
             }
             not_ret.push_back(m_args[current_iteratior]);
@@ -106,7 +106,7 @@ public:
             argc -= 2;
         } else if constexpr (std::is_same_v<FlagType, std::string>) {
             if (current_iteratior+1 >= m_args.size()) {
-                std::println(stderr, "flag {} expects to have a string value after it", name);
+                mlog::println(stderr, "flag {} expects to have a string value after it", name);
                 exit(1);
             }
             not_ret.push_back(m_args[current_iteratior]);
@@ -114,14 +114,14 @@ public:
             argc -= 2;
         } else if constexpr (std::is_same_v<FlagType, std::vector<std::string>>) {
             if (current_iteratior+1 >= m_args.size()) {
-                std::println(stderr, "flag {} expects to have a string value after it", name);
+                mlog::println(stderr, "flag {} expects to have a string value after it", name);
                 exit(1);
             }
             not_ret.push_back(m_args[current_iteratior]);
             value->push_back(m_args[++current_iteratior]);            
             argc -= 2;
         } else {
-            std::println(stderr, "not supported flag type");
+            mlog::println(stderr, "not supported flag type");
             exit(1);
         }
         return true;

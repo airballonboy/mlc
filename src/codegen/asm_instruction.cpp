@@ -1,7 +1,7 @@
-#include <cassert>
-#include <format>
 #include "codegen/asm_instruction.h"
 #include "tools/format.h"
+#include <cassert>
+#include <cstdint>
 
 #define REG_SIZE(REG, SIZE)   (SIZE) == 8 ? (REG)._64 : (SIZE) == 4 ? (REG)._32 : (SIZE) == 2 ? (REG)._16 : (REG)._8 
 #define INST_SIZE(INST, SUFF, SIZE) (SIZE) == 8 ? INST+SUFF._64 : (SIZE) == 4 ? INST + SUFF._32 : (SIZE) == 2 ? INST+SUFF._16 : INST+SUFF._8 

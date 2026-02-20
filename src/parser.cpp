@@ -8,7 +8,6 @@
 #include <any>
 #include <bit>
 #include <cstdint>
-#include <print>
 #include <string_view>
 #include <vector>
 
@@ -17,7 +16,7 @@
         mlog::log(mlog::Red,     \
                    "ERROR:\n", \
                  mlog::Cyan,    \
-                 f("  {}:{}:{} {}", (loc).inputPath, (loc).line, (loc).offset, (massage)).c_str()); \
+                 mlog::format("  {}:{}:{} {}", (loc).inputPath, (loc).line, (loc).offset, (massage)).c_str()); \
         exit(1); \
     } while (0)
 
@@ -155,7 +154,7 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
 
 
     if (Variable::is_in_storage(m_currentLexar->currentToken->string_value, var_store))
-        ERROR(m_currentLexar->currentToken->loc, f("redifinition of {}", m_currentLexar->currentToken->string_value));
+        ERROR(m_currentLexar->currentToken->loc, mlog::format("redifinition of {}", m_currentLexar->currentToken->string_value));
     else 
         var.name = m_currentLexar->currentToken->string_value;    
 
@@ -207,7 +206,7 @@ Program* Parser::parse() {
                 m_currentLexar->getNext();
             }break;//TokenType::Struct
             default: {
-                std::println(stderr, "unimplemented type of {} at {}:{}:{}",
+                mlog::println(stderr, "unimplemented type of {} at {}:{}:{}",
                              printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
                 m_currentLexar->getNext();
 
@@ -366,7 +365,7 @@ void Parser::parseStructDeclaration() {
                 default_val.type_info = type_infos.at("double");
                 default_val.size = 8;
                 default_val.value = std::any_cast<double>(Variable::default_value(default_val.type_info.type));
-                if(!Variable::is_in_storage(default_val.name, m_program.var_storage))
+                if (!Variable::is_in_storage(default_val.name, m_program.var_storage))
                     m_program.var_storage.push_back(default_val);
             } else {
                 default_val.type_info = type_infos.at("int8");
@@ -572,7 +571,7 @@ void Parser::parseModulePrefix() {
 
     //if (!current_module_storage->contains((*tkn)->string_value)) TODO("error");
     if (!current_module_storage->contains((*tkn)->string_value)) { 
-        std::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
+        mlog::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
         TODO("error");
     }
 
@@ -585,7 +584,7 @@ void Parser::parseModulePrefix() {
     while ((m_currentLexar->peek() + 1)->type == TokenType::ColonColon) {
         m_currentLexar->getAndExpectNext(TokenType::ID);
         if (!current_module_storage->contains((*tkn)->string_value)) { 
-            std::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
+            mlog::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
             TODO("error");
         }
 
@@ -678,7 +677,7 @@ Func Parser::parseFunction(bool member, Struct parent) {
         if (type_infos.contains(current_module_prefix + (*tkn)->string_value))
             func.return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
         else 
-            ERROR((*tkn)->loc, f("Type {} does not exist", current_module_prefix + (*tkn)->string_value));
+            ERROR((*tkn)->loc, mlog::format("Type {} does not exist", current_module_prefix + (*tkn)->string_value));
         if (m_currentLexar->peek()->type == TokenType::OBracket) {
             m_currentLexar->getNext();
             m_currentLexar->getAndExpectNext(TokenType::CBracket);
@@ -856,17 +855,17 @@ void Parser::parseStatement() {
             if (m_currentLexar->peek()->type == TokenType::Else) {
                 size_t jmp_else = m_currentFunc->body.size();
                 m_currentFunc->body.push_back({Op::JUMP, {""}});
-                std::string label = std::format("{:06x}", statement_count++);
+                std::string label = mlog::format("{:06x}", statement_count++);
                 m_currentFunc->body.push_back({Op::LABEL, {label}});
                 m_currentFunc->body[jmp_if_not].args[0] = label;
                 m_currentLexar->getAndExpectNext(TokenType::Else);
                 m_currentLexar->getNext();
                 parseStatement();
-                label = std::format("{:06x}", statement_count++);
+                label = mlog::format("{:06x}", statement_count++);
                 m_currentFunc->body.push_back({Op::LABEL, {label}});
                 m_currentFunc->body[jmp_else].args[0] = label;
             } else {
-                std::string label = std::format("{:06x}", statement_count++);
+                std::string label = mlog::format("{:06x}", statement_count++);
                 m_currentFunc->body.push_back({Op::LABEL, {label}});
                 m_currentFunc->body[jmp_if_not].args[0] = label;
             }
@@ -874,7 +873,7 @@ void Parser::parseStatement() {
         case TokenType::While: {
             m_currentLexar->getAndExpectNext(TokenType::OParen);
             m_currentLexar->getNext();
-            std::string pre_label = std::format("{:06x}", statement_count++);
+            std::string pre_label = mlog::format("{:06x}", statement_count++);
             m_currentFunc->body.push_back({Op::LABEL, {pre_label}});
             auto expr = std::get<0>(parseExpression());
             m_currentLexar->getAndExpectNext(TokenType::CParen);
@@ -886,7 +885,7 @@ void Parser::parseStatement() {
             m_currentFunc->body.push_back({Op::JUMP_IF_NOT, {"", expr}});
             parseStatement();
             m_currentFunc->body.push_back({Op::JUMP, {pre_label}});
-            std::string label = std::format("{:06x}", statement_count++);
+            std::string label = mlog::format("{:06x}", statement_count++);
             m_currentFunc->body.push_back({Op::LABEL, {label}});
             m_currentFunc->body[jmp_if_not].args[0] = label;
         }break;//TokenType::While
@@ -932,7 +931,7 @@ void Parser::parseStatement() {
                     default_val.type_info = type_infos.at("double");
                     default_val.size = 8;
                     default_val.value = std::any_cast<double>(Variable::default_value(var.type_info.type));
-                    if(!Variable::is_in_storage(default_val.name, m_program.var_storage))
+                    if (!Variable::is_in_storage(default_val.name, m_program.var_storage))
                         m_program.var_storage.push_back(default_val);
                 } else {
                     default_val.type_info = type_infos.at("int8");
@@ -1012,14 +1011,14 @@ void Parser::parseBlock() {
 
 }
 void print_var(Variable var) {
-    std::println("name: {}", var.name);
-    std::println("offset: {}, size: {}", var.offset, var.size);
-    std::println("type: {}, type_name: {}", (int)var.type_info.type, var.type_info.name);
-    std::println("deref_count: {}", var.deref_count);
-    std::println("kind: {{ ");
-    std::println("  pointer_count: {}", var.kind.pointer_count);
-    std::println("  deref_offset:  {}", var.kind.deref_offset);
-    std::println("}} ");
+    mlog::println("name: {}", var.name);
+    mlog::println("offset: {}, size: {}", var.offset, var.size);
+    mlog::println("type: {}, type_name: {}", (int)var.type_info.type, var.type_info.name);
+    mlog::println("deref_count: {}", var.deref_count);
+    mlog::println("kind: {{ ");
+    mlog::println("  pointer_count: {}", var.kind.pointer_count);
+    mlog::println("  deref_offset:  {}", var.kind.deref_offset);
+    mlog::println("}} ");
 }
 ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std::string func_prefix) {
     // will need it later
@@ -1033,7 +1032,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         m_currentLexar->getAndExpectNext(TokenType::StringLit);
         var = {
             .type_info = type_infos.at("string"),
-            .name = f("literal_{}", literal_count++),
+            .name = mlog::format("literal_{}", literal_count++),
             .value = (*tkn)->string_value,
             .size = 8,
             .kind = {
@@ -1064,7 +1063,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
     if ((*tkn)->type == TokenType::DoubleLit) {
         var = {
             .type_info = type_infos.at("double"),
-            .name  = f("literal_{}", literal_count++),
+            .name  = mlog::format("literal_{}", literal_count++),
             .value = (*tkn)->double_value,
             .size  = 8,
             .kind  = {
@@ -1149,7 +1148,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
     if ((*tkn)->type == TokenType::ID || (*tkn)->type == TokenType::TypeID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
             if (!Func::is_in_storage(func_name, m_program.func_storage)) 
-                TODO(f("func {} doesn't exist", func_name));
+                TODO(mlog::format("func {} doesn't exist", func_name));
             auto& func = Func::get_from_name(func_name, m_program.func_storage);
             var = make_temp_var(func.return_type, func.return_kind);
             if (var.kind.pointer_count > 0)
@@ -1157,7 +1156,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             if (var.type_info.type == Type::Struct_t) {
                 var.members = Struct::get_from_name(var.type_info.name, m_program.struct_storage).var_storage;
             }
-            if(!func.is_static && this_.type_info.type == Type::Typeid_t)
+            if (!func.is_static && this_.type_info.type == Type::Typeid_t)
                 TODO("cannot use Typeid to call a non static function");
             if (!func.is_static)
                 parseFuncCall(func, this_ptr, var);
@@ -1224,7 +1223,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             ret_lvalue = true;
             return {var, ret_lvalue};
         } else {
-            TODO(f("ERROR: variable `{}` at {}:{}:{} wasn't found", name, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
+            TODO(mlog::format("ERROR: variable `{}` at {}:{}:{} wasn't found", name, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
         }
     }
 
@@ -1237,7 +1236,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         return {var, ret_lvalue};
     }
 
-    ERROR((*tkn)->loc, f("unexpected token of type {}", printableToken.at((*tkn)->type)));
+    ERROR((*tkn)->loc, mlog::format("unexpected token of type {}", printableToken.at((*tkn)->type)));
 
     return {var, false};
 }
@@ -1425,7 +1424,7 @@ ExprResult Parser::parseExpression() {
 }
 
 void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_address) {
-    std::string loc = std::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
+    std::string loc = mlog::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
     VariableStorage args{};
     size_t given_args_count = 0;
     m_currentLexar->getAndExpectNext(TokenType::OParen);
@@ -1450,11 +1449,11 @@ void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_addres
     if (!func.variadic && !func.c_variadic) {
         if (func.arguments_count != given_args_count) {
             for (auto& arg : args)
-                std::println("{} {}", arg.name, arg.type_info.name);
-            std::println("----------------------");
+                mlog::println("{} {}", arg.name, arg.type_info.name);
+            mlog::println("----------------------");
             for (auto& arg : func.arguments)
-                std::println("{} {}", arg.name, arg.type_info.name);
-            TODO(f("\n"
+                mlog::println("{} {}", arg.name, arg.type_info.name);
+            TODO(mlog::format("\n"
                    "{} incorrect amount of function arguments got {} but expected {}",
                    loc, given_args_count, func.arguments_count)
                  );
@@ -1486,7 +1485,7 @@ Func Parser::make_type_info_func(Struct s) {
     Variable size = {.type_info = type_infos.at("int64") , .value = (int64_t)type_infos.at(s.name).size    , .kind = literal};
     Variable name = {
         .type_info = type_infos.at("string"),
-        .name  = f("literal_{}", literal_count++),
+        .name  = mlog::format("literal_{}", literal_count++),
         .value = (std::string)type_infos.at(s.name).name,
         .kind  = literal
     };

@@ -1,7 +1,6 @@
 #include "lexar.h"
 #include <cctype>
 #include <cmath>
-#include <print>
 #include <string>
 #include <vector>
 #include "tools/logger.h"
@@ -24,7 +23,7 @@ int64_t hex_string_to_int64(std::string s) {
         } else if (s[i] > 96 && s[i] < 103) {
             total += (s[i] - 97 + 10) * std::pow(16, j);
         } else {
-            std::println(stderr, "ERROR: cannot convert non hex to int");
+            mlog::println(stderr, "ERROR: cannot convert non hex to int");
             exit(1);
         }
     }
@@ -34,7 +33,7 @@ int64_t string_to_int64(std::string s) {
     int64_t total = 0;
     for (int i = s.size() - 1, j = 0; i >= 0;j++, i--) {
         if (!isdigit(s[i])) {
-            std::println(stderr, "ERROR: cannot convert non digit to int (the char is {} {})", j, i);
+            mlog::println(stderr, "ERROR: cannot convert non digit to int (the char is {} {})", j, i);
             exit(1);
         }
         total += std::stoi(std::string() + s[i]) * std::pow(10, j);
@@ -51,13 +50,13 @@ double string_to_double(std::string s) {
 
         if (chr == '.') {
             if (seen_dot) {
-                std::println(stderr, "ERROR: multiple decimal points");
+                mlog::println(stderr, "ERROR: multiple decimal points");
                 exit(1);
             }
             seen_dot = true;
             continue;
         } else if (!isdigit(chr)) {
-            std::println(stderr, "ERROR: invalid character '{}' at index {}", chr, i);
+            mlog::println(stderr, "ERROR: invalid character '{}' at index {}", chr, i);
             exit(1);
         }
 
@@ -270,7 +269,7 @@ std::vector<Token> Lexar::getTokens() {
 
 void Lexar::getNext() {
     if (currentToken->type == TokenType::EndOfFile) {
-        std::println("EndOfFile REACHED");
+        mlog::println("EndOfFile REACHED");
         return;
     }
     currentTokenIndex++;
@@ -282,8 +281,8 @@ void Lexar::expectNext(TokenType tt) {
     }
 
     auto l = peek()->loc;
-    mlog::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
-                  f("Lexing error Expected {} but got {}", printableToken.at(tt), printableToken.at(peek()->type)).c_str());
+    mlog::error(mlog::format("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
+                  mlog::format("Lexing error Expected {} but got {}", printableToken.at(tt), printableToken.at(peek()->type)).c_str());
 
 }
 void Lexar::expectNext(std::vector<TokenType> tts) {
@@ -300,8 +299,8 @@ void Lexar::expectNext(std::vector<TokenType> tts) {
     }
     string_tts += " ]";
     auto l = peek()->loc;
-    mlog::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
-                  f("Lexing error Expected {} but got {}", string_tts, printableToken.at(peek()->type)).c_str());
+    mlog::error(mlog::format("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
+                  mlog::format("Lexing error Expected {} but got {}", string_tts, printableToken.at(peek()->type)).c_str());
 
 }
 void Lexar::expectCurrent(TokenType tt) {
@@ -310,8 +309,8 @@ void Lexar::expectCurrent(TokenType tt) {
     }
 
     auto l = currentToken->loc;
-    mlog::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
-                  f("Lexing error Expected {} but got {}", printableToken.at(tt), printableToken.at(currentToken->type)).c_str());
+    mlog::error(mlog::format("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
+                  mlog::format("Lexing error Expected {} but got {}", printableToken.at(tt), printableToken.at(currentToken->type)).c_str());
 
 }
 void Lexar::expectCurrent(std::vector<TokenType> tts) {
@@ -328,8 +327,8 @@ void Lexar::expectCurrent(std::vector<TokenType> tts) {
     }
     string_tts += " ]";
     auto l = currentToken->loc;
-    mlog::error(f("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
-                  f("Lexing error Expected {} but got {}", string_tts, printableToken.at(currentToken->type)).c_str());
+    mlog::error(mlog::format("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
+                  mlog::format("Lexing error Expected {} but got {}", string_tts, printableToken.at(currentToken->type)).c_str());
 
 }
 void Lexar::getAndExpectNext(TokenType tt) {
@@ -345,7 +344,7 @@ void Lexar::getAndExpectNext(std::vector<TokenType> tts) {
 
 Token* Lexar::peek() {
     if (currentToken->type == TokenType::EndOfFile) {
-        std::println("EndOfFile REACHED");
+        mlog::println("EndOfFile REACHED");
         return &m_tokens[currentTokenIndex];
     }
     return &m_tokens[currentTokenIndex+1];
