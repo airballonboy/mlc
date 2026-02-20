@@ -13,7 +13,7 @@ Variable& Variable::get_from_name(std::string_view name, VariableStorage& storag
     for (auto& var : storage) {
         if (var.name == name) return var;
     }
-    std::println("undefined reference to {}", name);
+    mlog::println("undefined reference to {}", name);
     exit(1);
 }
 size_t Variable::size_in_bytes(Type t) {
@@ -34,7 +34,7 @@ size_t Variable::size_in_bytes(Type t) {
         case Type::Void_t:   return 0; break;
 
         default: 
-            TODO(f("type {} doesn't have default size", (int)t));
+            TODO(mlog::format("type {} doesn't have default size", (int)t));
     }
     return 0;
 }
@@ -55,7 +55,7 @@ std::any Variable::default_value(Type t) {
         case Type::Void_t:   return (int64_t)0    ; break;
 
         default: 
-            TODO(f("type {} doesn't have default", (int)t));
+            TODO(mlog::format("type {} doesn't have default", (int)t));
     }
     return 0;
 }

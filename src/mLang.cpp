@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <print>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,20 +24,20 @@ fs::path output_path;
 void print_platforms() {
     mlog::log(mlog::Cyan, "Platforms:");
     for (auto plat : PLATFORMS) {
-        std::println("  {:8}", plat.first);
+        mlog::println("  {:8}", plat.first);
     }
 }
 void print_targets() {
     mlog::log(mlog::Cyan, "Targets:");
     for (auto targ : TARGETS) {
-        std::println("  {:8}", targ.first);
+        mlog::println("  {:8}", targ.first);
     }
 }
 void print_help_message() {
-    mlog::log("Usage: ", mlog::Blue, f("{} input.mlang [options]", programName).c_str());
-    std::println("\noptions:");
+    mlog::log("Usage: ", mlog::Blue, mlog::format("{} input.mlang [options]", programName).c_str());
+    mlog::println("\noptions:");
     for (auto& flag: FLAG_BASE::flags) {
-        std::println("  {}", flag->desc);
+        mlog::println("  {}", flag->desc);
     }
 }
 
@@ -56,6 +55,7 @@ int main(int argc, char* argv[])
     bool run    = false;
     programName = shift_args(&argc, &argv);
     auto args = FLAG_BASE::parse_flags(argc, argv);
+    mlog::println("test {}", "world");
 
     // Setting default platform and target for operating system
 #if defined(WIN32)
@@ -147,16 +147,16 @@ int main(int argc, char* argv[])
     // Make build directory and add .gitignore to it
     if (!fs::exists(build_path)) {
         if (fs::create_directory(build_path)) {
-            std::println("Directory created: {}", build_path.string());
+            mlog::println("Directory created: {}", build_path.string());
         } else {
-            std::println(stderr, "Failed to create directory: {}", build_path.string());
+            mlog::println(stderr, "Failed to create directory: {}", build_path.string());
         }
         std::ofstream gitignore(build_path/".gitignore");
-        std::println("created: {}", (build_path/".gitignore").string());
+        mlog::println("created: {}", (build_path/".gitignore").string());
         gitignore << "*";
         gitignore.close();
     } else {
-        std::println("Directory already exists: {}", build_path.string());
+        mlog::println("Directory already exists: {}", build_path.string());
     }
 
 

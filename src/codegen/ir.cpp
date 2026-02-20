@@ -15,12 +15,12 @@ void ir::compileProgram() {
     for (auto& func : m_program->func_storage) {
         compileFunction(func);
     }
-    std::ofstream outfile(f("{}.ir", (build_path/input_file.stem()).string()));
+    std::ofstream outfile(mlog::format("{}.ir", (build_path/input_file.stem()).string()));
     outfile << output;
     outfile.close();
 }
 void ir::compileFunction(Func func) {
-    output.append(f("{}:\n", func.name));
+    output.append(mlog::format("{}:\n", func.name));
     for (auto& inst : func.body) {
         switch (inst.op) {
             case Op::RETURN: {
