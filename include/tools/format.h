@@ -4,22 +4,25 @@
 #include <ios>
 #include <sstream>
 #include <optional>
-#include <stdexcept>
 #include <type_traits>
 
 namespace mlog {
 
 struct FormatSpec {
+    int  width = 0;
     char fill = ' ';
-    int width = 0;
-    char type = 'd';
+    char type  = 'd';
+    char align = '>';
 };
 
 static FormatSpec parse_format_spec(const std::string& fmt, size_t& i) {
     FormatSpec spec;
     if (fmt[i] == ':') {
         ++i;
-        if (fmt[i] == '0') {
+        if (i < fmt.size() && (fmt[i] == '<' || fmt[i] == '>' || fmt[i] == '^')) {
+            spec.align = fmt[i++];
+        }
+        if (i < fmt.size() && fmt[i] == '0') {
             spec.fill = '0';
             ++i;
         }
@@ -35,7 +38,7 @@ static FormatSpec parse_format_spec(const std::string& fmt, size_t& i) {
         }
     }
     if (i >= fmt.size() || fmt[i] != '}') {
-        fputs("Malformed format specifier", stderr);
+        fputs("Malformed format specifier\n", stderr);
         exit(1);
     }
     ++i;
@@ -112,14 +115,27 @@ void append_arg(std::ostringstream& oss, const T& arg, const FormatSpec& spec = 
         }
         size_t len = out.size() + (negative ? 1 : 0);
         size_t pad = (spec.width > len) ? (spec.width - len) : 0;
+        size_t left_pad = 0;
+        size_t right_pad = 0;
+
+        if (spec.align == '<') {
+            right_pad = pad;
+        } else if (spec.align == '^') {
+            left_pad = pad / 2;
+            right_pad = pad - left_pad;
+        } else { // '>'
+            left_pad = pad;
+        }
 
         if (spec.fill == '0') {
             if (negative) oss << '-';
-            for (size_t i = 0; i < pad; i++) oss << '0';
+            for (size_t i = 0; i < left_pad; i++) oss << '0';
         } else {
-            for (size_t i = 0; i < pad; i++) oss << spec.fill;
+            for (size_t i = 0; i < left_pad; i++) oss << spec.fill;
             if (negative) oss << '-';
         }
+        for (size_t i = 0; i < right_pad; i++) oss << spec.fill;
+
         oss << out;
     } else {
         if (spec.width > 0) {
@@ -132,7 +148,7 @@ void append_arg(std::ostringstream& oss, const T& arg, const FormatSpec& spec = 
 inline void format_recursive(std::ostringstream& oss, const std::string& fmt, size_t& i) {
     while (i < fmt.size()) {
         if (fmt[i] == '{' && i + 1 < fmt.size() && fmt[i + 1] == '}') {
-            fputs("Too few arguments for format string", stderr);
+            fputs("Too few arguments for format string\n", stderr);
             exit(1);
         } else {
             oss << fmt[i++];
@@ -153,7 +169,7 @@ void format_recursive(std::ostringstream& oss, const std::string& fmt, size_t& i
             oss << fmt[i++];
         }
     }
-    fputs("Too many arguments for format string", stderr);
+    fputs("Too many arguments for format string\n", stderr);
     exit(1);
 }
 
