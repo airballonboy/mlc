@@ -29,8 +29,8 @@ jobs:
             cpp_compiler: clang-cl
           - os: ubuntu-latest
             build_type: Release
-            c_compiler: clang
-            cpp_compiler: clang
+            c_compiler: clang-20
+            cpp_compiler: clang-20
 
     steps:
     - uses: actions/checkout@v4
@@ -40,13 +40,6 @@ jobs:
       shell: bash
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-
-    - name: Install Ninja (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: sudo apt-get install -y ninja-build
-    - name: Install Ninja (Windows)
-      if: matrix.os == 'windows-latest'
-      run: choco install ninja -y
 
     - name: Setup GCC 14 on Linux
       if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'gcc-14'
@@ -58,26 +51,16 @@ jobs:
         gcc --version
         g++ --version
     - name: Setup Clang on Linux
-      if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'clang-cl'
+      if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'clang-20'
       run: |
-        sudo apt-get update
-        sudo apt-get install -y clang
-        clang --version
-        clang++ --version
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 20
+        clang-20 --version
 
     - name: Configure CMake
-      if: matrix.c_compiler != 'clang-cl'
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -S ${{ github.workspace }}
-    - name: Configure CMake Ninja
-      if: matrix.c_compiler == 'clang-cl'
-      run: >
-        cmake -B ${{ steps.strings.outputs.build-output-dir }}
-        -G Ninja
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
@@ -87,12 +70,12 @@ jobs:
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
     - name: Test
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.c_compiler != 'cl'
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: ./mlc-test
 
     - name: Test
-      if: matrix.os == 'windows-latest'
+      if: matrix.c_compiler == 'cl'
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       shell: powershell
       run: .\Release\mlc-test.exe
