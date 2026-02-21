@@ -1152,7 +1152,6 @@ void gnu_asm::mov_member(Register src, Variable dest) {
 void gnu_asm::mov_member(Variable src, Register dest) {
     Variable current = src;
     Variable* parent = src.parent;
-    bool in_rax = false;
     size_t off = 0;
     if (parent == nullptr)
         off = current.offset;

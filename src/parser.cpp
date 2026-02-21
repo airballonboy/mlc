@@ -1017,7 +1017,6 @@ void print_var(Variable var) {
     mlog::println("deref_count: {}", var.deref_count);
     mlog::println("kind: {{ ");
     mlog::println("  pointer_count: {}", var.kind.pointer_count);
-    mlog::println("  deref_offset:  {}", var.kind.deref_offset);
     mlog::println("}} ");
 }
 ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std::string func_prefix) {
