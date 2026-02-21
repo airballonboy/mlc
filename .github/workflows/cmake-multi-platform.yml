@@ -30,7 +30,7 @@ jobs:
           - os: ubuntu-latest
             build_type: Release
             c_compiler: clang-20
-            cpp_compiler: clang-20
+            cpp_compiler: clang++-20
 
     steps:
     - uses: actions/checkout@v4
@@ -70,12 +70,12 @@ jobs:
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
     - name: Test
-      if: matrix.c_compiler != 'cl'
+      if: matrix.os == 'ubuntu-latest'
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: ./mlc-test
 
     - name: Test
-      if: matrix.c_compiler == 'cl'
+      if: matrix.os == 'windows-latest'
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       shell: powershell
       run: .\Release\mlc-test.exe
