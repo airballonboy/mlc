@@ -19,18 +19,22 @@ jobs:
             build_type: Release
             c_compiler: cl
             cpp_compiler: cl
+            extra_cmake_flags: 
           - os: ubuntu-latest
             build_type: Release
             c_compiler: gcc-14
             cpp_compiler: g++-14
+            extra_cmake_flags: 
           - os: windows-latest
             build_type: Release
             c_compiler: clang-cl
             cpp_compiler: clang-cl
+            extra_cmake_flags: -T ClangCL
           - os: ubuntu-latest
             build_type: Release
             c_compiler: clang-20
             cpp_compiler: clang++-20
+            extra_cmake_flags: 
 
     steps:
     - uses: actions/checkout@v4
@@ -64,6 +68,7 @@ jobs:
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        ${{ matrix.extra_cmake_flags }}
         -S ${{ github.workspace }}
 
     - name: Build
