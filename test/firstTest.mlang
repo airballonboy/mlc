@@ -29,17 +29,20 @@ func Vec3.add_vec(Vec3 v) -> Vec3 {
     v.z += this.z;
     return v;
 }
+const i32 = int;
 
 func main() {
-    Vec3* v = Vec3.new();
-    if (v == 0) {
-        c_std::printf("[Error] couldn't create v");
-    } else {
-        v.init();
-        v.add(30.0);
-        v.print();
-        Vec3 ve = Vec3{0.0, 12.0, 0.0};
-        ve.add_vec(*v).print();
-        v.print();
-    }
+    //Vec3* v = Vec3.new();
+    i32 ma = 12;
+    c_std::printf("%d\n", ma);
+    //if (v == 0) {
+    //    c_std::printf("[Error] couldn't create v");
+    //} else {
+    //    v.init();
+    //    v.add(30.0);
+    //    v.print();
+    //    Vec3 ve = Vec3{0.0, 12.0, 0.0};
+    //    ve.add_vec(*v).print();
+    //    v.print();
+    //}
 }

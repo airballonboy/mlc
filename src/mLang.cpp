@@ -55,7 +55,6 @@ int main(int argc, char* argv[])
     bool run    = false;
     programName = shift_args(&argc, &argv);
     auto args = FLAG_BASE::parse_flags(argc, argv);
-    mlog::println("test {}", "world");
 
     // Setting default platform and target for operating system
 #if defined(WIN32)

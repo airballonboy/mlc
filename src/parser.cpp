@@ -4,11 +4,11 @@
 #include "token.h"
 #include "tools/file.h"
 #include "tools/logger.h"
+#include "type_system/type.h"
+#include "type_system/variable.h"
 #include <algorithm>
 #include <any>
-#include <bit>
 #include <cstdint>
-#include <string_view>
 #include <vector>
 
 #define ERROR(loc, massage) \
@@ -96,23 +96,20 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     Variable var{};
     std::string type_name{};
     bool strct = false;
-    if ((*tkn)->type != TokenType::ID && (*tkn)->type != TokenType::TypeID) {
-        m_currentLexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
+    if ((*tkn)->type != TokenType::TypeID && (*tkn)->type != TokenType::ID) {
+        m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID});
     }
-    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
-        current_module_prefix = "";
-        parseModulePrefix();
-        m_currentLexar->getAndExpectNext(TokenType::ID);
-        type_name = current_module_prefix + m_currentLexar->currentToken->string_value;
-        current_module_prefix = "";
+    auto type = std::get<0>(parsePrimaryExpression());
+    if (type.type_info.name == "typeid") {
+        type_name = TypeInfo::get_from_id(std::any_cast<int64_t>(type.value)).name;
     } else {
-        type_name = (*tkn)->string_value;
+        ERROR((*tkn)->loc, "expected typeid in variable declaration");
     }
     if (TypeIds.contains(type_name) && TypeIds.at(type_name) == Type::Struct_t) {
         strct = true;
         //var.type_name = type_name;
         var.type_info = type_infos.at(type_name);
-    } else if (TypeIds.contains((*tkn)->string_value)) {
+    } else if (TypeIds.contains(type_name)) {
         type_name = printableTypeIds.at(TypeIds.at(type_name));
         var.type_info = type_infos.at(type_name);
         var.size = Variable::size_in_bytes(var.type_info.type);
@@ -893,19 +890,15 @@ void Parser::parseStatement() {
         case TokenType::TypeID: {
             std::string type_name = (*tkn)->string_value;
             size_t current_point = m_currentLexar->currentTokenIndex;
-            if (m_currentLexar->peek()->type == TokenType::ColonColon) {
-                current_module_prefix = "";
-                parseModulePrefix();
-                m_currentLexar->getAndExpectNext(TokenType::ID);
-                type_name = current_module_prefix + m_currentLexar->currentToken->string_value;
-                current_module_prefix = "";
-            }
+            auto current_body    = m_currentFunc->body;
+            auto type = std::get<0>(parsePrimaryExpression());
             auto peek = m_currentLexar->peek();
             m_currentLexar->currentTokenIndex = current_point - 1;
             m_currentLexar->getNext();
-            if (!TypeIds.contains(type_name)) {
-                goto defau;
-            } else if (peek->type == TokenType::Dot) {
+            if (type.type_info.name == "typeid") {
+                type_name = TypeInfo::get_from_id(std::any_cast<int64_t>(type.value)).name;
+            } else {
+                m_currentFunc->body = current_body;
                 goto defau;
             }
             auto saved_body = m_currentFunc->body;

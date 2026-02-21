@@ -4,6 +4,7 @@
 
 class TypeInfo {
 public:
+    static TypeInfo get_from_id(size_t id);
     size_t id = 0;
     Type type = Type::Int32_t;
     size_t size = 0;
