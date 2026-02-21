@@ -25,8 +25,8 @@ jobs:
             cpp_compiler: g++-14
           - os: windows-latest
             build_type: Release
-            c_compiler: clang
-            cpp_compiler: clang
+            c_compiler: clang-cl
+            cpp_compiler: clang-cl
           - os: ubuntu-latest
             build_type: Release
             c_compiler: clang
@@ -58,7 +58,7 @@ jobs:
         gcc --version
         g++ --version
     - name: Setup Clang on Linux
-      if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'clang'
+      if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'clang-cl'
       run: |
         sudo apt-get update
         sudo apt-get install -y clang
@@ -66,6 +66,15 @@ jobs:
         clang++ --version
 
     - name: Configure CMake
+      if: matrix.c_compiler != 'clang-cl'
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -S ${{ github.workspace }}
+    - name: Configure CMake Ninja
+      if: matrix.c_compiler == 'clang-cl'
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
         -G Ninja
