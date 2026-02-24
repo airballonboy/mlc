@@ -11,12 +11,14 @@
 enum class BuildTarget {
     ir,
     gnu_asm_86_64,
+    llvm,
 };
 inline std::unordered_map<std::string, Platform> PLATFORMS = {
     {"linux",  Platform::Linux},
     {"windows", Platform::Windows},
 };
 inline std::unordered_map<std::string, BuildTarget> TARGETS = {
+    {"llvm",       BuildTarget::llvm},
     {"gnu_x64_64", BuildTarget::gnu_asm_86_64},
     {"ir",         BuildTarget::ir},
 };

@@ -7,6 +7,7 @@
 #include <vector>
 #include <filesystem>
 #include "codegen/gnu_asm_x86_64.h"
+#include "codegen/llvm.h"
 #include "context.h"
 #include "flag.h"
 #include "parser.h"
@@ -235,6 +236,10 @@ int main(int argc, char* argv[])
                     exit(ret);
                 }
             }
+        }break;
+        case BuildTarget::llvm: {
+            llvm_gen compiler(prog);
+            compiler.compileProgram();
         }break;
     }
 
