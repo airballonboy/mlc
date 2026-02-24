@@ -31,6 +31,7 @@ int main () {
     string total_output{};
     for (auto& [test, output] : tests_and_outputs) {
         string output_file = test;
+        // Erase ".mlang" suffix
         output_file.erase(output_file.size() - 6);
 #ifdef WIN32
         auto [build_status, _] = cmd_with_output("{}\\Release\\mlc {} -o {}", OUTPUT_PATH, test, output_file);
@@ -53,12 +54,12 @@ int main () {
 
         if (build_status != 0) number_of_faild_builds += 1;
         if (!test_result)      number_of_faild_tests  += 1;
+        // Delete output files after testing them
+        cmd_with_output("rm {}", output_file);
     }
     println("-------------------------------------------------------------");
     println("Number of Builds failed {}", number_of_faild_builds);
     println("Number of Tests failed  {}", number_of_faild_tests);
     print("{}", total_output);
-    if (number_of_faild_builds > 0 || number_of_faild_tests > 0)
-        return 1;
-    return 0;
+    return number_of_faild_tests + number_of_faild_builds;
 }
