@@ -1,5 +1,6 @@
 #include "tools/logger.h"
 #include "tools/utils.h"
+#include <filesystem>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -9,6 +10,13 @@ using std::string;
 using mlog::println;
 using mlog::print;
 using mlog::format;
+namespace  fs = std::filesystem;
+
+#ifdef WIN32
+fs::path mlc = fs::path(OUTPUT_PATH)/"Release"/"mlc";
+#else
+fs::path mlc = fs::path(OUTPUT_PATH)/"mlc";
+#endif
 
 vector<tuple<string, string>> tests_and_outputs = {
     {MTEST_PATH"function_return.mlang", "12\n"},
@@ -33,11 +41,7 @@ int main () {
         string output_file = test;
         // Erase ".mlang" suffix
         output_file.erase(output_file.size() - 6);
-#ifdef WIN32
-        auto [build_status, _] = cmd_with_output("{}\\Release\\mlc {} -o {}", OUTPUT_PATH, test, output_file);
-#else
-        auto [build_status, _] = cmd_with_output("{}mlc {} -o {}", OUTPUT_PATH, test, output_file);
-#endif
+        auto [build_status, _] = cmd_with_output("{} {} -o {}", mlc.string(), test, output_file);
         
         auto [test_status, test_output] = cmd_with_output("{}", output_file);
         bool test_output_match = (test_output == output);
