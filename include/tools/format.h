@@ -134,14 +134,28 @@ void append_arg(std::ostringstream& oss, const T& arg, const FormatSpec& spec = 
             for (size_t i = 0; i < left_pad; i++) oss << spec.fill;
             if (negative) oss << '-';
         }
-        for (size_t i = 0; i < right_pad; i++) oss << spec.fill;
-
         oss << out;
+
+        for (size_t i = 0; i < right_pad; i++) oss << spec.fill;
     } else {
-        if (spec.width > 0) {
-            oss << std::setfill(spec.fill) << std::setw(spec.width);
+        std::ostringstream out;
+        out << arg;
+        size_t len = out.str().size();
+        size_t pad = (spec.width > len) ? (spec.width - len) : 0;
+        size_t left_pad = 0;
+        size_t right_pad = 0;
+        if (spec.align == '<') {
+            right_pad = pad;
+        } else if (spec.align == '^') {
+            left_pad = pad / 2;
+            right_pad = pad - left_pad;
+        } else { // '>'
+            left_pad = pad;
         }
+
+        for (size_t i = 0; i < left_pad; i++)  oss << spec.fill;
         oss << arg;
+        for (size_t i = 0; i < right_pad; i++) oss << spec.fill;
     }
 }
 
