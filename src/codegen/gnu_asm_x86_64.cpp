@@ -245,72 +245,87 @@ void gnu_asm::compileFunction(Func func) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
                 Variable arg = std::get<Variable>(inst.args[0]);
-                if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
-                    if (is_float_type(func.return_type.type) && func.return_kind.pointer_count == 0) {
+                if (m_program->platform == Platform::Windows) {
+                    if (is_float_type(arg.type_info.type)) {
                         mov_var(arg, Xmm0);
-                        cast_float_size(Xmm0, arg.size, func.return_type.size);
-                    } else if (func.return_type.type == Type::Struct_t && func.return_kind.pointer_count == 0) {
-                        if (Struct::get_from_name(arg.type_info.name, m_program->struct_storage).is_float_only)
-                            mov_var(arg, Xmm0);
-                        else 
-                            mov_var(arg, Rax);
-                    } else {
+                    } else if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
                         mov_var(arg, Rax);
-                    }
-                } else if (func.return_type.size <= 16) {
-                    if (Struct::get_from_name(arg.type_info.name, m_program->struct_storage).is_float_only) {
-                        size_t size = arg.size;
-                        arg.size = 8;
-                        TypeInfo ti = arg.type_info;
-                        arg.type_info = type_infos.at("int64");
-                        mov_var(arg, Xmm0);
-                        arg.offset -= 8;
-                        arg.size = size - 8;
-                        mov_var(arg, Xmm1);
                     } else {
-                        Register slots[2] = {Xmm0, Xmm1};
-                        bool first_xmm = true;
-                        size_t current_size = 0;
-                        size_t i = 0;
-                        for (auto elem : Struct::get_from_name(arg.type_info.name, m_program->struct_storage).var_storage) {
-                            current_size += elem.size;
-                            if (current_size <= 8) {
-                                if (is_float_type(elem.type_info.type)) {
-                                    slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
-                                } else {
-                                    slots[0] = Rax;
-                                }
-                                if (slots[0]._64 != Xmm0._64) {
-                                    first_xmm = false;
-                                    slots[1] = Xmm0;
-                                }
-                            } else {
-                                if (is_float_type(elem.type_info.type)) {
-                                    if (first_xmm)
-                                        slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
-                                    else
-                                        slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
-                                } else {
-                                    if (first_xmm)
-                                        slots[1] = Rax;
-                                    else 
-                                        slots[1] = Rdx;
-                                }
-                            }
+                        if (is_member) {
+                            func.arguments[1].deref_count = 1;
+                            mov_var(arg, func.arguments[1]);
+                        } else {
+                            func.arguments[0].deref_count = 1;
+                            mov_var(arg, func.arguments[0]);
                         }
-                        arg.size = 8;
-                        mov_var(arg, slots[0]);
-                        arg.size = current_size - 8;
-                        arg.offset -= 8;
-                        mov_var(arg, slots[1]);
                     }
                 } else {
-                    if (is_member) {
-                        func.arguments[1].deref_count = 1;
-                        mov_var(arg, func.arguments[1]);
+                    if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
+                        if (is_float_type(func.return_type.type) && func.return_kind.pointer_count == 0) {
+                            mov_var(arg, Xmm0);
+                            cast_float_size(Xmm0, arg.size, func.return_type.size);
+                        } else if (func.return_type.type == Type::Struct_t && func.return_kind.pointer_count == 0) {
+                            if (Struct::get_from_name(arg.type_info.name, m_program->struct_storage).is_float_only)
+                                mov_var(arg, Xmm0);
+                            else 
+                                mov_var(arg, Rax);
+                        } else {
+                            mov_var(arg, Rax);
+                        }
+                    } else if (func.return_type.size <= 16) {
+                        if (Struct::get_from_name(arg.type_info.name, m_program->struct_storage).is_float_only) {
+                            size_t size = arg.size;
+                            arg.size = 8;
+                            arg.type_info = type_infos.at("int64");
+                            mov_var(arg, Xmm0);
+                            arg.offset -= 8;
+                            arg.size = size - 8;
+                            mov_var(arg, Xmm1);
+                        } else {
+                            Register slots[2] = {Xmm0, Xmm1};
+                            bool first_xmm = true;
+                            size_t current_size = 0;
+                            size_t i = 0;
+                            for (auto elem : Struct::get_from_name(arg.type_info.name, m_program->struct_storage).var_storage) {
+                                current_size += elem.size;
+                                if (current_size <= 8) {
+                                    if (is_float_type(elem.type_info.type)) {
+                                        slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
+                                    } else {
+                                        slots[0] = Rax;
+                                    }
+                                    if (slots[0]._64 != Xmm0._64) {
+                                        first_xmm = false;
+                                        slots[1] = Xmm0;
+                                    }
+                                } else {
+                                    if (is_float_type(elem.type_info.type)) {
+                                        if (first_xmm)
+                                            slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
+                                        else
+                                            slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
+                                    } else {
+                                        if (first_xmm)
+                                            slots[1] = Rax;
+                                        else 
+                                            slots[1] = Rdx;
+                                    }
+                                }
+                            }
+                            arg.size = 8;
+                            mov_var(arg, slots[0]);
+                            arg.size = current_size - 8;
+                            arg.offset -= 8;
+                            mov_var(arg, slots[1]);
+                        }
                     } else {
-                        func.arguments[0].deref_count = 1;
-                        mov_var(arg, func.arguments[0]);
+                        if (is_member) {
+                            func.arguments[1].deref_count = 1;
+                            mov_var(arg, func.arguments[1]);
+                        } else {
+                            func.arguments[0].deref_count = 1;
+                            mov_var(arg, func.arguments[0]);
+                        }
                     }
                 }
                 add.append(func.stack_size, Rsp);
@@ -346,63 +361,79 @@ void gnu_asm::compileFunction(Func func) {
 
                 call_func(func, args);
                 if (ret_address.type_info.type != Type::Void_t) {
-                    if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
-                        if (is_float_type(ret_address.type_info.type) && ret_address.kind.pointer_count == 0) {
-                            mov_var(Xmm0, ret_address);
-                        } else if (ret_address.type_info.type == Type::Struct_t && ret_address.kind.pointer_count == 0) {
-                            if (Struct::get_from_name(ret_address.type_info.name, m_program->struct_storage).is_float_only)
-                                mov_var(Xmm0, ret_address);
-                            else 
-                                mov_var(Rax, ret_address);
+                    if (m_program->platform == Platform::Windows) {
+                        if (is_float_type(ret_address.type_info.type)) {
+                            mov_var(ret_address, Xmm0);
+                        } else if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
+                            mov_var(ret_address, Rax);
                         } else {
-                            mov_var(Rax, ret_address);
+                            if (is_member) {
+                                func.arguments[1].deref_count = 1;
+                                mov_var(ret_address, func.arguments[1]);
+                            } else {
+                                func.arguments[0].deref_count = 1;
+                                mov_var(ret_address, func.arguments[0]);
+                            }
                         }
-                    } else if (func.return_type.size <= 16) {
-                        if (Struct::get_from_name(ret_address.type_info.name, m_program->struct_storage).is_float_only) {
-                            size_t size = ret_address.size;
-                            ret_address.size = 8;
-                            TypeInfo ti = ret_address.type_info;
-                            ret_address.type_info = type_infos.at("int64");
-                            mov_var(Xmm0, ret_address);
-                            ret_address.offset -= 8;
-                            ret_address.size = size - 8;
-                            mov_var(Xmm1, ret_address);
-                        } else {
-                            Register slots[2] = {Xmm0, Xmm1};
-                            bool first_xmm = true;
-                            size_t current_size = 0;
-                            size_t i = 0;
-                            for (auto elem : Struct::get_from_name(ret_address.type_info.name, m_program->struct_storage).var_storage) {
-                                current_size += elem.size;
-                                if (current_size <= 8) {
-                                    if (is_float_type(elem.type_info.type)) {
-                                        slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
+                    } else {
+                        if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
+                            if (is_float_type(ret_address.type_info.type) && ret_address.kind.pointer_count == 0) {
+                                mov_var(Xmm0, ret_address);
+                            } else if (ret_address.type_info.type == Type::Struct_t && ret_address.kind.pointer_count == 0) {
+                                if (Struct::get_from_name(ret_address.type_info.name, m_program->struct_storage).is_float_only)
+                                    mov_var(Xmm0, ret_address);
+                                else 
+                                    mov_var(Rax, ret_address);
+                            } else {
+                                mov_var(Rax, ret_address);
+                            }
+                        } else if (func.return_type.size <= 16) {
+                            if (Struct::get_from_name(ret_address.type_info.name, m_program->struct_storage).is_float_only) {
+                                size_t size = ret_address.size;
+                                ret_address.size = 8;
+                                TypeInfo ti = ret_address.type_info;
+                                ret_address.type_info = type_infos.at("int64");
+                                mov_var(Xmm0, ret_address);
+                                ret_address.offset -= 8;
+                                ret_address.size = size - 8;
+                                mov_var(Xmm1, ret_address);
+                            } else {
+                                Register slots[2] = {Xmm0, Xmm1};
+                                bool first_xmm = true;
+                                size_t current_size = 0;
+                                size_t i = 0;
+                                for (auto elem : Struct::get_from_name(ret_address.type_info.name, m_program->struct_storage).var_storage) {
+                                    current_size += elem.size;
+                                    if (current_size <= 8) {
+                                        if (is_float_type(elem.type_info.type)) {
+                                            slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
+                                        } else {
+                                            slots[0] = Rax;
+                                        }
+                                        if (slots[0]._64 != Xmm0._64) {
+                                            first_xmm = false;
+                                            slots[1] = Xmm0;
+                                        }
                                     } else {
-                                        slots[0] = Rax;
-                                    }
-                                    if (slots[0]._64 != Xmm0._64) {
-                                        first_xmm = false;
-                                        slots[1] = Xmm0;
-                                    }
-                                } else {
-                                    if (is_float_type(elem.type_info.type)) {
-                                        if (first_xmm)
-                                            slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
-                                        else
-                                            slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
-                                    } else {
-                                        if (first_xmm)
-                                            slots[1] = Rax;
-                                        else 
-                                            slots[1] = Rdx;
+                                        if (is_float_type(elem.type_info.type)) {
+                                            if (first_xmm)
+                                                slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
+                                            else
+                                                slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
+                                        } else {
+                                            if (first_xmm)
+                                                slots[1] = Rax;
+                                            else 
+                                                slots[1] = Rdx;
+                                        }
                                     }
                                 }
+                                ret_address.size = 8;
+                                mov_var(slots[0], ret_address);
+                                ret_address.size = current_size - 8;
+                                ret_address.offset -= 8;
+                                mov_var(slots[1], ret_address);
                             }
-                            ret_address.size = 8;
-                            mov_var(slots[0], ret_address);
-                            ret_address.size = current_size - 8;
-                            ret_address.offset -= 8;
-                            mov_var(slots[1], ret_address);
                         }
                     }
                 }
