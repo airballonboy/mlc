@@ -363,17 +363,9 @@ void gnu_asm::compileFunction(Func func) {
                 if (ret_address.type_info.type != Type::Void_t) {
                     if (m_program->platform == Platform::Windows) {
                         if (is_float_type(ret_address.type_info.type)) {
-                            mov_var(ret_address, Xmm0);
+                            mov_var(Xmm0, ret_address);
                         } else if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
-                            mov_var(ret_address, Rax);
-                        } else {
-                            if (is_member) {
-                                func.arguments[1].deref_count = 1;
-                                mov_var(ret_address, func.arguments[1]);
-                            } else {
-                                func.arguments[0].deref_count = 1;
-                                mov_var(ret_address, func.arguments[0]);
-                            }
+                            mov_var(Rax, ret_address);
                         }
                     } else {
                         if (func.return_type.size <= 8 || func.return_kind.pointer_count > 0) {
