@@ -61,6 +61,11 @@ jobs:
         chmod +x llvm.sh
         sudo ./llvm.sh 20
         clang-20 --version
+    - name: Install LLVM 17
+      if: matrix.os == 'windows-latest'
+      shell: powershell
+      run: |
+        choco install llvm --version=17.0.1 --allow-downgrade -y
 
     - name: Configure CMake
       run: >
