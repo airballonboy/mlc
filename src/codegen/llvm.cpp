@@ -28,7 +28,7 @@ llvm_gen::llvm_gen(Program* prog) : BaseCodegenerator(prog) {
         {type_infos.at("int32").id   , llvm::Type::getInt32Ty(*m_ctx)},
         {type_infos.at("int64").id   , llvm::Type::getInt64Ty(*m_ctx)},
         {type_infos.at("typeid").id  , llvm::Type::getInt64Ty(*m_ctx)},
-        {type_infos.at("pointer").id , llvm::Type::getInt8PtrTy(*m_ctx)},
+        {type_infos.at("pointer").id , llvm::Type::getInt8PtrTy(*m_ctx, 0)},
         {type_infos.at("usize").id   , llvm::Type::getInt64Ty(*m_ctx)},
         {type_infos.at("string").id  , llvm::Type::getInt8PtrTy(*m_ctx)},
         {type_infos.at("float").id   , llvm::Type::getFloatTy(*m_ctx)},
