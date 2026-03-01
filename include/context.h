@@ -16,5 +16,7 @@ namespace fs = std::filesystem;
 inline fs::path input_path;
 inline fs::path input_file;
 inline fs::path build_path;
+inline std::string programName;
+inline fs::path output_path;
 
 inline CONTEXT ctx;

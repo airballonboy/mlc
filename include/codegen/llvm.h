@@ -12,9 +12,14 @@ class llvm_gen : public BaseCodegenerator {
 public:
     llvm_gen(Program* prog);
 
-    void call_func(Func func, VariableStorage args);
+    llvm::Value* call_func(Func func, VariableStorage args);
     void compileProgram() override;
     void compileFunction(Func func) override;
+
+private:
+    void compile_start_func(); 
+    void output_object_file(); 
+
 
 private:
     std::unique_ptr<llvm::LLVMContext> m_ctx;

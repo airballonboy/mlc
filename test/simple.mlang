@@ -1,2 +1,4 @@
-func main () -> int {
+#extern func exit(int code);
+
+func main() -> int8 {
 }
