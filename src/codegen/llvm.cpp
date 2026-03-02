@@ -7,6 +7,7 @@
 #include "type_system/variable.h"
 #include <any>
 #include <cstdlib>
+#include <llvm-14/llvm/IR/Constants.h>
 #include <llvm-14/llvm/IR/Value.h>
 #include <llvm/IR/Type.h>
 #include <llvm/Support/raw_ostream.h>
@@ -25,7 +26,7 @@ using std::make_unique;
 
 llvm_gen::llvm_gen(Program* prog) : BaseCodegenerator(prog) {
     m_ctx     = make_unique<llvm::LLVMContext>();
-    m_mod     = make_unique<llvm::Module>("mlang_test", *m_ctx);
+    m_mod     = make_unique<llvm::Module>(input_file.string(), *m_ctx);
     m_builder = make_unique<llvm::IRBuilder<>>(*m_ctx);
 
     typeid_to_type = {
@@ -49,7 +50,14 @@ void llvm_gen::compileProgram() {
     for (const auto& func : m_program->func_storage) {
         compileFunction(func);
     }
-    compile_start_func();
+    m_mod->print(llvm::outs(), nullptr);
+    std::string mod_err;
+    llvm::raw_string_ostream mod_err_stream(mod_err);
+    if (llvm::verifyModule(*m_mod, &mod_err_stream)) {
+        mlog::println("----------------------------------------");
+        mlog::println(mlog::format("Module verification failed: {}", mod_err));
+        abort();
+    }
     output_object_file();
 }
 void llvm_gen::compileFunction(Func func) {
@@ -71,8 +79,16 @@ void llvm_gen::compileFunction(Func func) {
             case Op::RETURN: {
                 Variable arg = std::get<Variable>(inst.args[0]);
 
-                auto ret = llvm::ConstantInt::get(*m_ctx, llvm::APInt(8, 0));
-                m_builder->CreateRet(ret);
+                auto ret = var_to_value(arg);
+                mlog::println("{}: {} -> {}", func.name, arg.type_info.name, func.return_type.name);
+                if (func.return_type.type==Type::Int64_t||func.return_type.type==Type::Int32_t||func.return_type.type==Type::Int16_t||func.return_type.type==Type::Int8_t) {
+                    ret = m_builder->CreateZExt(ret, typeid_to_type.at(func.return_type.id));
+                    m_builder->CreateRet(ret);
+                } else if (fn->getReturnType()->isVoidTy())
+                    m_builder->CreateRetVoid();
+                else {
+                    m_builder->CreateRet(ret);
+                }
 
                 returned = true;
             }break;
@@ -168,28 +184,47 @@ void llvm_gen::compileFunction(Func func) {
         }
     }
     if (!returned) {
-        auto ret = llvm::ConstantInt::get(*m_ctx, llvm::APInt(8, 0));
+        auto ret = llvm::ConstantInt::get(*m_ctx, llvm::APInt(fn->getReturnType()->getIntegerBitWidth(), 0));
         m_builder->CreateRet(ret);
     }
     llvm::verifyFunction(*fn);
-
-    fn->print(llvm::outs());
 }
 llvm::Value* llvm_gen::call_func(Func func, VariableStorage args) {
     auto llvm_func = m_mod->getFunction(func.name);
     std::vector<llvm::Value*> arguments;
     for (auto& arg : args) {
-        if (arg.type_info.type == Type::Int8_t||arg.type_info.type == Type::Int16_t||arg.type_info.type == Type::Int32_t||arg.type_info.type == Type::Int64_t) {
-            arguments.push_back(llvm::ConstantInt::getSigned(typeid_to_type.at(arg.type_info.id), std::any_cast<int64_t>(arg.value)));
-        }
+        arguments.push_back(var_to_value(arg));
     }
     return m_builder->CreateCall(llvm_func, arguments);
 }
+llvm::Value* llvm_gen::var_to_value(Variable var) {
+    if (var.kind.literal) {
+        switch (var.type_info.type) {
+            case Type::Int8_t:
+            case Type::Int16_t:
+            case Type::Int32_t:
+            case Type::Int64_t: {
+                return llvm::ConstantInt::getSigned(typeid_to_type.at(var.type_info.id), std::any_cast<int64_t>(var.value));
+            }break;
+            case Type::String_t: {
+                return m_builder->CreateGlobalStringPtr(std::any_cast<std::string>(var.value), var.name);
+            }break;
+            default: TODO(mlog::format("llvm_gen::var_to_value(): add type literal {}", var.type_info.name));
+        }
+    }
+    switch (var.type_info.type) {
+        default: TODO(mlog::format("llvm_gen::var_to_value(): add type {}", var.type_info.name));
+    }
+    return nullptr;
+}
 void llvm_gen::compile_start_func() {
+    TODO("doesn't work with libc");
     auto ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*m_ctx), {}, false);
     auto fn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "_start", m_mod.get());
     auto body = llvm::BasicBlock::Create(*m_ctx, "entry", fn);
     m_builder->SetInsertPoint(body);
+    m_builder->CreateAlloca(m_builder->getInt8Ty(), llvm::ConstantInt::get(m_builder->getInt64Ty(), 0));
+
     auto mainfn = m_mod->getFunction("main");
     auto exitfn = m_mod->getFunction("exit");
     if (!mainfn) {
@@ -200,11 +235,15 @@ void llvm_gen::compile_start_func() {
         mlog::println("exit function was not found");
         abort();
     }
+
     auto exit_code = m_builder->CreateCall(mainfn);
-    m_builder->CreateCall(exitfn, {exit_code});
+    if (mainfn->getReturnType()->isVoidTy())
+        m_builder->CreateCall(exitfn, llvm::ConstantInt::getSigned(exitfn->arg_begin()->getType(), 0));
+    else 
+        m_builder->CreateCall(exitfn, {exit_code});
+
     m_builder->CreateUnreachable();
     llvm::verifyFunction(*fn);
-    fn->print(llvm::outs());
 }
 void llvm_gen::output_object_file() {
     llvm::InitializeNativeTarget();

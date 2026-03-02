@@ -4,6 +4,7 @@
 #include "type_system/variable.h"
 #include "type_system/func.h"
 #include "program.h"
+#include <llvm/IR/Value.h>
 #include <memory>
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/IRBuilder.h"
@@ -17,6 +18,7 @@ public:
     void compileFunction(Func func) override;
 
 private:
+    llvm::Value* var_to_value(Variable var);
     void compile_start_func(); 
     void output_object_file(); 
 

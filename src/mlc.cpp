@@ -238,7 +238,7 @@ int main(int argc, char* argv[])
         case BuildTarget::llvm: {
             llvm_gen compiler(prog);
             compiler.compileProgram();
-            int ret = cmd("gcc -nostartfiles -nodefaultlibs -lc {} -o {}", output_path.string()+".o", output_path.string());
+            int ret = cmd("gcc -lc {} -o {}", output_path.string()+".o", output_path.string());
             if (ret != 0) {
                 mlog::error("Program aborted");
                 exit(ret);
