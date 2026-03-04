@@ -403,15 +403,13 @@ Variable Parser::parseConstant() {
     m_currentLexar->getAndExpectNext(TokenType::Eq);   
     m_currentLexar->getNext();   
     auto [rhs, lvalue] = parseExpression();
-    var.type.info = rhs.type.info;
+    var.type = rhs.type;
     var.size    = rhs.size;
-    var.Int_val   = rhs.Int_val;
-    var.Double_val   = rhs.Double_val;
-    var.String_val   = rhs.String_val;
+    copy_val(rhs, var);
     var.members = rhs.members;
     var.parent  = rhs.parent;
     var.type = set_ptr_count(var.type, get_ptr_count(rhs.type));
-    var.type.qualifiers = Qualifier::constant;
+    var.type.qualifiers |= Qualifier::constant;
 
     m_currentLexar->getAndExpectNext(TokenType::SemiColon);   
     return var;
