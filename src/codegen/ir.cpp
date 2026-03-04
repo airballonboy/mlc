@@ -24,13 +24,13 @@ void ir::compileFunction(Func func) {
     for (auto& inst : func.body) {
         switch (inst.op) {
             case Op::RETURN: {
-                if (std::any_cast<int>(inst.args[0]) == (int)Type::Int32_t)
-                    output.appendf("    ret({})\n", std::any_cast<int32_t>(inst.args[1]));
+                if (std::get<Variable>(inst.args[0]).type.info.id == (int)TypeId::Int32)
+                    output.appendf("    ret({})\n", std::get<Variable>(inst.args[1]).Int_val);
             }break;
             case Op::CALL: {
-                std::string func_name = std::any_cast<std::string>(inst.args[0]);
-                VariableStorage args  = std::any_cast<VariableStorage>(inst.args[1]);
-                output.appendf("    {}(", func_name);
+                Func            func = std::get<Func>(inst.args[0]);
+                VariableStorage args  = std::get<VariableStorage>(inst.args[1]);
+                output.appendf("    {}(", func.name);
                 for (size_t i = 0; i < args.size(); i++) {
                     output.appendf("$({})", args[i].name);
                     if (i+1 < args.size())

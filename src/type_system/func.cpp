@@ -3,6 +3,18 @@
 #include "type_system/module.h"
 #include "program.h"
 
+Func::Func() {
+    type = Type(Kind::Func);
+}
+Func::Func(Type ret_type, std::vector<Type> args) {
+    type = Type(Kind::Func);
+    *type.func_data->return_type = ret_type;
+    for (auto arg : args) {
+        Type* new_arg = new Type;
+        *new_arg = arg;
+        type.func_data->args.push_back(new_arg);
+    }
+}
 bool Func::is_in_storage(std::string_view name, const FunctionStorage& storage) {
     for (auto& func : storage) {
         if (func.name == name) return true;
@@ -15,7 +27,7 @@ Func& Func::get_from_name(std::string_view name, FunctionStorage& storage) {
     for (auto& func : storage) {
         if (func.name == name) return func;
     }
-    mlog::println("undefined reference to {}", name);
+    mlog::println(stderr, "undefined reference to func {}", name);
     exit(1);
 }
 Func Func::get_from_module(std::string name, Module mod) {
@@ -26,7 +38,7 @@ Func Func::get_from_module(std::string name, Module mod) {
         if (name.starts_with(prefix))
             return get_from_module(name.erase(0, prefix.size()), mod);
     }
-    mlog::println("undefined reference to {}", name);
+    mlog::println(stderr, "undefined reference to func {}", name);
     exit(1);
 }
 Func Func::get_from_program(std::string name, Program prog) {
@@ -37,6 +49,6 @@ Func Func::get_from_program(std::string name, Program prog) {
         if (name.starts_with(prefix))
             return get_from_module(name.erase(0, prefix.size()), mod);
     }
-    mlog::println("undefined reference to {}", name);
+    mlog::println(stderr, "undefined reference to func {}", name);
     exit(1);
 }

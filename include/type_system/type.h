@@ -1,48 +1,107 @@
 #pragma once
-#include <unordered_map>
-#include <string>
+#include "tools/format.h"
+#include "tools/logger.h"
+#include "type_system/kind.h"
+#include "type_system/type_info.h"
+#include "type_system/typeid.h"
+#include <cstdint>
+#include <vector>
 
-enum class Type : int {
-    Void_t = 0, 
-    Struct_t,
-    Int8_t, Int16_t, 
-    Int32_t, Int64_t,
-    Typeid_t,
-    Ptr_t, Size_t,
-    String_t, Char_t,
-    Float_t, Double_t,
-    Bool_t,
-};
+class Struct;
+class Variable;
+struct PtrData;
+struct FuncData;
 
-inline std::unordered_map<std::string, Type> TypeIds = {
-    {"void"   , Type::Void_t},
-    {"char"   , Type::Char_t},
-    {"int8"   , Type::Int8_t},
-    {"int16"  , Type::Int16_t},
-    {"int"    , Type::Int32_t},
-    {"int32"  , Type::Int32_t},
-    {"int64"  , Type::Int64_t},
-    {"typeid" , Type::Typeid_t},
-    {"pointer", Type::Ptr_t},
-    {"usize"  , Type::Size_t},
-    {"long"   , Type::Int64_t},
-    {"string" , Type::String_t},
-    {"float"  , Type::Float_t},
-    {"double" , Type::Double_t},
-    {"bool"   , Type::Bool_t}
+class Type {
+public:
+    Type(TypeInfo i, uint32_t qualifiers = 0);
+    Type(Kind k, uint32_t qualifiers = 0);
+    Type(const Type& other);
+    Type() { info = type_infos.at("void");}
+    ~Type();
+    Type& operator=(const Type& other);
+    TypeInfo info;
+    uint32_t qualifiers = 0;
+    Struct* struct_data = nullptr;
+    PtrData* ptr_data;
+    FuncData* func_data;
 };
-inline std::unordered_map<Type, std::string> printableTypeIds = {
-    {Type::Void_t  , "void"   },
-    {Type::Char_t  , "char"   },
-    {Type::Int8_t  , "int8"   },
-    {Type::Int16_t , "int16"  },
-    {Type::Int32_t , "int32"  },
-    {Type::Int64_t , "int64"  },
-    {Type::Typeid_t, "typeid" },
-    {Type::Ptr_t   , "pointer"},
-    {Type::Size_t  , "usize"  },
-    {Type::String_t, "string" },
-    {Type::Float_t , "float"  },
-    {Type::Double_t, "double" },
-    {Type::Bool_t  , "bool"   },
+struct PtrData {
+    Type* pointee;
+};
+struct FuncData {
+    Type* return_type;
+    std::vector<Type*> args{};
+};
+inline Type get_base_type(Type t) {
+    while (t.info.kind == Kind::Pointer) {
+        t = *t.ptr_data->pointee;
+    }
+    return t;
+}
+inline Type set_ptr_count(Type base, size_t count) {
+    Type ptr = base;
+    while (count-- > 0) {
+        auto old_ptr = ptr;
+        ptr = Type(Kind::Pointer);
+        *ptr.ptr_data->pointee = old_ptr;
+    }
+    return ptr;
+}
+inline size_t get_ptr_count(Type t) {
+    size_t i = 0;
+    while (t.info.kind == Kind::Pointer) {
+        i++;
+        t = *t.ptr_data->pointee;
+    }
+    return i;
+}
+inline Type make_ptr(Type base) {
+    Type ptr = Type(Kind::Pointer);
+    *ptr.ptr_data->pointee = base;
+    return ptr;
+}
+
+inline size_t get_typeid(Type t) {
+    return t.info.id;
+}
+inline size_t get_typeid(TypeInfo t) {
+    return t.id;
+}
+inline size_t get_typeid(std::string t) {
+    if (!type_infos.contains(t)) {
+        TODO(mlog::format("cannot find type {}", t));
+    }
+    return type_infos.at(t).id;
+}
+inline std::unordered_map<std::string, size_t> TypeIds = {
+    {"void"   , TypeId::Void},
+    {"char"   , TypeId::Char},
+    {"int8"   , TypeId::Int8},
+    {"int16"  , TypeId::Int16},
+    {"int"    , TypeId::Int32},
+    {"int32"  , TypeId::Int32},
+    {"int64"  , TypeId::Int64},
+    {"typeid" , TypeId::Typeid},
+    {"pointer", TypeId::Ptr},
+    {"usize"  , TypeId::USize},
+    {"string" , TypeId::String},
+    {"float"  , TypeId::Float},
+    {"double" , TypeId::Float},
+    {"bool"   , TypeId::Bool}
+};
+inline std::unordered_map<size_t, std::string> printableTypeIds = {
+    {TypeId::Void  , "void"   },
+    {TypeId::Char  , "char"   },
+    {TypeId::Int8  , "int8"   },
+    {TypeId::Int16 , "int16"  },
+    {TypeId::Int32 , "int32"  },
+    {TypeId::Int64 , "int64"  },
+    {TypeId::Typeid, "typeid" },
+    {TypeId::Ptr   , "pointer"},
+    {TypeId::USize  , "usize"  },
+    {TypeId::String, "string" },
+    {TypeId::Float , "float"  },
+    {TypeId::Double, "double" },
+    {TypeId::Bool  , "bool"   },
 };

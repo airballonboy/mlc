@@ -17,9 +17,10 @@ public:
     static Func  get_from_program(std::string name, Program prog);
     static Func  get_from_module(std::string name, Module mod);
     static Func& get_from_name(std::string_view name, FunctionStorage& storage);
+    Func();
+    Func(Type ret_type, std::vector<Type> args = {});
 public:
-    TypeInfo return_type = type_infos.at("void");
-    Kind     return_kind{};
+    Type type{Kind::Func};
 
     int arguments_count = 0;
     VariableStorage arguments;
