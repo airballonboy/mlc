@@ -3,10 +3,11 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "type_system/variable.h"
 
 class Struct;
 typedef std::vector<Struct> StructStorage;
+class Variable;
+typedef std::vector<Variable> VariableStorage;
 
 class Struct {
 public:

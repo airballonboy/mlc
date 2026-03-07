@@ -6,6 +6,7 @@
 #include "tools/logger.h"
 #include "tools/format.h"
 #include "type_system/type.h"
+#include "type_system/variable.h"
 
 // Current Character
 #define c  m_source[m_currentCharIndex]

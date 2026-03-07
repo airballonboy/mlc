@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
 
     // Setting default included paths
     ctx.includePaths.push_back(".");
-    ctx.includePaths.push_back(MSTD_PATH);
+      ctx.includePaths.push_back(MSTD_PATH);
     ctx.includePaths.push_back(PROJECT_PATH"/test");
 
     // Make build directory and add .gitignore to it

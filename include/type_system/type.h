@@ -3,12 +3,12 @@
 #include "tools/logger.h"
 #include "type_system/kind.h"
 #include "type_system/type_info.h"
+#include "type_system/struct.h"
 #include "type_system/typeid.h"
 #include <cstdint>
 #include <vector>
+#include <memory>
 
-class Struct;
-class Variable;
 struct PtrData;
 struct FuncData;
 
@@ -17,63 +17,32 @@ public:
     Type(TypeInfo i, uint32_t qualifiers = 0);
     Type(Kind k, uint32_t qualifiers = 0);
     Type(const Type& other);
-    Type() { info = type_infos.at("void");}
+    Type() 
+        :info(type_infos.at("void")),
+        qualifiers(0)
+    {}
     ~Type();
-    Type& operator=(const Type& other);
+    Type& operator=(Type other);
     TypeInfo info;
     uint32_t qualifiers = 0;
-    Struct* struct_data = nullptr;
-    PtrData* ptr_data;
-    FuncData* func_data;
+    std::unique_ptr<Struct> struct_data;
+    std::unique_ptr<PtrData> ptr_data;
+    std::unique_ptr<FuncData> func_data;
 };
 struct PtrData {
-    Type* pointee;
+    std::unique_ptr<Type> pointee;
 };
 struct FuncData {
-    Type* return_type;
-    std::vector<Type*> args{};
+    std::unique_ptr<Type> return_type;
+    std::vector<std::unique_ptr<Type>> args;
 };
-inline Type get_base_type(Type t) {
-    while (t.info.kind == Kind::Pointer) {
-        t = *t.ptr_data->pointee;
-    }
-    return t;
-}
-inline Type set_ptr_count(Type base, size_t count) {
-    Type ptr = base;
-    while (count-- > 0) {
-        auto old_ptr = ptr;
-        ptr = Type(Kind::Pointer);
-        *ptr.ptr_data->pointee = old_ptr;
-    }
-    return ptr;
-}
-inline size_t get_ptr_count(Type t) {
-    size_t i = 0;
-    while (t.info.kind == Kind::Pointer) {
-        i++;
-        t = *t.ptr_data->pointee;
-    }
-    return i;
-}
-inline Type make_ptr(Type base) {
-    Type ptr = Type(Kind::Pointer);
-    *ptr.ptr_data->pointee = base;
-    return ptr;
-}
-
-inline size_t get_typeid(Type t) {
-    return t.info.id;
-}
-inline size_t get_typeid(TypeInfo t) {
-    return t.id;
-}
-inline size_t get_typeid(std::string t) {
-    if (!type_infos.contains(t)) {
-        TODO(mlog::format("cannot find type {}", t));
-    }
-    return type_infos.at(t).id;
-}
+Type get_base_type(Type t);
+Type set_ptr_count(Type base, size_t count);
+size_t get_ptr_count(Type t);
+Type make_ptr(Type base);
+size_t get_typeid(Type t);
+size_t get_typeid(TypeInfo t);
+size_t get_typeid(std::string t);
 inline std::unordered_map<std::string, size_t> TypeIds = {
     {"void"   , TypeId::Void},
     {"char"   , TypeId::Char},

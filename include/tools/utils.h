@@ -64,6 +64,9 @@ inline std::tuple<int, std::string> cmd_with_output(const std::string& __fmt, _A
     std::string output{};
     std::array<char, 4096> buffer = {};
     std::string command = mlog::format(__fmt, std::forward<_Args>(__args)...);
+
+    // Redirect stderr to std out
+    command += " 2>&1";
 #ifdef _WIN32
     FILE* pipe = _popen(command.c_str(), "r");
     if (!pipe) {

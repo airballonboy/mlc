@@ -1,4 +1,6 @@
 #include "type_system/func.h"
+#include "type_system/struct.h"
+#include "type_system/type.h"
 #include "tools/logger.h"
 #include "type_system/module.h"
 #include "program.h"
@@ -10,9 +12,7 @@ Func::Func(Type ret_type, std::vector<Type> args) {
     type = Type(Kind::Func);
     *type.func_data->return_type = ret_type;
     for (auto arg : args) {
-        Type* new_arg = new Type;
-        *new_arg = arg;
-        type.func_data->args.push_back(new_arg);
+        type.func_data->args.push_back(std::make_unique<Type>(arg));
     }
 }
 bool Func::is_in_storage(std::string_view name, const FunctionStorage& storage) {

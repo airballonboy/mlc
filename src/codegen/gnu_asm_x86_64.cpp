@@ -206,6 +206,21 @@ void gnu_asm::compileFunction(Func func) {
     // if the function doesn't return you make it return 0
     bool returned = false;
     bool is_member = func.arguments.size() > 0 && func.name.starts_with(func.arguments[0].type.info.name) && func.arguments[0].name == "this";
+    auto ret_type = *func.type.func_data->return_type;
+    if (ret_type.info.kind != Kind::Pointer) {
+        if ((m_program->platform == Platform::Windows && ret_type.info.size > 8) ||
+            (m_program->platform == Platform::Linux && ret_type.info.size > 16))
+        {
+            func.stack_size += 8;
+            Variable ret = {
+                .type = make_ptr(*func.type.func_data->return_type),
+                .name = "return register",
+                .offset = func.stack_size,
+                .size = 8,
+            };
+            func.arguments.emplace(func.arguments.begin(), ret);
+        }
+    }
 
     output.appendf(".global {}\n", func.name);
     output.appendf("{}:\n", func.name);
@@ -218,6 +233,7 @@ void gnu_asm::compileFunction(Func func) {
     } else {
         get_func_args_linux(func);
     }
+
 
 
     for (auto& inst : func.body) {
@@ -338,11 +354,23 @@ void gnu_asm::compileFunction(Func func) {
                 free_int_reg(reg);
             }break;
             case Op::CALL: {
-                Func func             = std::get<Func>(inst.args[0]);
+                Func fn               = std::get<Func>(inst.args[0]);
                 VariableStorage args  = std::get<VariableStorage>(inst.args[1]);
                 Variable ret_address  = std::get<Variable>(inst.args[2]);
 
-                call_func(func, args);
+                auto ret_type = *fn.type.func_data->return_type;
+                if (ret_type.info.kind != Kind::Pointer) {
+                    if ((m_program->platform == Platform::Windows && ret_type.info.size > 8) ||
+                        (m_program->platform == Platform::Linux && ret_type.info.size > 16))
+                    {
+                        auto ret_ptr = ret_address;
+                        ret_ptr.deref_count -= 1;
+                        args.emplace(args.begin(), ret_ptr);
+                        fn.arguments.emplace(fn.arguments.begin(), ret_ptr);
+                    }
+                }
+
+                call_func(fn, args);
                 if (ret_address.type.info.kind != Kind::Void) {
                     if (m_program->platform == Platform::Windows) {
                         if (ret_address.type.info.kind == Kind::Float) {
@@ -722,8 +750,7 @@ void gnu_asm::get_func_args_windows(Func func) {
             reg2 = arg_register_float[f];
         }
         if (is_stack) {
-            if (arg.type.info.kind == Kind::Float && !func.c_variadic) {
-                cast_float_size(reg2, arg.size, temp_float_size);
+            if (arg.type.info.kind == Kind::Float) {
 				mov.append(current_stack_offset, Rsp, reg2);
 			} else {
 				mov.append(current_stack_offset, Rsp, reg1);
@@ -752,7 +779,7 @@ void gnu_asm::get_func_args_windows(Func func) {
             if (arg.type.info.kind == Kind::Float) {
                 mov_var(reg2, arg);
             } else {
-                mov_var(arg, reg1);
+                mov_var(reg1, arg);
             }
         }
         free_int_reg(reg1);
@@ -1324,12 +1351,12 @@ void gnu_asm::mov_var(Variable src, Variable dest) {
         else 
             mov.append(src.Int_val, -dest.offset, Rbp, dest.size);
     } else if (src.type.info.kind == Kind::Struct || dest.type.info.kind == Kind::Struct) {
-        if (src.type.info.id != dest.type.info.id) 
+        if (get_base_type(src.type).info.id != get_base_type(dest.type).info.id)
             TODO(mlog::format("error trying assigning different structers to each other, {} {}", src.type.info.name, dest.type.info.name));
         Struct strct{};
         bool found = false;
         for (const auto& strct_ : m_program->struct_storage) {
-            if (strct_.name == src.type.info.name) {
+            if (strct_.name == get_base_type(src.type).info.name) {
                 found = true;
                 strct = strct_;
                 break;

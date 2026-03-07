@@ -9,7 +9,7 @@ public:
     size_t id = TypeId::Void;
     Kind kind = Kind::Int;
     size_t size = 0;
-    std::string name{};
+    std::string name = "";
 };
 
 inline size_t current_typeid_max = TypeId::BasicTypesCount + 1;
