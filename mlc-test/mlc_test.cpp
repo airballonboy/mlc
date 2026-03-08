@@ -61,7 +61,8 @@ int main () {
         if (build_status != 0) {
             total_output += format("[ERROR] build couldn't complete\n");
             total_output += format("  on file: {}:\n", test);
-            total_output += format("{}", err);
+            total_output += format("    error = {}", escape_new_lines(err));
+            total_output += format("    exit_code = {}", build_status);
         }
 
         if (!test_output_match) {
