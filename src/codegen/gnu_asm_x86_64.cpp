@@ -264,9 +264,10 @@ void gnu_asm::compileFunction(Func func) {
                             mov_var(arg, Xmm0);
                             cast_float_size(Xmm0, arg.size, ret_type.info.size);
                         } else if (ret_type.info.kind == Kind::Struct) {
-                            if (Struct::get_from_name(arg.type.info.name, m_program->struct_storage).is_float_only)
+                            if (Struct::get_from_name(arg.type.info.name, m_program->struct_storage).is_float_only) {
+                                if (arg.size == 4) arg.type = type_infos.at("float");
                                 mov_var(arg, Xmm0);
-                            else 
+                            } else 
                                 mov_var(arg, Rax);
                         } else {
                             mov_var(arg, Rax);
@@ -276,9 +277,9 @@ void gnu_asm::compileFunction(Func func) {
                             size_t size = arg.size;
                             arg.size = 8;
                             mov_var(arg, Xmm0);
-                            arg.type = type_infos.at("float");
                             arg.offset -= 8;
                             arg.size = size - 8;
+                            if (arg.size == 4) arg.type = type_infos.at("float");
                             mov_var(arg, Xmm1);
                         } else {
                             Register slots[2] = {Xmm0, Xmm1};
@@ -383,9 +384,10 @@ void gnu_asm::compileFunction(Func func) {
                             if (ret_address.type.info.kind == Kind::Float) {
                                 mov_var(Xmm0, ret_address);
                             } else if (ret_address.type.info.kind == Kind::Struct) {
-                                if (Struct::get_from_name(ret_address.type.info.name, m_program->struct_storage).is_float_only)
+                                if (Struct::get_from_name(ret_address.type.info.name, m_program->struct_storage).is_float_only) {
+                                    if (ret_address.size == 4) ret_address.type = type_infos.at("float");
                                     mov_var(Xmm0, ret_address);
-                                else 
+                                } else 
                                     mov_var(Rax, ret_address);
                             } else {
                                 mov_var(Rax, ret_address);
@@ -395,9 +397,9 @@ void gnu_asm::compileFunction(Func func) {
                                 size_t size = ret_address.size;
                                 ret_address.size = 8;
                                 mov_var(Xmm0, ret_address);
-                                ret_address.type = type_infos.at("float");
                                 ret_address.offset -= 8;
                                 ret_address.size = size - 8;
+                                if (ret_address.size == 4) ret_address.type = type_infos.at("float");
                                 mov_var(Xmm1, ret_address);
                             } else {
                                 Register slots[2] = {Xmm0, Xmm1};
