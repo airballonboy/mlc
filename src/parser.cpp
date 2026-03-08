@@ -119,10 +119,11 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     if (TypeIds.contains(type_name) && TypeIds.at(type_name) > TypeId::BasicTypesCount) {
         strct = true;
         var.type = type_infos.at(type_name);
+        var.size = var.type.info.size;
     } else if (TypeIds.contains(type_name)) {
         type_name = printableTypeIds.at(TypeIds.at(type_name));
         var.type = type_infos.at(type_name);
-        var.size = Variable::size_in_bytes(var.type.info.id);
+        var.size = var.type.info.size;
     } else {
         ERROR((*tkn)->loc, "type was not found");
     }

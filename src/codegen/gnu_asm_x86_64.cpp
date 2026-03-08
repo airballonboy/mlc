@@ -247,7 +247,7 @@ void gnu_asm::compileFunction(Func func) {
                 if (m_program->platform == Platform::Windows) {
                     if (arg.type.info.kind == Kind::Float) {
                         mov_var(arg, Xmm0);
-                    } else if (func.type.func_data->return_type->info.size <= 8 || func.type.info.kind == Kind::Pointer) {
+                    } else if (ret_type.info.size <= 8 || func.type.info.kind == Kind::Pointer) {
                         mov_var(arg, Rax);
                     } else {
                         if (is_member) {
@@ -259,11 +259,11 @@ void gnu_asm::compileFunction(Func func) {
                         }
                     }
                 } else {
-                    if (func.type.func_data->return_type->info.size <= 8 || func.type.info.kind == Kind::Pointer) {
-                        if (func.type.func_data->return_type->info.kind == Kind::Float) {
+                    if (ret_type.info.size <= 8 || func.type.info.kind == Kind::Pointer) {
+                        if (ret_type.info.kind == Kind::Float) {
                             mov_var(arg, Xmm0);
-                            cast_float_size(Xmm0, arg.size, func.type.func_data->return_type->info.size);
-                        } else if (func.type.func_data->return_type->info.kind == Kind::Struct) {
+                            cast_float_size(Xmm0, arg.size, ret_type.info.size);
+                        } else if (ret_type.info.kind == Kind::Struct) {
                             if (Struct::get_from_name(arg.type.info.name, m_program->struct_storage).is_float_only)
                                 mov_var(arg, Xmm0);
                             else 
@@ -271,12 +271,12 @@ void gnu_asm::compileFunction(Func func) {
                         } else {
                             mov_var(arg, Rax);
                         }
-                    } else if (func.type.func_data->return_type->info.size <= 16) {
+                    } else if (ret_type.info.size <= 16) {
                         if (Struct::get_from_name(arg.type.info.name, m_program->struct_storage).is_float_only) {
                             size_t size = arg.size;
                             arg.size = 8;
-                            arg.type = type_infos.at("int64");
                             mov_var(arg, Xmm0);
+                            arg.type = type_infos.at("float");
                             arg.offset -= 8;
                             arg.size = size - 8;
                             mov_var(arg, Xmm1);
@@ -375,11 +375,11 @@ void gnu_asm::compileFunction(Func func) {
                     if (m_program->platform == Platform::Windows) {
                         if (ret_address.type.info.kind == Kind::Float) {
                             mov_var(Xmm0, ret_address);
-                        } else if (func.type.func_data->return_type->info.size <= 8 || func.type.info.kind == Kind::Pointer) {
+                        } else if (fn.type.func_data->return_type->info.size <= 8 || fn.type.info.kind == Kind::Pointer) {
                             mov_var(Rax, ret_address);
                         }
                     } else {
-                        if (func.type.func_data->return_type->info.size <= 8 || func.type.info.kind == Kind::Pointer) {
+                        if (fn.type.func_data->return_type->info.size <= 8 || fn.type.info.kind == Kind::Pointer) {
                             if (ret_address.type.info.kind == Kind::Float) {
                                 mov_var(Xmm0, ret_address);
                             } else if (ret_address.type.info.kind == Kind::Struct) {
@@ -390,13 +390,12 @@ void gnu_asm::compileFunction(Func func) {
                             } else {
                                 mov_var(Rax, ret_address);
                             }
-                        } else if (func.type.func_data->return_type->info.size <= 16) {
+                        } else if (fn.type.func_data->return_type->info.size <= 16) {
                             if (Struct::get_from_name(ret_address.type.info.name, m_program->struct_storage).is_float_only) {
                                 size_t size = ret_address.size;
                                 ret_address.size = 8;
-                                TypeInfo ti = ret_address.type.info;
-                                ret_address.type = type_infos.at("int64");
                                 mov_var(Xmm0, ret_address);
+                                ret_address.type = type_infos.at("float");
                                 ret_address.offset -= 8;
                                 ret_address.size = size - 8;
                                 mov_var(Xmm1, ret_address);

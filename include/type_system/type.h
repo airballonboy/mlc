@@ -56,7 +56,7 @@ inline std::unordered_map<std::string, size_t> TypeIds = {
     {"usize"  , TypeId::USize},
     {"string" , TypeId::String},
     {"float"  , TypeId::Float},
-    {"double" , TypeId::Float},
+    {"double" , TypeId::Double},
     {"bool"   , TypeId::Bool}
 };
 inline std::unordered_map<size_t, std::string> printableTypeIds = {
