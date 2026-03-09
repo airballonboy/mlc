@@ -41,25 +41,39 @@ int main () {
         string output_file = test;
         // Erase ".mlang" suffix
         output_file.erase(output_file.size() - 6);
-        auto [build_status, _] = cmd_with_output("{} {} -o {}", mlc.string(), test, output_file);
-        
-        auto [test_status, test_output] = cmd_with_output("{}", output_file);
-        bool test_output_match = (test_output == output);
-        bool test_result = (test_status == 0) && test_output_match;
+        auto [build_status, err] = cmd_with_output("{} {} -o {}", mlc.string(), fs::path(test).string(), fs::path(output_file).string());
+
+        bool test_output_match = true;
+        bool test_result = false;
+        string&& test_output = "";
+        if (build_status == 0) {
+            auto [test_status, test_output] = cmd_with_output("{}", output_file);
+            test_output_match = (test_output == output);
+            test_result = (test_status == 0) && test_output_match;
+            // Delete output files after testing them
+            fs::remove(output_file);
+        }
         string pretty_test_name = remove_substr(test, "mlc-test/");
         print("{:30} | " , pretty_test_name);
         print("{:^12} | ", build_status == 0 ? "[OK]" : "[FAIL]");
         print("{:^12}\n" , test_result ? "[OK]" : "[FAIL]");
+
+        if (build_status != 0) {
+            total_output += format("[ERROR] build couldn't complete\n");
+            total_output += format("  on file: {}:\n", test);
+            total_output += format("    error = {}", escape_new_lines(err));
+            total_output += format("    exit_code = {}", build_status);
+        }
+
         if (!test_output_match) {
             total_output += format("[ERROR] output mismatch\n");
-            total_output += format("  expected \"{}\"\n", escape_new_lines(output));
-            total_output += format("  but got  \"{}\"\n", escape_new_lines(test_output));
+            total_output += format("  on file: {}:\n", test);
+            total_output += format("    expected \"{}\"\n", escape_new_lines(output));
+            total_output += format("    but got  \"{}\"\n", escape_new_lines(test_output));
         }
 
         if (build_status != 0) number_of_faild_builds += 1;
         if (!test_result)      number_of_faild_tests  += 1;
-        // Delete output files after testing them
-        cmd_with_output("rm {}", output_file);
     }
     println("-------------------------------------------------------------");
     println("Number of Builds failed {}", number_of_faild_builds);

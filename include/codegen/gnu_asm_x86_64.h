@@ -42,6 +42,7 @@ public:
     void mov_member(Register src, Variable dest);
     void deref(Register, int64_t deref_count);
     void cast_float_size(Register reg, size_t orig_size, size_t new_size);
+    void cast_int_size(Register reg, size_t orig_size, size_t new_size);
 
 private:
     void function_prologue();

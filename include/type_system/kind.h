@@ -1,12 +1,20 @@
 #pragma once
-#include <cstddef>
+#include <cstdint>
+namespace Qualifier {
+enum : uint32_t {
+    none     = 0,
+    constant = 1 << 0,
+    global   = 1 << 1,
+    literal  = 1 << 2,
+};
+}
 
-class Kind {
-public:
-    bool constant = false;
-    bool global   = false;
-    bool literal  = false;
-    size_t  pointer_count = 0;
-    size_t  array_count   = 0;
-    // TODO: add a vector of array data
+enum class Kind : int {
+    Void = 0, 
+    Int,
+    Float,
+    String,
+    Struct,
+    Pointer,
+    Func
 };

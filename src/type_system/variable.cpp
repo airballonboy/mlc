@@ -13,49 +13,49 @@ Variable& Variable::get_from_name(std::string_view name, VariableStorage& storag
     for (auto& var : storage) {
         if (var.name == name) return var;
     }
-    mlog::println("undefined reference to {}", name);
+    mlog::println(stderr, "undefined reference to variable {}", name);
     exit(1);
 }
-size_t Variable::size_in_bytes(Type t) {
-    switch (t) {
-        case Type::Bool_t:   return 1; break;
-        case Type::Char_t:   return 1; break;
-        case Type::Int8_t:   return 1; break;
-        case Type::Int16_t:  return 2; break;
-        case Type::Int32_t:  return 4; break;
-        case Type::Int64_t:  return 8; break;
-        case Type::Typeid_t: return 8; break;
-        case Type::Ptr_t:    return 8; break;
-        case Type::Size_t:   return 8; break;
-        case Type::Float_t:  return 4; break;
-        case Type::Double_t: return 8; break;
+size_t Variable::size_in_bytes(size_t id) {
+    switch (id) {
+        case TypeId::Bool:   return 1; break;
+        case TypeId::Char:   return 1; break;
+        case TypeId::Int8:   return 1; break;
+        case TypeId::Int16:  return 2; break;
+        case TypeId::Int32:  return 4; break;
+        case TypeId::Int64:  return 8; break;
+        case TypeId::Typeid: return 8; break;
+        case TypeId::Ptr:    return 8; break;
+        case TypeId::USize:   return 8; break;
+        case TypeId::Float:  return 4; break;
+        case TypeId::Double: return 8; break;
 
-        case Type::String_t: return 8; break;
-        case Type::Void_t:   return 0; break;
+        case TypeId::String: return 8; break;
+        case TypeId::Void:   return 0; break;
 
         default: 
-            TODO(mlog::format("type {} doesn't have default size", (int)t));
+            TODO(mlog::format("type {} doesn't have default size", id));
     }
     return 0;
 }
 std::any Variable::default_value(Type t) {
-    switch (t) {
-        case Type::Size_t:
-        case Type::Int8_t:
-        case Type::Int16_t:
-        case Type::Int32_t:
-        case Type::Char_t:
-        case Type::Bool_t:
-        case Type::Typeid_t:
-        case Type::Int64_t: return (int64_t)0; break;
-        case Type::Double_t:
-        case Type::Float_t: return (double)0.0; break;
+    switch (t.info.id) {
+        case TypeId::USize:
+        case TypeId::Int8:
+        case TypeId::Int16:
+        case TypeId::Int32:
+        case TypeId::Char:
+        case TypeId::Bool:
+        case TypeId::Typeid:
+        case TypeId::Int64: return (int64_t)0; break;
+        case TypeId::Double:
+        case TypeId::Float: return (double)0.0; break;
 
-        case Type::String_t: return ""   ; break;
-        case Type::Void_t:   return (int64_t)0    ; break;
+        case TypeId::String: return ""   ; break;
+        case TypeId::Void:   return (int64_t)0    ; break;
 
         default: 
-            TODO(mlog::format("type {} doesn't have default", (int)t));
+            TODO(mlog::format("type {} doesn't have default", t.info.id));
     }
     return 0;
 }
