@@ -1124,6 +1124,8 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     }
                     if (current_offset > max_locals_offset) max_locals_offset = current_offset;
                     current_offset = save_off;
+                    var.type.qualifiers |= Qualifier::literal;
+                    var.type.qualifiers |= Qualifier::constant;
                     return {var, false};
                 }
             }
@@ -1407,7 +1409,6 @@ Func Parser::make_type_info_func(Struct s) {
         .name  = mlog::format("literal_{}", literal_count++),
         .String_val = type_infos.at(s.name).name,
     };
-    fn.arguments = {{.type = make_ptr(type_infos.at("TypeInfo")), .offset = 8, .size = 8}};
     fn.arguments_count = 0;
     fn.stack_size = 48;
     m_program.var_storage.push_back(name);

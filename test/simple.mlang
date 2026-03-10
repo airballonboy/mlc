@@ -1,8 +1,11 @@
 #extern func exit(int code);
 #extern func puts(string str) -> int;
-#extern func printf(string str) -> int;
 
 
 func main() -> int {
-    printf("hi");
+    int x = 12;
+    int y = 14;
+    string s = "hi";
+    puts(s);
+    return x;
 }

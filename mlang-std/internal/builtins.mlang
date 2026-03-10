@@ -1,11 +1,11 @@
-//struct TypeInfo {
-//    typeid id;
-//    int    type;
-//    int64  size;
-//    string name;
-//}
-//
-//
+struct TypeInfo {
+    typeid id;
+    int    type;
+    int64  size;
+    string name;
+}
+
+
 //func string.len() -> int {
 //    int len=0;
 //    while (**this) {

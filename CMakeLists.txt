@@ -41,14 +41,6 @@ if(ENABLE_LLVM)
     endif()
     message(STATUS "LLVM ${LLVM_PACKAGE_VERSION} found")
 
-    string(REGEX MATCHALL "[0-9]+" LLVM_VERSION_PARTS "${LLVM_PACKAGE_VERSION}")
-    list(GET LLVM_VERSION_PARTS 0 LLVM_VERSION_MAJOR)
-    list(GET LLVM_VERSION_PARTS 1 LLVM_VERSION_MINOR)
-    if(LLVM_VERSION_MAJOR GREATER 18)
-        message(FATAL_ERROR "LLVM version must be 17 or lower! Found ${LLVM_PACKAGE_VERSION}.\nInstall from https://releases.llvm.org/download.html")
-    endif()
-
-
     target_include_directories("mlc" PRIVATE ${LLVM_INCLUDE_DIRS})
     target_compile_definitions("mlc" PRIVATE ${LLVM_DEFINITIONS})
 

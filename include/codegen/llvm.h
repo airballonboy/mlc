@@ -1,12 +1,12 @@
 #pragma once 
 #include "codegen/base.h"
-#include "type_system/type_info.h"
 #include "type_system/variable.h"
 #include "type_system/func.h"
 #include "program.h"
-#include <llvm/IR/Value.h>
+#include "llvm/IR/Value.h"
 #include <memory>
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/IRBuilder.h"
 
 class llvm_gen : public BaseCodegenerator {
@@ -21,6 +21,7 @@ private:
     llvm::Value* var_to_value(Variable var);
     void compile_start_func(); 
     void output_object_file(); 
+    llvm::BasicBlock* find_block(llvm::Function* fn, std::string name);
 
 
 private:
