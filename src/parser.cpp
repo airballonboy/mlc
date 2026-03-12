@@ -578,7 +578,6 @@ void Parser::parseExtern() {
 void Parser::parseModulePrefix() {
     auto current_module_storage = &m_program.module_storage;
 
-    //if (!current_module_storage->contains((*tkn)->string_value)) TODO("error");
     if (!current_module_storage->contains((*tkn)->string_value)) { 
         mlog::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
         TODO("error");
@@ -916,9 +915,6 @@ void Parser::parseStatement() {
             }
 
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-        
-            //ERROR(m_currentLexar->currentToken->loc, "unsupported token");
-            //exit(1);
         }
     }
     delete_temp_vars();
@@ -943,14 +939,16 @@ void Parser::parseBlock() {
 void print_var(Variable var) {
     mlog::println("name: {}", var.name);
     mlog::println("offset: {}, size: {}", var.offset, var.size);
-    mlog::println("type: {}, type_name: {}", (int)var.type.info.id, var.type.info.name);
     mlog::println("deref_count: {}", var.deref_count);
-    //mlog::println("kind: {{ ");
-    //mlog::println("  pointer_count: {}", var.kind.pointer_count);
-    //mlog::println("}} ");
+    mlog::println("type: {{");
+    mlog::println("  info: {{");
+    mlog::println("    id:   {}", var.type.info.id);
+    mlog::println("    name: {}", var.type.info.name);
+    mlog::println("    kind: {}", (int)var.type.info.kind);
+    mlog::println("  }}");
+    mlog::println("}}");
 }
 ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std::string func_prefix) {
-    // will need it later
     ExprResult data;
     tkn = &m_currentLexar->currentToken;
     Variable var;
@@ -1350,11 +1348,6 @@ void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_addres
     VariableStorage args{};
     size_t given_args_count = 0;
     m_currentLexar->getAndExpectNext(TokenType::OParen);
-    //if (func.type.func_data->return_type->info.size > 16) {
-    //    return_address.deref_count -= 1;
-    //    args.push_back(return_address);
-    //    return_address.deref_count += 1;
-    //}
     if (this_ptr.type.info.kind != Kind::Void) args.push_back(this_ptr);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
         m_currentLexar->getNext();

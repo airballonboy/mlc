@@ -29,8 +29,6 @@ func Vec3.add_vec(Vec3 v) -> Vec3 {
     v.z += this.z;
     return v;
 }
-const i32 = int;
-
 func main() {
     Vec3* v = Vec3.new();
     if (v == 0) {
