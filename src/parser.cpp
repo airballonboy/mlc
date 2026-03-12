@@ -900,13 +900,13 @@ void Parser::parseStatement() {
                         m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, lhs}});
                         break;
                     case TokenType::PlusEq:
-                        m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, lhs}});
+                        m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::ADD, lhs, rhs, lhs}});
                         break;
                     case TokenType::MinusEq:
-                        m_currentFunc->body.push_back({Op::SUB, {lhs, rhs, lhs}});
+                        m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::SUB, lhs, rhs, lhs}});
                         break;
                     case TokenType::MulEq:
-                        m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, lhs}});
+                        m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::MUL, lhs, rhs, lhs}});
                         break;
                     default: TODO("unsupported Token found");
                     }
@@ -1003,7 +1003,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         auto loc = (*tkn)->loc;
         m_currentLexar->getNext();
         size_t add_loc = m_currentFunc->body.size();
-        m_currentFunc->body.push_back({Op::ADD, {}});
+        m_currentFunc->body.push_back({Op::BIN_OP, {}});
         data = parsePrimaryExpression();
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-increment a non lvalue");
@@ -1016,7 +1016,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .Int_val = (int64_t)1,
             .size = 1,
         };
-        m_currentFunc->body[add_loc].args = {var, amount, var};
+        m_currentFunc->body[add_loc].args = {BinOp::ADD, var, amount, var};
         ret_lvalue = true;
         return {var, ret_lvalue};
     }
@@ -1024,7 +1024,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         auto loc = (*tkn)->loc;
         m_currentLexar->getNext();
         size_t add_loc = m_currentFunc->body.size();
-        m_currentFunc->body.push_back({Op::SUB, {}});
+        m_currentFunc->body.push_back({Op::BIN_OP, {}});
         data = parsePrimaryExpression();
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-decrement a non lvalue");
@@ -1037,7 +1037,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .Int_val = (int64_t)1,
             .size = 1,
         };
-        m_currentFunc->body[add_loc].args = {var, amount, var};
+        m_currentFunc->body[add_loc].args = {BinOp::SUB, var, amount, var};
         ret_lvalue = true;
         return {var, ret_lvalue};
     }
@@ -1220,7 +1220,7 @@ ExprResult Parser::parseUnaryExpression() {
                 .Int_val = (int64_t)0,
                 .size = 1,
             };
-            m_currentFunc->body.push_back({Op::SUB, {zero, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::SUB, zero, rhs, result}});
         }
         return {result, false};
     }
@@ -1238,7 +1238,7 @@ ExprResult Parser::parseUnaryExpression() {
             .Int_val = 0,
             .size = 1,
         };
-        m_currentFunc->body.push_back({Op::EQ, {rhs, zero, result}});
+        m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::EQ, rhs, zero, result}});
         return {result, false};
     }
 
@@ -1261,11 +1261,11 @@ ExprResult Parser::parseMultiplicativeExpression() {
         Variable result = make_temp_var(lhs.type);
 
         if (op_type == TokenType::Mul) {
-            m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::MUL, lhs, rhs, result}});
         } else if (op_type == TokenType::Div) {
-            m_currentFunc->body.push_back({Op::DIV, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::DIV, lhs, rhs, result}});
         } else if (op_type == TokenType::Mod) {
-            m_currentFunc->body.push_back({Op::MOD, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::MOD, lhs, rhs, result}});
         }
 
         lhs = result;
@@ -1289,9 +1289,9 @@ ExprResult Parser::parseAdditiveExpression() {
 
         Variable result = make_temp_var(lhs.type);
         if (op_type == TokenType::Plus) {
-            m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::ADD, lhs, rhs, result}});
         } else {
-            m_currentFunc->body.push_back({Op::SUB, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::SUB, lhs, rhs, result}});
         }
 
         lhs = result;
@@ -1310,16 +1310,16 @@ ExprResult Parser::parseCondition(int min_prec) {
         if (prec < min_prec) 
             break;
 
-        Op op;
+        BinOp op;
         switch (peek) {
-            case TokenType::EqEq:      op = Op::EQ;   break;
-            case TokenType::NotEq:     op = Op::NE;   break;
-            case TokenType::Less:      op = Op::LT;   break;
-            case TokenType::LessEq:    op = Op::LE;   break;
-            case TokenType::Greater:   op = Op::GT;  break;
-            case TokenType::GreaterEq: op = Op::GE; break;
-            case TokenType::AndAnd:    op = Op::LAND; break;
-            case TokenType::OrOr:      op = Op::LOR;  break;
+            case TokenType::EqEq:      op = BinOp::EQ;   break;
+            case TokenType::NotEq:     op = BinOp::NE;   break;
+            case TokenType::Less:      op = BinOp::LT;   break;
+            case TokenType::LessEq:    op = BinOp::LE;   break;
+            case TokenType::Greater:   op = BinOp::GT;  break;
+            case TokenType::GreaterEq: op = BinOp::GE; break;
+            case TokenType::AndAnd:    op = BinOp::LAND; break;
+            case TokenType::OrOr:      op = BinOp::LOR;  break;
             default:
                 return {lhs, lvalue};
         }
@@ -1331,7 +1331,7 @@ ExprResult Parser::parseCondition(int min_prec) {
 
         Variable result = make_temp_var(TypeInfo::get_from_id(TypeId::Bool));
 
-        m_currentFunc->body.push_back({ op, { lhs, rhs, result } });
+        m_currentFunc->body.push_back({Op::BIN_OP, {op, lhs, rhs, result}});
 
         lhs = result;
 
