@@ -633,6 +633,11 @@ Func Parser::parseFunction(bool member, Struct parent) {
         member = true;
         m_currentLexar->getAndExpectNext(TokenType::Dot);
         m_currentLexar->getAndExpectNext(TokenType::ID);
+        current_module_prefix = "";
+        if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+            parseModulePrefix();
+            m_currentLexar->getAndExpectNext(TokenType::ID);
+        }
         name = type_name + "___" + current_module_prefix + (*tkn)->string_value;
     } else {
         name = current_module_prefix + (*tkn)->string_value;
@@ -1069,8 +1074,13 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
     std::string func_name = current_module_prefix + func_prefix + m_currentLexar->currentToken->string_value;
     if ((*tkn)->type == TokenType::ID || (*tkn)->type == TokenType::TypeID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
-            if (!Func::is_in_storage(func_name, m_program.func_storage)) 
+            if (!Func::is_in_storage(func_name, m_program.func_storage)) {
+                mlog::println("functions:");
+                for (auto func : m_program.func_storage) {
+                    mlog::println("  {}", func.name);
+                }
                 TODO(mlog::format("func {} doesn't exist", func_name));
+            }
             auto& func = Func::get_from_name(func_name, m_program.func_storage);
             var = make_temp_var(*func.type.func_data->return_type);
             if (var.type.info.kind == Kind::Pointer)
@@ -1205,11 +1215,13 @@ ExprResult Parser::parseUnaryExpression() {
         auto rhs = std::get<0>(parseUnaryExpression());
         Variable result = make_temp_var(rhs.type);
         if (rhs.type.qualifiers & Qualifier::literal) {
-            if (rhs.type.info.id == TypeId::Double || rhs.type.info.id == TypeId::Float)
-                rhs.Double_val = -rhs.Double_val;
-            else
+            if (rhs.type.info.kind == Kind::Float) {
+                Variable::get_from_name(rhs.name, m_program.var_storage).Double_val = -rhs.Double_val;
+                return {rhs, false};
+            } else {
                 rhs.Int_val = -rhs.Int_val;
-            m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, result}});
+                m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, result}});
+            }
         } else {
             Variable zero   = {
                 .type = Type(
