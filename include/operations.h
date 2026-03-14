@@ -1,5 +1,13 @@
 #pragma once
 
+enum class BinOp {
+    // Arithmetic
+    ADD, SUB, MUL, DIV, MOD,
+    // Comparison
+    LT, LE, GT, GE, EQ, NE,
+    // Logical AND/OR
+    LAND, LOR,
+};
 enum class Op {
     // stores variable1 into variable2
     // STORE_VAR(variable1, variable2)
@@ -10,13 +18,8 @@ enum class Op {
     RETURN,
     // CALL(func, args, return_address)
     CALL,
-    // (lhs, rhs, result)
-    // Binary operations
-    ADD, SUB, MUL, DIV, MOD,
-    // Comparison
-    LT, LE, GT, GE, EQ, NE,
-    // Logical AND/OR
-    LAND, LOR,
+    // BIN_OP(bin_op, lhs, rhs, result)
+    BIN_OP,
     // LABEL(label)
     LABEL,
     // JUMP(label)

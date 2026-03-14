@@ -1,5 +1,4 @@
 #include "codegen/gnu_asm_x86_64.h"
-#include <any>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -10,6 +9,7 @@
 #include "codegen/asm_instruction.h"
 #include "instruction.h"
 #include "context.h"
+#include "operations.h"
 #include "platform.h"
 #include "tools/logger.h"
 #include "tools/format.h"
@@ -460,268 +460,99 @@ void gnu_asm::compileFunction(Func func) {
 
                 output.appendf("L{}:\n", label);
             }break;
-            case Op::ADD: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
+            case Op::BIN_OP: {
+                BinOp    op  = std::get<BinOp>(inst.args[0]);
+                Variable lhs = std::get<Variable>(inst.args[1]);
+                Variable rhs = std::get<Variable>(inst.args[2]);
+                Variable result = std::get<Variable>(inst.args[3]);
 
-
-                if (lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float) {
-                    auto reg1 = get_available_float_reg();
-                    auto reg2 = get_available_float_reg();
-                    mov_var(lhs, reg1);
-                    mov_var(rhs, reg2);
-
-                    size_t size = std::max<size_t>(result.size, 4);
-                    cast_float_size(reg1, lhs.size, size);
-                    cast_float_size(reg2, rhs.size, size);
-
-                    adds.append(reg2, reg1, size);
-                    mov_var(reg1, result);
+                bool is_float_op = lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float;
+                auto& bin_op = get_binop(op, is_float_op);
+                Register reg1;
+                Register reg2;
+                // Result reg not always used
+                Register reg3;
+                if (is_float_op) {
+                    reg1 = get_available_float_reg();
+                    reg2 = get_available_float_reg();
+                    reg3 = get_available_int_reg();
+                } else {
+                    reg1 = get_available_int_reg();
+                    reg2 = get_available_int_reg();
+                    reg3 = reg1;
+                }
+                mov_var(lhs, reg1);
+                mov_var(rhs, reg2);
+                size_t op_size = 1;
+                if (is_float_op) {
+                    if (result.size < 4)
+                        op_size = std::max<size_t>(lhs.size, rhs.size);
+                    else
+                        op_size = std::max<size_t>(result.size, 4);
+                    cast_float_size(reg1, lhs.size, op_size);
+                    cast_float_size(reg2, rhs.size, op_size);
+                } else {
+                    op_size = std::max<size_t>(result.size, 2);
+                }
+                switch (op) {
+                    case BinOp::SUB:
+                    case BinOp::MUL: 
+                    case BinOp::ADD: 
+                        bin_op.append(reg2, reg1, op_size);
+                        mov_var(reg1, result);
+                        break;
+                    case BinOp::DIV:
+                    case BinOp::MOD:
+                        if (is_float_op) {
+                            if (op == BinOp::MOD) TODO("no operator mod for floats");
+                            bin_op.append(reg2, reg1, op_size);
+                            mov_var(reg1, result);
+                        } else {
+                            mov.append(reg1, Rax);
+                            output.append("    cqto\n");
+                            bin_op.append(reg2, op_size);
+                            if (op == BinOp::DIV) {
+                                mov_var(Rax, result);
+                            } else {
+                                mov_var(Rdx, result);
+                            }
+                        }
+                        break;
+                    case BinOp::EQ:
+                    case BinOp::NE:
+                    case BinOp::LT:
+                    case BinOp::LE:
+                    case BinOp::GT:
+                    case BinOp::GE: {
+                        bin_op.append(reg2, reg1, op_size);
+                        get_compare_binop(op, is_float_op).append(reg3, 1);
+                        output.appendf("    movzbq {}, {}\n", reg3._8, reg3._64);
+                        mov_var(reg3, result);
+                    }break;
+                    case BinOp::LAND: {
+                        and_.append(reg2, reg1, 1);
+                        cmp.append(0, reg1, 1);
+                        setne.append(reg1, 1);
+                        output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
+                        mov_var(reg1, result);
+                    }break;
+                    case BinOp::LOR: {
+                        or_.append(reg2, reg1, 1);
+                        cmp.append(0, reg1, 1);
+                        setne.append(reg1, 1);
+                        output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
+                        mov_var(reg1, result);
+                    }break;
+                }
+                if (is_float_op) {
                     free_float_reg(reg1);
                     free_float_reg(reg2);
+                    free_int_reg(reg3);
                 } else {
-                    auto reg1 = get_available_int_reg();
-                    auto reg2 = get_available_int_reg();
-                    mov_var(lhs, reg1);
-                    mov_var(rhs, reg2);
-
-                    if (lhs.size != rhs.size) {
-                        lhs.size = result.size;
-                        rhs.size = result.size;
-                    }
-
-                    size_t size = std::max<size_t>(result.size, 2);
-                    add.append(reg2, reg1, size);
-                    mov_var(reg1, result);
                     free_int_reg(reg1);
                     free_int_reg(reg2);
                 }
-            } break;
-            case Op::SUB: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                if (lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float) {
-                    auto reg1 = get_available_float_reg();
-                    auto reg2 = get_available_float_reg();
-                    mov_var(lhs, reg1);
-                    mov_var(rhs, reg2);
-
-                    size_t size = std::max<size_t>(result.size, 4);
-                    cast_float_size(reg1, lhs.size, size);
-                    cast_float_size(reg2, rhs.size, size);
-
-                    subs.append(reg2, reg1, size);
-                    mov_var(reg1, result);
-                    free_float_reg(reg1);
-                    free_float_reg(reg2);
-                } else {
-                    auto reg1 = get_available_int_reg();
-                    auto reg2 = get_available_int_reg();
-                    mov_var(lhs, reg1);
-                    mov_var(rhs, reg2);
-                    size_t size = std::max<size_t>(result.size, 2);
-                    sub.append(reg2, reg1, size);
-                    mov_var(reg1, result);
-                    free_int_reg(reg1);
-                    free_int_reg(reg2);
-                }
-            } break;
-            case Op::MUL: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                if (lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float) {
-                    auto reg1 = get_available_float_reg();
-                    auto reg2 = get_available_float_reg();
-                    mov_var(lhs, reg1);
-                    mov_var(rhs, reg2);
-
-                    size_t size = std::max<size_t>(result.size, 4);
-                    cast_float_size(reg1, lhs.size, size);
-                    cast_float_size(reg2, rhs.size, size);
-
-                    muls.append(reg2, reg1, size);
-                    mov_var(reg1, result);
-                    free_float_reg(reg1);
-                    free_float_reg(reg2);
-                } else {
-                    auto reg1 = get_available_int_reg();
-                    auto reg2 = get_available_int_reg();
-                    mov_var(lhs, reg1);
-                    mov_var(rhs, reg2);
-                    size_t size = std::max<size_t>(result.size, 2);
-                    imul.append(reg2, reg1, size);
-                    mov_var(reg1, result);
-                    free_int_reg(reg1);
-                    free_int_reg(reg2);
-                }
-            } break;
-            case Op::DIV: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg1);
-                output.append("    cqto\n");
-                mov_var(rhs, reg2);
-                size_t size = std::max<size_t>(result.size, 2);
-                idiv.append(reg2, reg1, size);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
-            case Op::MOD: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg1);
-                output.append("    cqto\n");
-                mov_var(rhs, reg2);
-                idiv.append(reg2, 8);
-                mov.append(Rdx, reg1 ,8);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
-            case Op::EQ: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg1);
-                mov_var(rhs, reg2);
-                cmp.append(reg1, reg2, lhs.size);
-                output.appendf("    sete {}\n", reg1._8);
-                output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
-            case Op::NE: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg1);
-                mov_var(rhs, reg2);
-                cmp.append(reg1, reg2, lhs.size);
-                output.appendf("    setne {}\n", reg1._8);
-                output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
-            case Op::LT: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg2);
-                mov_var(rhs, reg1);
-                cmp.append(reg1, reg2, lhs.size);
-                output.appendf("    setl {}\n", reg1._8);
-                output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
-            case Op::LE: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg2);
-                mov_var(rhs, reg1);
-                cmp.append(reg1, reg2, lhs.size);
-                output.appendf("    setle {}\n", reg1._8);
-                output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
-            case Op::GT: { 
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg2);
-                mov_var(rhs, reg1);
-                cmp.append(reg1, reg2, lhs.size);
-                output.appendf("    setg {}\n", reg1._8);
-                output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
-            case Op::GE: { 
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg2);
-                mov_var(rhs, reg1);
-                cmp.append(reg1, reg2, lhs.size);
-                output.appendf("    setge {}\n", reg1._8);
-                output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
-            case Op::LAND: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg1);
-                mov_var(rhs, reg2);
-                output.appendf("    andq {}, {}\n", reg2._64, reg1._64);
-                cmp.append(0, reg1, 8);
-                output.appendf("    setne {}\n", reg1._8);
-                output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
-            case Op::LOR: {
-                Variable lhs = std::get<Variable>(inst.args[0]);
-                Variable rhs = std::get<Variable>(inst.args[1]);
-                Variable result = std::get<Variable>(inst.args[2]);
-
-                auto reg1 = get_available_int_reg();
-                auto reg2 = get_available_int_reg();
-                mov_var(lhs, reg1);
-                mov_var(rhs, reg2);
-                output.appendf("    orq {}, {}\n", reg2._64, reg1._64);
-                cmp.append(0, reg1, 8);
-                output.appendf("    setne {}\n", reg1._8);
-                output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-                mov_var(reg1, result);
-                free_int_reg(reg1);
-                free_int_reg(reg2);
-            } break;
+            }break;
         }
     }
     if (!returned) {
@@ -1448,6 +1279,36 @@ void gnu_asm::cast_float_size(Register reg, size_t orig_size, size_t new_size) {
         output.appendf("    cvtsd2ss {}, {}\n", reg._64, reg._64);
     else if (orig_size < new_size)
         output.appendf("    cvtss2sd {}, {}\n", reg._64, reg._64);
+}
+AsmInstruction& gnu_asm::get_binop(BinOp bin_op, bool is_float) {
+    switch (bin_op) {
+        case BinOp::ADD:  return !is_float ? add  : adds;
+        case BinOp::SUB:  return !is_float ? sub  : subs;
+        case BinOp::MUL:  return !is_float ? imul : muls;
+        case BinOp::DIV:  return !is_float ? idiv : divs;
+        case BinOp::MOD:  return !is_float ? idiv : divs;
+        case BinOp::LT:   return !is_float ? cmp  : comis;
+        case BinOp::LE:   return !is_float ? cmp  : comis;
+        case BinOp::GT:   return !is_float ? cmp  : comis;
+        case BinOp::GE:   return !is_float ? cmp  : comis;
+        case BinOp::EQ:   return !is_float ? cmp  : comis;
+        case BinOp::NE:   return !is_float ? cmp  : comis;
+        case BinOp::LAND: return and_;
+        case BinOp::LOR:  return or_;
+    }
+    TODO("unknown binop");
+}
+AsmInstruction& gnu_asm::get_compare_binop(BinOp bin_op, bool is_float) {
+    switch (bin_op) {
+        case BinOp::LT:   return !is_float ? setl  : setb;
+        case BinOp::LE:   return !is_float ? setle : setbe;
+        case BinOp::GT:   return !is_float ? setg  : seta;
+        case BinOp::GE:   return !is_float ? setge : setnb;
+        case BinOp::EQ:   return sete;
+        case BinOp::NE:   return setne;
+        default: TODO("unknown compare binop");
+    }
+    TODO("unknown compare binop");
 }
 void gnu_asm::function_prologue() {
     output.append("    pushq %rbp\n");

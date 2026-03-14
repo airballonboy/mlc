@@ -3,6 +3,7 @@
 #include "lexar.h"
 #include "token.h"
 #include "tools/file.h"
+#include "tools/format.h"
 #include "tools/logger.h"
 #include "type_system/kind.h"
 #include "type_system/type.h"
@@ -25,6 +26,7 @@
     } while (0)
 
 int64_t literal_count = 0;
+size_t  temp_count = 0;
 size_t current_offset = 0;
 size_t max_locals_offset = 8;
 size_t statement_count = 0;
@@ -578,7 +580,6 @@ void Parser::parseExtern() {
 void Parser::parseModulePrefix() {
     auto current_module_storage = &m_program.module_storage;
 
-    //if (!current_module_storage->contains((*tkn)->string_value)) TODO("error");
     if (!current_module_storage->contains((*tkn)->string_value)) { 
         mlog::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
         TODO("error");
@@ -634,6 +635,11 @@ Func Parser::parseFunction(bool member, Struct parent) {
         member = true;
         m_currentLexar->getAndExpectNext(TokenType::Dot);
         m_currentLexar->getAndExpectNext(TokenType::ID);
+        current_module_prefix = "";
+        if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+            parseModulePrefix();
+            m_currentLexar->getAndExpectNext(TokenType::ID);
+        }
         name = type_name + "___" + current_module_prefix + (*tkn)->string_value;
     } else {
         name = current_module_prefix + (*tkn)->string_value;
@@ -731,6 +737,7 @@ Variable make_temp_var(Type type) {
     Variable var;
     var.type = type.info;
     var.size = type.info.size;
+    var.name = mlog::format("%%temp%%{}", temp_count++);
     current_offset = Parser::align(current_offset, type);
     temp_offset = Parser::align(temp_offset, type);
     var.offset = current_offset + temp_offset + type.info.size;
@@ -901,13 +908,13 @@ void Parser::parseStatement() {
                         m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, lhs}});
                         break;
                     case TokenType::PlusEq:
-                        m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, lhs}});
+                        m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::ADD, lhs, rhs, lhs}});
                         break;
                     case TokenType::MinusEq:
-                        m_currentFunc->body.push_back({Op::SUB, {lhs, rhs, lhs}});
+                        m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::SUB, lhs, rhs, lhs}});
                         break;
                     case TokenType::MulEq:
-                        m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, lhs}});
+                        m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::MUL, lhs, rhs, lhs}});
                         break;
                     default: TODO("unsupported Token found");
                     }
@@ -916,9 +923,6 @@ void Parser::parseStatement() {
             }
 
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-        
-            //ERROR(m_currentLexar->currentToken->loc, "unsupported token");
-            //exit(1);
         }
     }
     delete_temp_vars();
@@ -943,14 +947,16 @@ void Parser::parseBlock() {
 void print_var(Variable var) {
     mlog::println("name: {}", var.name);
     mlog::println("offset: {}, size: {}", var.offset, var.size);
-    mlog::println("type: {}, type_name: {}", (int)var.type.info.id, var.type.info.name);
     mlog::println("deref_count: {}", var.deref_count);
-    //mlog::println("kind: {{ ");
-    //mlog::println("  pointer_count: {}", var.kind.pointer_count);
-    //mlog::println("}} ");
+    mlog::println("type: {{");
+    mlog::println("  info: {{");
+    mlog::println("    id:   {}", var.type.info.id);
+    mlog::println("    name: {}", var.type.info.name);
+    mlog::println("    kind: {}", (int)var.type.info.kind);
+    mlog::println("  }}");
+    mlog::println("}}");
 }
 ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std::string func_prefix) {
-    // will need it later
     ExprResult data;
     tkn = &m_currentLexar->currentToken;
     Variable var;
@@ -1005,7 +1011,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         auto loc = (*tkn)->loc;
         m_currentLexar->getNext();
         size_t add_loc = m_currentFunc->body.size();
-        m_currentFunc->body.push_back({Op::ADD, {}});
+        m_currentFunc->body.push_back({Op::BIN_OP, {}});
         data = parsePrimaryExpression();
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-increment a non lvalue");
@@ -1018,7 +1024,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .Int_val = (int64_t)1,
             .size = 1,
         };
-        m_currentFunc->body[add_loc].args = {var, amount, var};
+        m_currentFunc->body[add_loc].args = {BinOp::ADD, var, amount, var};
         ret_lvalue = true;
         return {var, ret_lvalue};
     }
@@ -1026,7 +1032,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         auto loc = (*tkn)->loc;
         m_currentLexar->getNext();
         size_t add_loc = m_currentFunc->body.size();
-        m_currentFunc->body.push_back({Op::SUB, {}});
+        m_currentFunc->body.push_back({Op::BIN_OP, {}});
         data = parsePrimaryExpression();
         auto &[var, lvalue] = data;
         if (!lvalue) ERROR(loc, "cannot pre-decrement a non lvalue");
@@ -1039,7 +1045,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .Int_val = (int64_t)1,
             .size = 1,
         };
-        m_currentFunc->body[add_loc].args = {var, amount, var};
+        m_currentFunc->body[add_loc].args = {BinOp::SUB, var, amount, var};
         ret_lvalue = true;
         return {var, ret_lvalue};
     }
@@ -1071,8 +1077,13 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
     std::string func_name = current_module_prefix + func_prefix + m_currentLexar->currentToken->string_value;
     if ((*tkn)->type == TokenType::ID || (*tkn)->type == TokenType::TypeID) {
         if (m_currentLexar->peek()->type == TokenType::OParen) {
-            if (!Func::is_in_storage(func_name, m_program.func_storage)) 
+            if (!Func::is_in_storage(func_name, m_program.func_storage)) {
+                mlog::println("functions:");
+                for (auto func : m_program.func_storage) {
+                    mlog::println("  {}", func.name);
+                }
                 TODO(mlog::format("func {} doesn't exist", func_name));
+            }
             auto& func = Func::get_from_name(func_name, m_program.func_storage);
             var = make_temp_var(*func.type.func_data->return_type);
             if (var.type.info.kind == Kind::Pointer)
@@ -1108,7 +1119,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     auto save_func = m_currentFunc;
                     auto strct = Struct::get_from_name(name, m_program.struct_storage);
                     m_currentFunc = &default_func;
-                    var = initStruct(name, "struct literal");
+                    var = initStruct(name, mlog::format("%%tmp%%{}", temp_count++));
                     m_currentFunc  = save_func;
                     for (size_t i = 0; i < var.members.size(); i++) {
                         var.members[i].name = v[i].name;
@@ -1209,11 +1220,13 @@ ExprResult Parser::parseUnaryExpression() {
         auto rhs = std::get<0>(parseUnaryExpression());
         Variable result = make_temp_var(rhs.type);
         if (rhs.type.qualifiers & Qualifier::literal) {
-            if (rhs.type.info.id == TypeId::Double || rhs.type.info.id == TypeId::Float)
-                rhs.Double_val = -rhs.Double_val;
-            else
+            if (rhs.type.info.kind == Kind::Float) {
+                Variable::get_from_name(rhs.name, m_program.var_storage).Double_val = -rhs.Double_val;
+                return {rhs, false};
+            } else {
                 rhs.Int_val = -rhs.Int_val;
-            m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, result}});
+                m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, result}});
+            }
         } else {
             Variable zero   = {
                 .type = Type(
@@ -1224,7 +1237,7 @@ ExprResult Parser::parseUnaryExpression() {
                 .Int_val = (int64_t)0,
                 .size = 1,
             };
-            m_currentFunc->body.push_back({Op::SUB, {zero, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::SUB, zero, rhs, result}});
         }
         return {result, false};
     }
@@ -1242,7 +1255,7 @@ ExprResult Parser::parseUnaryExpression() {
             .Int_val = 0,
             .size = 1,
         };
-        m_currentFunc->body.push_back({Op::EQ, {rhs, zero, result}});
+        m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::EQ, rhs, zero, result}});
         return {result, false};
     }
 
@@ -1265,11 +1278,11 @@ ExprResult Parser::parseMultiplicativeExpression() {
         Variable result = make_temp_var(lhs.type);
 
         if (op_type == TokenType::Mul) {
-            m_currentFunc->body.push_back({Op::MUL, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::MUL, lhs, rhs, result}});
         } else if (op_type == TokenType::Div) {
-            m_currentFunc->body.push_back({Op::DIV, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::DIV, lhs, rhs, result}});
         } else if (op_type == TokenType::Mod) {
-            m_currentFunc->body.push_back({Op::MOD, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::MOD, lhs, rhs, result}});
         }
 
         lhs = result;
@@ -1293,9 +1306,9 @@ ExprResult Parser::parseAdditiveExpression() {
 
         Variable result = make_temp_var(lhs.type);
         if (op_type == TokenType::Plus) {
-            m_currentFunc->body.push_back({Op::ADD, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::ADD, lhs, rhs, result}});
         } else {
-            m_currentFunc->body.push_back({Op::SUB, {lhs, rhs, result}});
+            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::SUB, lhs, rhs, result}});
         }
 
         lhs = result;
@@ -1314,16 +1327,16 @@ ExprResult Parser::parseCondition(int min_prec) {
         if (prec < min_prec) 
             break;
 
-        Op op;
+        BinOp op;
         switch (peek) {
-            case TokenType::EqEq:      op = Op::EQ;   break;
-            case TokenType::NotEq:     op = Op::NE;   break;
-            case TokenType::Less:      op = Op::LT;   break;
-            case TokenType::LessEq:    op = Op::LE;   break;
-            case TokenType::Greater:   op = Op::GT;  break;
-            case TokenType::GreaterEq: op = Op::GE; break;
-            case TokenType::AndAnd:    op = Op::LAND; break;
-            case TokenType::OrOr:      op = Op::LOR;  break;
+            case TokenType::EqEq:      op = BinOp::EQ;   break;
+            case TokenType::NotEq:     op = BinOp::NE;   break;
+            case TokenType::Less:      op = BinOp::LT;   break;
+            case TokenType::LessEq:    op = BinOp::LE;   break;
+            case TokenType::Greater:   op = BinOp::GT;  break;
+            case TokenType::GreaterEq: op = BinOp::GE; break;
+            case TokenType::AndAnd:    op = BinOp::LAND; break;
+            case TokenType::OrOr:      op = BinOp::LOR;  break;
             default:
                 return {lhs, lvalue};
         }
@@ -1335,7 +1348,7 @@ ExprResult Parser::parseCondition(int min_prec) {
 
         Variable result = make_temp_var(TypeInfo::get_from_id(TypeId::Bool));
 
-        m_currentFunc->body.push_back({ op, { lhs, rhs, result } });
+        m_currentFunc->body.push_back({Op::BIN_OP, {op, lhs, rhs, result}});
 
         lhs = result;
 
@@ -1352,11 +1365,6 @@ void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_addres
     VariableStorage args{};
     size_t given_args_count = 0;
     m_currentLexar->getAndExpectNext(TokenType::OParen);
-    //if (func.type.func_data->return_type->info.size > 16) {
-    //    return_address.deref_count -= 1;
-    //    args.push_back(return_address);
-    //    return_address.deref_count += 1;
-    //}
     if (this_ptr.type.info.kind != Kind::Void) args.push_back(this_ptr);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
         m_currentLexar->getNext();

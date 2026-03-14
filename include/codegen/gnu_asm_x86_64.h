@@ -2,13 +2,13 @@
 #include <unordered_set>
 #include "codegen/asm_instruction.h"
 #include "codegen/base.h"
+#include "operations.h"
 #include "type_system/variable.h"
 #include "type_system/func.h"
 #include "program.h"
 
 class gnu_asm : public BaseCodegenerator {
 public:
-
     gnu_asm(Program* prog);
 
     void call_func(Func func, VariableStorage args);
@@ -17,23 +17,6 @@ public:
     void compileProgram() override;
     void compileFunction(Func func) override;
     void compileConstant(Variable var);
-
-    std::vector<Register> arg_register;
-    std::vector<Register> arg_register_float;
-
-    AsmInstruction movabs = AsmInstruction("movabs", output);
-    AsmInstruction lea    = AsmInstruction("lea", output);
-    AsmInstruction cmp    = AsmInstruction("cmp", output);
-    AsmInstruction mov    = AsmInstruction("mov", output);
-    AsmInstruction add    = AsmInstruction("add", output);
-    AsmInstruction sub    = AsmInstruction("sub", output);
-    AsmInstruction imul   = AsmInstruction("imul", output);
-    AsmInstruction idiv   = AsmInstruction("idiv", output);
-    AsmInstruction adds   = AsmInstruction("adds", output, {"d", "s", "s", "s"});
-    AsmInstruction movs   = AsmInstruction("movs", output, {"d", "s", "s", "s"});
-    AsmInstruction subs   = AsmInstruction("subs", output, {"d", "s", "s", "s"});
-    AsmInstruction muls   = AsmInstruction("muls", output, {"d", "s", "s", "s"});
-    AsmInstruction divs   = AsmInstruction("divs", output, {"d", "s", "s", "s"});
 
     void mov_var(Variable src   , Register dest);
     void mov_var(Register src   , Variable dest);
@@ -44,11 +27,45 @@ public:
     void cast_float_size(Register reg, size_t orig_size, size_t new_size);
     void cast_int_size(Register reg, size_t orig_size, size_t new_size);
 
+public:
+    std::vector<Register> arg_register;
+    std::vector<Register> arg_register_float;
 private:
     void function_prologue();
     void get_func_args_windows(Func func);
     void get_func_args_linux(Func func);
     void function_epilogue();
+    AsmInstruction& get_binop(BinOp bin_op, bool is_float);
+    AsmInstruction& get_compare_binop(BinOp bin_op, bool is_float);
+
+private:
+    AsmInstruction movabs = AsmInstruction("movabs", output);
+    AsmInstruction lea    = AsmInstruction("lea"   , output);
+    AsmInstruction cmp    = AsmInstruction("cmp"   , output);
+    AsmInstruction mov    = AsmInstruction("mov"   , output);
+    AsmInstruction add    = AsmInstruction("add"   , output);
+    AsmInstruction sub    = AsmInstruction("sub"   , output);
+    AsmInstruction imul   = AsmInstruction("imul"  , output);
+    AsmInstruction idiv   = AsmInstruction("idiv"  , output);
+    AsmInstruction adds   = AsmInstruction("adds"  , output, {"d", "s", "s", "s"});
+    AsmInstruction movs   = AsmInstruction("movs"  , output, {"d", "s", "s", "s"});
+    AsmInstruction subs   = AsmInstruction("subs"  , output, {"d", "s", "s", "s"});
+    AsmInstruction muls   = AsmInstruction("muls"  , output, {"d", "s", "s", "s"});
+    AsmInstruction divs   = AsmInstruction("divs"  , output, {"d", "s", "s", "s"});
+    AsmInstruction comis  = AsmInstruction("comis", output, {"d", "s", "s", "s"});
+    AsmInstruction sete   = AsmInstruction("sete", output, {"", "", "", ""});
+    AsmInstruction setne  = AsmInstruction("setne", output, {"", "", "", ""});
+    AsmInstruction setl   = AsmInstruction("setl", output, {"", "", "", ""});
+    AsmInstruction setle  = AsmInstruction("setle", output, {"", "", "", ""});
+    AsmInstruction setg   = AsmInstruction("setg", output, {"", "", "", ""});
+    AsmInstruction setge  = AsmInstruction("setge", output, {"", "", "", ""});
+    AsmInstruction setb   = AsmInstruction("setb", output, {"", "", "", ""});
+    AsmInstruction setbe   = AsmInstruction("setbe", output, {"", "", "", ""});
+    AsmInstruction seta   = AsmInstruction("seta", output, {"", "", "", ""});
+    AsmInstruction setnb   = AsmInstruction("setnb", output, {"", "", "", ""});
+
+    AsmInstruction and_   = AsmInstruction("and", output);
+    AsmInstruction or_    = AsmInstruction("or", output);
 };
 
 const Register Rip   = {"%rip"  , "%rip"  , "%rip"  , "%rip"};

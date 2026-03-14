@@ -6,7 +6,7 @@
 #include "operations.h"
 
 class Func;
-using Arg = std::variant<std::string, Variable, VariableStorage, Func>;
+using Arg = std::variant<std::string, BinOp, Variable, VariableStorage, Func>;
 struct Instruction {
     Op op;
     std::vector<Arg> args;

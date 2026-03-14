@@ -2,10 +2,14 @@
 #include <c_std.mlang>
 
 struct Vec4 {
-    int x;
-    int y;
-    int w;
-    int h;
+    float x;
+    float y;
+    float w;
+    float h;
+}
+
+func rl::Vec2.print() {
+    c_std::printf("rl::Vec2[%f, %f]\n", this.x, this.y);
 }
 
 const KEY_W    = 87;
@@ -18,29 +22,30 @@ struct CTX {
     Vec4 p1;
     Vec4 p2;
     rl::Color color;
-    int velocity;
+    float velocity;
     rl::Vec2 ball;
     rl::Vec2 ball_size;
     rl::Vec2 ball_vel;
     func init() {
-        this.p1 = Vec4{40, 245, 40, 120};
-        this.p2 = Vec4{1120, 245, 40, 120};
+        this.p1 = Vec4{40.0, 245.0, 40.0, 120.0};
+        this.p2 = Vec4{1120.0, 245.0, 40.0, 120.0};
         this.ball = rl::Vec2{600.0, 335.0};
         this.ball_size = rl::Vec2{30.0, 30.0};
         this.ball_vel = rl::Vec2{4.0, 2.0};
         this.color = WHITE;
-        this.velocity = 3;
+        this.velocity = 3.0;
     }
     func update() {
+        this.ball.print();
         this.ball.x += this.ball_vel.x;
         this.ball.y += this.ball_vel.y;
-        if (rl::is_key_down(KEY_W) && this.p1.y > 0)
+        if (rl::is_key_down(KEY_W) && this.p1.y > 0.0)
             this.p1.y -= this.velocity;
-        if (rl::is_key_down(KEY_S) && (this.p1.y + this.p1.h) < 675)
+        if (rl::is_key_down(KEY_S) && (this.p1.y + this.p1.h) < 675.0)
             this.p1.y += this.velocity;
-        if (rl::is_key_down(KEY_UP)   && this.p2.y > 0)
+        if (rl::is_key_down(KEY_UP)   && this.p2.y > 0.0)
             this.p2.y -= this.velocity;
-        if (rl::is_key_down(KEY_DOWN) && (this.p2.y + this.p1.h) < 675)
+        if (rl::is_key_down(KEY_DOWN) && (this.p2.y + this.p2.h) < 675.0)
             this.p2.y += this.velocity;
         if  (
               this.p1.x < this.ball.x + this.ball_size.x &&
@@ -54,15 +59,18 @@ struct CTX {
         }
         if  (
               this.p2.x < this.ball.x + this.ball_size.x &&
-              this.p2.x + this.p1.w > this.ball.x &&
+              this.p2.x + this.p2.w > this.ball.x &&
               this.p2.y < this.ball.y + this.ball_size.y &&
-              this.p2.y + this.p1.h > this.ball.y 
+              this.p2.y + this.p2.h > this.ball.y 
             ) 
         {
             this.ball_vel.x *= -1.0;
             this.ball_vel.y *= -1.0;
         }
     }
+}
+func vec422(Vec4 v) -> rl::Vec2 {
+    return rl::Vec2 {v.x, v.y};
 }
 func main() {
     CTX ctx;
@@ -76,8 +84,8 @@ func main() {
         ctx.update();
         if (rl::is_key_down(KEY_R))
             ctx.init();
-        rl::draw_rectangle(ctx.p1.x, ctx.p1.y, ctx.p1.w, ctx.p1.h, ctx.color);
-        rl::draw_rectangle(ctx.p2.x, ctx.p2.y, ctx.p1.w, ctx.p1.h, ctx.color);
+        rl::draw_rectangle_v(vec422(ctx.p1), rl::Vec2{ctx.p1.w, ctx.p1.h}, ctx.color);
+        rl::draw_rectangle_v(vec422(ctx.p2), rl::Vec2{ctx.p2.w, ctx.p2.h}, ctx.color);
         rl::draw_rectangle_v(ctx.ball, ctx.ball_size, ctx.color);
 
         rl::draw_fps(10, 10);
