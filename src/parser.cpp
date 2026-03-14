@@ -3,6 +3,7 @@
 #include "lexar.h"
 #include "token.h"
 #include "tools/file.h"
+#include "tools/format.h"
 #include "tools/logger.h"
 #include "type_system/kind.h"
 #include "type_system/type.h"
@@ -25,6 +26,7 @@
     } while (0)
 
 int64_t literal_count = 0;
+size_t  temp_count = 0;
 size_t current_offset = 0;
 size_t max_locals_offset = 8;
 size_t statement_count = 0;
@@ -735,6 +737,7 @@ Variable make_temp_var(Type type) {
     Variable var;
     var.type = type.info;
     var.size = type.info.size;
+    var.name = mlog::format("%%temp%%{}", temp_count++);
     current_offset = Parser::align(current_offset, type);
     temp_offset = Parser::align(temp_offset, type);
     var.offset = current_offset + temp_offset + type.info.size;
@@ -1116,7 +1119,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     auto save_func = m_currentFunc;
                     auto strct = Struct::get_from_name(name, m_program.struct_storage);
                     m_currentFunc = &default_func;
-                    var = initStruct(name, "struct literal");
+                    var = initStruct(name, mlog::format("%%tmp%%{}", temp_count++));
                     m_currentFunc  = save_func;
                     for (size_t i = 0; i < var.members.size(); i++) {
                         var.members[i].name = v[i].name;
