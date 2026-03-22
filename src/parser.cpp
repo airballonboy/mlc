@@ -737,7 +737,6 @@ Variable make_temp_var(Type type) {
     Variable var;
     var.type = type.info;
     var.size = type.info.size;
-    var.name = mlog::format("%%temp%%{}", temp_count++);
     current_offset = Parser::align(current_offset, type);
     temp_offset = Parser::align(temp_offset, type);
     var.offset = current_offset + temp_offset + type.info.size;
@@ -746,7 +745,7 @@ Variable make_temp_var(Type type) {
     }
     temp_offset += type.info.size;
     if (temp_offset > max_locals_offset) max_locals_offset = temp_offset;
-    var.name = "temporary variable";
+    var.name = mlog::format("%%temp%%{}", temp_count++);
     return var;
 }
 void delete_temp_vars() {

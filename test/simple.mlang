@@ -1,11 +1,10 @@
-#extern func exit(int code);
-#extern func puts(string str) -> int;
+#include <c_std.mlang>
 
 
 func main() -> int {
-    int x = 12;
-    int y = 14;
-    string s = "hi";
-    puts(s);
-    return x;
+    float x = 12.0;
+    float y = 2.0;
+    float z = x / y;
+    c_std::printf("%f\n", z);
+    return 0;
 }

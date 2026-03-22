@@ -19,7 +19,7 @@ inline std::unordered_map<std::string, Platform> PLATFORMS = {
 };
 inline std::unordered_map<std::string, BuildTarget> TARGETS = {
     {"llvm",       BuildTarget::llvm},
-    {"gnu_x64_64", BuildTarget::gnu_asm_86_64},
+    {"gnu_x86_64", BuildTarget::gnu_asm_86_64},
     {"ir",         BuildTarget::ir},
 };
 

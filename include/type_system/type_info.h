@@ -7,9 +7,9 @@ class TypeInfo {
 public:
     static TypeInfo get_from_id(size_t id);
     size_t id = TypeId::Void;
-    Kind kind = Kind::Int;
-    size_t size = 0;
-    std::string name = "";
+    Kind kind = TypeInfo::get_from_id(id).kind;
+    size_t size = TypeInfo::get_from_id(id).size;
+    std::string name = TypeInfo::get_from_id(id).name;
 };
 
 inline size_t current_typeid_max = TypeId::BasicTypesCount + 1;

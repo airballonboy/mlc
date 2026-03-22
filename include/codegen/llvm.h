@@ -1,5 +1,6 @@
 #pragma once 
 #include "codegen/base.h"
+#include "type_system/typeid.h"
 #include "type_system/variable.h"
 #include "type_system/func.h"
 #include "program.h"
@@ -18,9 +19,10 @@ public:
     void compileFunction(Func func) override;
 
 private:
-    llvm::Value* var_to_value(Variable var);
+    llvm::Value* var_to_value(Variable var, Type type_id = TypeInfo(TypeId::Void));
     void compile_start_func(); 
     void output_object_file(); 
+    void create_fn_wrapper(Func f);
     llvm::BasicBlock* find_block(llvm::Function* fn, std::string name);
 
 

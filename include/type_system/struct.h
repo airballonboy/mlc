@@ -11,7 +11,7 @@ typedef std::vector<Variable> VariableStorage;
 
 class Struct {
 public:
-    static Struct& get_from_name(std::string& name, StructStorage& storage);
+    static Struct& get_from_name(std::string name, StructStorage& storage);
     size_t get_element_iterator(std::string& name);
 public:
     size_t id = 0;

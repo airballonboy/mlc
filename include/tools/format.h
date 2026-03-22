@@ -8,6 +8,35 @@
 
 namespace mlog {
 
+inline std::string unescape(const std::string& s) {
+    std::string out;
+    out.reserve(s.size());
+
+    for (size_t i = 0; i < s.size(); i++) {
+        if (s[i] == '\\' && i + 1 < s.size()) {
+            switch (s[i + 1]) {
+                case 'n':  out.push_back('\n');   break;
+                case 't':  out.push_back('\t');   break;
+                case 'r':  out.push_back('\r');   break;
+                case 'b':  out.push_back('\b');   break;
+                case 'f':  out.push_back('\f');   break;
+                case 'v':  out.push_back('\v');   break;
+                case 'a':  out.push_back('\a');   break;
+                case '\\': out.push_back('\\');   break;
+                case '\'': out.push_back('\'');   break;
+                case '"':  out.push_back('"');    break;
+                case '?':  out.push_back('?');    break;
+                default:   out.push_back(s[i+1]); break;
+            }
+            i++;
+        } else {
+            out.push_back(s[i]);
+        }
+    }
+
+    return out;
+}
+
 struct FormatSpec {
     int  width = 0;
     char fill = ' ';

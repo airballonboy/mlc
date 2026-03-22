@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
     BuildTarget target = BuildTarget::gnu_asm_86_64;
 #else
     Platform  platform = Platform::Linux;
-    BuildTarget target = BuildTarget::gnu_asm_86_64;
+    BuildTarget target = BuildTarget::llvm;
 #endif
 
     // Parse flags
@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
 
     // Setting default included paths
     ctx.includePaths.push_back(".");
-      ctx.includePaths.push_back(MSTD_PATH);
+    ctx.includePaths.push_back(MSTD_PATH);
     ctx.includePaths.push_back(PROJECT_PATH"/test");
 
     // Make build directory and add .gitignore to it
