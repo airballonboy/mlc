@@ -19,26 +19,26 @@ void ir::compileProgram() {
     outfile << output;
     outfile.close();
 }
-void ir::compileFunction(Func func) {
+void ir::compileFunction(Func& func) {
     output.append(mlog::format("{}:\n", func.name));
-    for (auto& inst : func.body) {
-        switch (inst.op) {
-            case Op::RETURN: {
-                if (std::get<Variable>(inst.args[0]).type.info.id == (int)TypeId::Int32)
-                    output.appendf("    ret({})\n", std::get<Variable>(inst.args[1]).Int_val);
-            }break;
-            case Op::CALL: {
-                Func            func = std::get<Func>(inst.args[0]);
-                VariableStorage args  = std::get<VariableStorage>(inst.args[1]);
-                output.appendf("    {}(", func.name);
-                for (size_t i = 0; i < args.size(); i++) {
-                    output.appendf("$({})", args[i].name);
-                    if (i+1 < args.size())
-                        output.appendf(", ");
-                }
-                output.appendf(")\n");
-
-            }break;
-        }
-    }
+//    for (auto& inst : func.body) {
+//        switch (inst.op) {
+//            case Op::RETURN: {
+//                if (std::get<Variable>(inst.args[0]).type.info.id == (int)TypeId::Int32)
+//                    output.appendf("    ret({})\n", std::get<Variable>(inst.args[1]).Int_val);
+//            }break;
+//            case Op::CALL: {
+//                Func            func = std::get<Func>(inst.args[0]);
+//                VariableStorage args  = std::get<VariableStorage>(inst.args[1]);
+//                output.appendf("    {}(", func.name);
+//                for (size_t i = 0; i < args.size(); i++) {
+//                    output.appendf("$({})", args[i].name);
+//                    if (i+1 < args.size())
+//                        output.appendf(", ");
+//                }
+//                output.appendf(")\n");
+//
+//            }break;
+//        }
+//    }
 }

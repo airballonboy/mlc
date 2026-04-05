@@ -1,6 +1,7 @@
 #include <raylib.mlang>
 #include <c_std.mlang>
 
+
 struct Vec4 {
     float x;
     float y;
@@ -36,7 +37,7 @@ struct CTX {
         this.velocity = 3.0;
     }
     func update() {
-        this.ball.print();
+        //this.ball.print();
         this.ball.x += this.ball_vel.x;
         this.ball.y += this.ball_vel.y;
         if (rl::is_key_down(KEY_W) && this.p1.y > 0.0)

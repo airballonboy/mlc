@@ -1,7 +1,8 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "type_system/type_info.h"
+#include "ast/ast.h"
+#include "ast/body_ast.h"
 #include "type_system/kind.h"
 #include "type_system/variable.h"
 #include "instruction.h"
@@ -35,9 +36,10 @@ public:
     bool c_variadic = false;
     bool is_static  = false;
     bool is_used    = false;
+    bool is_member  = false;
     std::string link_name{};
     std::string lib{};
     std::string search_path{};
 
-    std::vector<Instruction> body;
+    BodyNode body;
 };

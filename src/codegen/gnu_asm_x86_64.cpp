@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include "ast/all.h"
 #include "codegen/asm_instruction.h"
 #include "instruction.h"
 #include "context.h"
@@ -20,6 +21,166 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
+Memory mem_off(int64_t off, Register reg) {
+    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::OffReg, .off = off, .off_reg = reg}};
+}
+Memory mem_reg(Register reg) {
+    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::Reg, .reg = reg}};
+}
+Memory mem_2reg(Register reg1, Register reg2) {
+    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::Reg, .reg1 = reg1, .reg2 = reg2}};
+}
+Memory mem_global(const char* label, Register reg) {
+    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::Global, .label = (char*)label, .label_reg = reg}};
+}
+Memory mem_array(int64_t disp, Register base, Register index, size_t scale) {
+    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::ArrayIndex, .disp = disp, .base = base, .index = index, .scale = scale}};
+}
+Memory gnu_asm::emitLoad(Loc loc, Variable var) {
+    if (var.type.qualifiers & Qualifier::literal) {
+        if (var.type.info.kind == Kind::Int)
+            mov.append(var.Int_val, Rax);
+        else if (var.type.info.kind == Kind::String)
+            mov.append(var.name, Rip, Rax);
+        else if (var.type.info.kind == Kind::String)
+            movs.append(var.name, Rip, Xmm0);
+        else
+            TODO("unknown type of literal");
+        return mem_reg(Rax);
+    } else if (var.type.qualifiers & Qualifier::global) {
+        mov.append(mem_global(var.name.c_str(), Rip), mem_reg(Rax), var.size);
+        return mem_reg(Rax);
+    } else {
+        if (var.size <= 8) {
+            mov.append(mem_off(-var.offset, Rbp), mem_reg(Rax), var.size);
+            return mem_reg(Rax);
+        } else if (var.size <= 16) {
+            mov.append(mem_off(-var.offset, Rbp), mem_reg(Rax), 8);
+            mov.append(mem_off(-var.offset + 8, Rbp), mem_reg(Rdx), var.size - 8);
+            return mem_2reg(Rax, Rdx);
+        } else {
+            lea.append(mem_off(-var.offset, Rbp), mem_reg(Rax), var.size);
+            return mem_off(0, Rax);
+        }
+    }
+}
+
+Memory gnu_asm::emitRef(Loc loc, Variable var) {
+    assert(var.parent == nullptr);
+    lea.append(var.offset, Rbp, Rax, var.size);
+    return mem_reg(Rax);
+}
+Memory gnu_asm::emitDeref(Loc loc, Memory lhs) {
+    assert(lhs.type.info.kind == Kind::Pointer || lhs.type.info.id == TypeIds.at("pointer"));
+    assert(lhs.asm_mem.type == AsmType::Reg);
+    assert(lhs.type.ptr_data->pointee->info.size <= 8);
+    mov.append(0, lhs.asm_mem.reg, lhs.asm_mem.reg, lhs.type.ptr_data->pointee->info.size);
+    return lhs;
+}
+Memory gnu_asm::emitCall(Loc loc, Memory func, std::vector<Node> args) {
+    TODO("call function");
+}
+void gnu_asm::emitLabel(Loc loc, std::string label) {
+    output.appendf("  .L{}:\n", label);
+}
+void gnu_asm::emitJump(Loc loc, std::string label) {
+    output.appendf("    jmp .L{}\n", label);
+}
+void gnu_asm::emitJumpIfNot(Loc loc, std::string label, Memory cond) {
+    assert(cond.asm_mem.type == AsmType::Reg);
+    output.appendf("    testb {}, {}\n", cond.asm_mem.reg._8, cond.asm_mem.reg._8);
+    output.appendf("    jz .L{}\n", label);
+}
+void gnu_asm::emitReturn(Loc loc, Memory ret) {
+    if (m_program->platform == Platform::Windows) {
+        if (ret.type.info.kind == Kind::Float) {
+            mov.append(ret, mem_reg(Xmm0));
+        } else if (ret.type.info.size <= 8 || ret.type.info.kind == Kind::Pointer) {
+            mov.append(ret, mem_reg(Rax));
+        } else {
+            int8_t it = m_func->is_member ? 1 : 0;
+            m_func->arguments[it].deref_count = 1;
+            mov.append(ret, mem_off(-m_func->arguments[it].offset, Rip));
+        }
+    } else if (m_program->platform == Platform::Linux) {
+        if (ret.type.info.size <= 8 || m_func->type.info.kind == Kind::Pointer) {
+            if (ret.type.info.kind == Kind::Float) {
+                mov.append(ret, mem_reg(Xmm0), ret.type.info.size);
+            } else if (ret.type.info.kind == Kind::Struct) {
+                if (Struct::get_from_name(ret.type.info.name, m_program->struct_storage).is_float_only) {
+                    mov.append(ret, mem_reg(Xmm0), ret.type.info.size);
+                } else 
+                    mov.append(ret, mem_reg(Rax), ret.type.info.size);
+            } else {
+                mov.append(ret, mem_reg(Rax), ret.type.info.size);
+            }
+        }
+        TODO("emitReturn: linux");
+    }
+    add.append(m_func->stack_size, Rsp);
+    function_epilogue();
+    output.append("    ret\n");
+}
+Memory gnu_asm::emitStore(Loc loc, Memory lhs, Memory rhs) {
+    assert(rhs.asm_mem.type != AsmType::Reg);
+    mov.append(lhs, rhs);
+    return rhs;
+}
+Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
+    auto is_float_op = lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float;
+    auto op_size = std::max(lhs.type.info.size, rhs.type.info.size);
+    auto bin_op = get_binop(op, is_float_op);
+    
+    switch (op) {
+        case BinOp::SUB:
+        case BinOp::MUL: 
+        case BinOp::ADD: 
+            bin_op.append(rhs, lhs, op_size);
+            mov.append(lhs, mem_reg(Rax));
+            break;
+        case BinOp::DIV:
+        case BinOp::MOD:
+            if (is_float_op) {
+                if (op == BinOp::MOD) TODO("no operator mod for floats");
+                bin_op.append(rhs, lhs, op_size);
+                mov.append(lhs, mem_reg(Rax));
+            } else {
+                mov.append(lhs, mem_reg(Rax));
+                output.append("    cqto\n");
+                bin_op.append(rhs, op_size);
+                if (op != BinOp::DIV) {
+                    mov.append(Rdx, Rax, op_size);
+                }
+            }
+            break;
+        case BinOp::EQ:
+        case BinOp::NE:
+        case BinOp::LT:
+        case BinOp::LE:
+        case BinOp::GT:
+        case BinOp::GE: {
+            bin_op.append(rhs, lhs, op_size);
+            // get_compare_binop(op, is_float_op).append(reg3, 1);
+            //output.appendf("    movzbq {}, {}\n", reg3._8, reg3._64);
+            //mov_var(reg3, result);
+        }break;
+        case BinOp::LAND: {
+            //and_.append(reg2, reg1, 1);
+            //cmp.append(0, reg1, 1);
+            //setne.append(reg1, 1);
+            //output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
+            //mov_var(reg1, result);
+        }break;
+        case BinOp::LOR: {
+            //or_.append(reg2, reg1, 1);
+            //cmp.append(0, reg1, 1);
+            //setne.append(reg1, 1);
+            //output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
+            //mov_var(reg1, result);
+        }break;
+    }
+    return {};
+}
 
 static std::vector<std::pair<Register, bool>> available_float_reg = {
     {Xmm12, true},
@@ -100,7 +261,7 @@ bool is_float_reg(Register reg) {
 
 
 #define REG_SIZE(REG, SIZE)   (SIZE) == 8 ? (REG)._64 : (SIZE) == 4 ? (REG)._32 : (SIZE) == 2 ? (REG)._16 : (REG)._8 
-gnu_asm::gnu_asm(Program *prog) : BaseCodegenerator(prog) {
+gnu_asm::gnu_asm(Program *prog) : BaseCodegen(prog) {
     if (m_program->platform == Platform::Windows) {
         arg_register = {
             Rcx, Rdx, R8, R9
@@ -121,9 +282,14 @@ gnu_asm::gnu_asm(Program *prog) : BaseCodegenerator(prog) {
 }
 
 void gnu_asm::compileProgram() {
-    if (m_program == nullptr) return;
+    assert(m_program != nullptr);
+    Program_Ast prog;
+    for (auto& f : prog.func_storage) {
+        f->codegen(*this);
+    }
+    TODO("");
     output.append(".section .text\n");
-    for (const auto& func : m_program->func_storage) {
+    for (auto& func : m_program->func_storage) {
         if (!func.external && (func.is_used || ctx.lib)) {
             compileFunction(func);
         }
@@ -202,7 +368,7 @@ void gnu_asm::compileConstant(Variable var) {
         }
     }
 }
-void gnu_asm::compileFunction(Func func) {
+void gnu_asm::compileFunction(Func& func) {
     // if the function doesn't return you make it return 0
     bool returned = false;
     bool is_member = func.arguments.size() > 0 && func.name.starts_with(func.arguments[0].type.info.name) && func.arguments[0].name == "this";
@@ -215,7 +381,7 @@ void gnu_asm::compileFunction(Func func) {
             Variable ret = {
                 .type = make_ptr(*func.type.func_data->return_type),
                 .name = "return register",
-                .offset = func.stack_size,
+                .offset = (int64_t)func.stack_size,
                 .size = 8,
             };
             func.arguments.emplace(func.arguments.begin(), ret);
@@ -234,8 +400,9 @@ void gnu_asm::compileFunction(Func func) {
         get_func_args_linux(func);
     }
 
+    func.body->codegen(*this);
 
-
+    /*
     for (auto& inst : func.body) {
         returned = false;
         // Debug info maybe later?
@@ -244,94 +411,76 @@ void gnu_asm::compileFunction(Func func) {
             case Op::RETURN: {
                 // NOTE: on Unix it takes the mod of the return and 256 so the largest you can have is 255 and after it returns to 0
                 Variable arg = std::get<Variable>(inst.args[0]);
-                if (m_program->platform == Platform::Windows) {
-                    if (arg.type.info.kind == Kind::Float) {
-                        mov_var(arg, Xmm0);
-                    } else if (ret_type.info.size <= 8 || func.type.info.kind == Kind::Pointer) {
-                        mov_var(arg, Rax);
-                    } else {
-                        if (is_member) {
-                            func.arguments[1].deref_count = 1;
-                            mov_var(arg, func.arguments[1]);
-                        } else {
-                            func.arguments[0].deref_count = 1;
-                            mov_var(arg, func.arguments[0]);
-                        }
-                    }
-                } else {
-                    if (ret_type.info.size <= 8 || func.type.info.kind == Kind::Pointer) {
-                        if (ret_type.info.kind == Kind::Float) {
-                            mov_var(arg, Xmm0);
-                            cast_float_size(Xmm0, arg.size, ret_type.info.size);
-                        } else if (ret_type.info.kind == Kind::Struct) {
-                            if (Struct::get_from_name(arg.type.info.name, m_program->struct_storage).is_float_only) {
-                                if (arg.size == 4) arg.type = type_infos.at("float");
-                                mov_var(arg, Xmm0);
-                            } else 
-                                mov_var(arg, Rax);
-                        } else {
-                            mov_var(arg, Rax);
-                        }
-                    } else if (ret_type.info.size <= 16) {
-                        if (Struct::get_from_name(arg.type.info.name, m_program->struct_storage).is_float_only) {
-                            size_t size = arg.size;
-                            arg.size = 8;
-                            mov_var(arg, Xmm0);
-                            arg.offset -= 8;
-                            arg.size = size - 8;
-                            if (arg.size == 4) arg.type = type_infos.at("float");
-                            mov_var(arg, Xmm1);
-                        } else {
-                            Register slots[2] = {Xmm0, Xmm1};
-                            bool first_xmm = true;
-                            size_t current_size = 0;
-                            size_t i = 0;
-                            for (auto elem : Struct::get_from_name(arg.type.info.name, m_program->struct_storage).var_storage) {
-                                current_size += elem.size;
-                                if (current_size <= 8) {
-                                    if (elem.type.info.kind == Kind::Float) {
-                                        slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
-                                    } else {
-                                        slots[0] = Rax;
-                                    }
-                                    if (slots[0]._64 != Xmm0._64) {
-                                        first_xmm = false;
-                                        slots[1] = Xmm0;
-                                    }
-                                } else {
-                                    if (elem.type.info.kind == Kind::Float) {
-                                        if (first_xmm)
-                                            slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
-                                        else
-                                            slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
-                                    } else {
-                                        if (first_xmm)
-                                            slots[1] = Rax;
-                                        else 
-                                            slots[1] = Rdx;
-                                    }
-                                }
-                            }
-                            arg.size = 8;
-                            mov_var(arg, slots[0]);
-                            arg.size = current_size - 8;
-                            arg.offset -= 8;
-                            mov_var(arg, slots[1]);
-                        }
-                    } else {
-                        if (is_member) {
-                            func.arguments[1].deref_count = 1;
-                            mov_var(arg, func.arguments[1]);
-                        } else {
-                            func.arguments[0].deref_count = 1;
-                            mov_var(arg, func.arguments[0]);
-                        }
-                    }
-                }
-                add.append(func.stack_size, Rsp);
-                function_epilogue();
-                output.append("    ret\n");
-                returned = true;
+//} else {
+//    if (ret_type.info.size <= 8 || func.type.info.kind == Kind::Pointer) {
+//        if (ret_type.info.kind == Kind::Float) {
+//            mov_var(arg, Xmm0);
+//            cast_float_size(Xmm0, arg.size, ret_type.info.size);
+//        } else if (ret_type.info.kind == Kind::Struct) {
+//            if (Struct::get_from_name(arg.type.info.name, m_program->struct_storage).is_float_only) {
+//                if (arg.size == 4) arg.type = type_infos.at("float");
+//                mov_var(arg, Xmm0);
+//            } else 
+//                mov_var(arg, Rax);
+//        } else {
+//            mov_var(arg, Rax);
+//        }
+//    } else if (ret_type.info.size <= 16) {
+//        if (Struct::get_from_name(arg.type.info.name, m_program->struct_storage).is_float_only) {
+//            size_t size = arg.size;
+//            arg.size = 8;
+//            mov_var(arg, Xmm0);
+//            arg.offset -= 8;
+//            arg.size = size - 8;
+//            if (arg.size == 4) arg.type = type_infos.at("float");
+//            mov_var(arg, Xmm1);
+//        } else {
+//            Register slots[2] = {Xmm0, Xmm1};
+//            bool first_xmm = true;
+//            size_t current_size = 0;
+//            size_t i = 0;
+//            for (auto elem : Struct::get_from_name(arg.type.info.name, m_program->struct_storage).var_storage) {
+//                current_size += elem.size;
+//                if (current_size <= 8) {
+//                    if (elem.type.info.kind == Kind::Float) {
+//                        slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
+//                    } else {
+//                        slots[0] = Rax;
+//                    }
+//                    if (slots[0]._64 != Xmm0._64) {
+//                        first_xmm = false;
+//                        slots[1] = Xmm0;
+//                    }
+//                } else {
+//                    if (elem.type.info.kind == Kind::Float) {
+//                        if (first_xmm)
+//                            slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
+//                        else
+//                            slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
+//                    } else {
+//                        if (first_xmm)
+//                            slots[1] = Rax;
+//                        else 
+//                            slots[1] = Rdx;
+//                    }
+//                }
+//            }
+//            arg.size = 8;
+//            mov_var(arg, slots[0]);
+//            arg.size = current_size - 8;
+//            arg.offset -= 8;
+//            mov_var(arg, slots[1]);
+//        }
+//    } else {
+//        if (is_member) {
+//            func.arguments[1].deref_count = 1;
+//            mov_var(arg, func.arguments[1]);
+//        } else {
+//            func.arguments[0].deref_count = 1;
+//            mov_var(arg, func.arguments[0]);
+//        }
+//    }
+//}
             }break;
             case Op::STORE_VAR: {
                 Variable var1 = std::get<Variable>(inst.args[0]);
@@ -555,13 +704,14 @@ void gnu_asm::compileFunction(Func func) {
             }break;
         }
     }
+    */
     if (!returned) {
         mov.append(0, Rax, 8);
         function_epilogue();
         output.appendf("    ret\n");
     }
 }
-void gnu_asm::get_func_args_windows(Func func) {
+void gnu_asm::get_func_args_windows(Func& func) {
     size_t temp_float_size = 0;
     Register reg1{};
     Register reg2{};
@@ -583,11 +733,11 @@ void gnu_asm::get_func_args_windows(Func func) {
         }
         if (is_stack) {
             if (arg.type.info.kind == Kind::Float) {
-				mov.append(current_stack_offset, Rsp, reg2);
-			} else {
-				mov.append(current_stack_offset, Rsp, reg1);
-			}
-			current_stack_offset += std::max(8, (int)arg.size);
+                mov.append(current_stack_offset, Rsp, reg2);
+            } else {
+                mov.append(current_stack_offset, Rsp, reg1);
+            }
+            current_stack_offset += std::max(8, (int)arg.size);
         }
         if (is_next_stack) {
             if (arg.size > 8) {
@@ -618,7 +768,7 @@ void gnu_asm::get_func_args_windows(Func func) {
         free_float_reg(reg2);
     }
 }
-void gnu_asm::get_func_args_linux(Func func) {
+void gnu_asm::get_func_args_linux(Func& func) {
     size_t f = 0;
     Register reg1;
     Register reg2;
@@ -732,7 +882,7 @@ void gnu_asm::get_func_args_linux(Func func) {
     }
 }
 
-void gnu_asm::call_func_windows(Func func, VariableStorage args) {
+void gnu_asm::call_func_windows(Func& func, VariableStorage args) {
     size_t temp_float_size = 0;
     Register reg1{};
     Register reg2{};
@@ -793,11 +943,11 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
         if (is_stack) {
             if (args[i].type.info.kind == Kind::Float && !func.c_variadic) {
                 cast_float_size(reg2, args[i].size, temp_float_size);
-				mov.append(reg2, current_stack_offset, Rsp);
-			} else {
-				mov.append(reg1, current_stack_offset, Rsp);
-			}
-			current_stack_offset += std::max(8, (int)args[i].size);
+                mov.append(reg2, current_stack_offset, Rsp);
+            } else {
+                mov.append(reg1, current_stack_offset, Rsp);
+            }
+            current_stack_offset += std::max(8, (int)args[i].size);
         }
         if (is_next_stack) {
             if (args[i].size > 8) {
@@ -810,7 +960,7 @@ void gnu_asm::call_func_windows(Func func, VariableStorage args) {
     }
     output.appendf("    call {}\n", func.name);
 }
-void gnu_asm::call_func_linux(Func func, VariableStorage args) {
+void gnu_asm::call_func_linux(Func& func, VariableStorage args) {
     size_t f = 0;
     size_t temp_float_size = 0;
     Register reg1;
@@ -980,7 +1130,7 @@ void gnu_asm::call_func_linux(Func func, VariableStorage args) {
     }
     output.appendf("    call {}\n", func.name);
 }
-void gnu_asm::call_func(Func func, VariableStorage args) {
+void gnu_asm::call_func(Func& func, VariableStorage args) {
     //if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
     if (m_program->platform == Platform::Windows) {
         call_func_windows(func, args);

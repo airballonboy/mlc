@@ -3,10 +3,10 @@
 #include "type_system/func.h"
 #include "program.h"
 
-class ir : public BaseCodegenerator{
+class ir : public BaseCodegen{
 public:
-    ir(Program* prog) : BaseCodegenerator(prog) {}
+    ir(Program* prog) : BaseCodegen(prog) {}
 
     void compileProgram()  override;
-    void compileFunction(Func func) override;
+    void compileFunction(Func& func) override;
 };

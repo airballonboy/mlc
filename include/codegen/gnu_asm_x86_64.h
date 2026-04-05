@@ -7,15 +7,15 @@
 #include "type_system/func.h"
 #include "program.h"
 
-class gnu_asm : public BaseCodegenerator {
+class gnu_asm : public BaseCodegen {
 public:
     gnu_asm(Program* prog);
 
-    void call_func(Func func, VariableStorage args);
-    void call_func_windows(Func func, VariableStorage args);
-    void call_func_linux(Func func, VariableStorage args);
+    void call_func(Func& func, VariableStorage args);
+    void call_func_windows(Func& func, VariableStorage args);
+    void call_func_linux(Func& func, VariableStorage args);
     void compileProgram() override;
-    void compileFunction(Func func) override;
+    void compileFunction(Func& func) override;
     void compileConstant(Variable var);
 
     void mov_var(Variable src   , Register dest);
@@ -28,18 +28,30 @@ public:
     void cast_int_size(Register reg, size_t orig_size, size_t new_size);
 
 public:
+    void   emitJump(Loc loc, std::string label) override;
+    void   emitJumpIfNot(Loc loc, std::string label, Memory cond) override;
+    void   emitLabel(Loc loc, std::string label) override;
+    void   emitReturn(Loc loc, Memory ret) override;
+    Memory emitLoad(Loc loc, Variable var) override;
+    Memory emitRef(Loc loc, Variable var) override;
+    Memory emitDeref(Loc loc, Memory lhs) override;
+    Memory emitCall(Loc loc, Memory func, std::vector<Node> args) override;
+    Memory emitStore(Loc loc, Memory lhs, Memory rhs) override;
+    Memory emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) override;
+
+public:
     std::vector<Register> arg_register;
     std::vector<Register> arg_register_float;
 private:
     void function_prologue();
-    void get_func_args_windows(Func func);
-    void get_func_args_linux(Func func);
+    void get_func_args_windows(Func& func);
+    void get_func_args_linux(Func& func);
     void function_epilogue();
     AsmInstruction& get_binop(BinOp bin_op, bool is_float);
     AsmInstruction& get_compare_binop(BinOp bin_op, bool is_float);
 
-private:
-    AsmInstruction movabs = AsmInstruction("movabs", output);
+public:
+    AsmInstruction movabs = AsmInstruction("movabs", output);                   ;
     AsmInstruction lea    = AsmInstruction("lea"   , output);
     AsmInstruction cmp    = AsmInstruction("cmp"   , output);
     AsmInstruction mov    = AsmInstruction("mov"   , output);
@@ -52,20 +64,20 @@ private:
     AsmInstruction subs   = AsmInstruction("subs"  , output, {"d", "s", "s", "s"});
     AsmInstruction muls   = AsmInstruction("muls"  , output, {"d", "s", "s", "s"});
     AsmInstruction divs   = AsmInstruction("divs"  , output, {"d", "s", "s", "s"});
-    AsmInstruction comis  = AsmInstruction("comis", output, {"d", "s", "s", "s"});
-    AsmInstruction sete   = AsmInstruction("sete", output, {"", "", "", ""});
-    AsmInstruction setne  = AsmInstruction("setne", output, {"", "", "", ""});
-    AsmInstruction setl   = AsmInstruction("setl", output, {"", "", "", ""});
-    AsmInstruction setle  = AsmInstruction("setle", output, {"", "", "", ""});
-    AsmInstruction setg   = AsmInstruction("setg", output, {"", "", "", ""});
-    AsmInstruction setge  = AsmInstruction("setge", output, {"", "", "", ""});
-    AsmInstruction setb   = AsmInstruction("setb", output, {"", "", "", ""});
-    AsmInstruction setbe   = AsmInstruction("setbe", output, {"", "", "", ""});
-    AsmInstruction seta   = AsmInstruction("seta", output, {"", "", "", ""});
-    AsmInstruction setnb   = AsmInstruction("setnb", output, {"", "", "", ""});
+    AsmInstruction comis  = AsmInstruction("comis" , output, {"d", "s", "s", "s"});
+    AsmInstruction sete   = AsmInstruction("sete"  , output, {"", "", "", ""});
+    AsmInstruction setne  = AsmInstruction("setne" , output, {"", "", "", ""});
+    AsmInstruction setl   = AsmInstruction("setl"  , output, {"", "", "", ""});
+    AsmInstruction setle  = AsmInstruction("setle" , output, {"", "", "", ""});
+    AsmInstruction setg   = AsmInstruction("setg"  , output, {"", "", "", ""});
+    AsmInstruction setge  = AsmInstruction("setge" , output, {"", "", "", ""});
+    AsmInstruction setb   = AsmInstruction("setb"  , output, {"", "", "", ""});
+    AsmInstruction setbe  = AsmInstruction("setbe" , output, {"", "", "", ""});
+    AsmInstruction seta   = AsmInstruction("seta"  , output, {"", "", "", ""});
+    AsmInstruction setnb  = AsmInstruction("setnb" , output, {"", "", "", ""});
 
-    AsmInstruction and_   = AsmInstruction("and", output);
-    AsmInstruction or_    = AsmInstruction("or", output);
+    AsmInstruction and_   = AsmInstruction("and" , output);
+    AsmInstruction or_    = AsmInstruction("or"  , output);
 };
 
 const Register Rip   = {"%rip"  , "%rip"  , "%rip"  , "%rip"};

@@ -1,23 +1,26 @@
 #pragma once
 #include <string>
+#include "type_system/variable.h"
 
 struct Register {
-    std::string _64;
-    std::string _32;
-    std::string _16;
-    std::string _8;
+    const char* _64;
+    const char* _32;
+    const char* _16;
+    const char* _8;
 };
 
+class Memory;
 class AsmInstruction {
 public:
-    AsmInstruction(std::string inst_name, std::string& output, Register suffixs = {"q", "l", "w", "b"})
+    AsmInstruction(const char* inst_name, std::string& output, Register suffixs = {"q", "l", "w", "b"})
         : m_instName(inst_name), 
-          m_output(output),
+          m_output(&output),
           m_instSuffixs(suffixs) {}
-    ~AsmInstruction() = default;
 
     // appends instruction
     void append();
+    void append(Memory src, size_t size = 8);
+    void append(Memory src, Memory dest, size_t size = 8);
     // appends instruction with `reg`
     void append(Register reg, size_t size = 8);
     // appends instruction with `src` into `dest` with the size of `size`
@@ -38,7 +41,7 @@ public:
     void append(int64_t  int_value, Register dest, size_t size = 8);
 
 private:
-    std::string& m_output;
     std::string m_instName = "";
-    Register m_instSuffixs;
+    std::string* m_output;
+    Register m_instSuffixs = {"q", "l", "w", "b"};
 };
