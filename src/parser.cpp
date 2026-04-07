@@ -378,7 +378,8 @@ void Parser::parseStructDeclaration() {
             m_currentLexar->getAndExpectNext(TokenType::Eq);
             m_currentLexar->getNext();
             auto var2 = std::get<0>(parseExpression());
-            current_struct.defaults.emplace(var_index, var2);
+            TODO("default");
+            //current_struct.defaults.emplace(var_index, var2);
         } else if (var.type.info.kind != Kind::String && var.type.info.kind != Kind::Struct) {
             Variable default_val;
             default_val.name = "def_value";
@@ -414,12 +415,13 @@ Variable Parser::parseConstant() {
     m_currentLexar->getAndExpectNext(TokenType::Eq);   
     m_currentLexar->getNext();   
     auto [rhs, lvalue] = parseExpression();
-    var.type = rhs.type;
-    var.size    = rhs.size;
-    copy_val(rhs, var);
-    var.members = rhs.members;
-    var.parent  = rhs.parent;
-    var.type = set_ptr_count(var.type, get_ptr_count(rhs.type));
+    TODO("constants");
+    //var.type = rhs.type;
+    //var.size    = rhs.size;
+    //copy_val(rhs, var);
+    //var.members = rhs.members;
+    //var.parent  = rhs.parent;
+    //var.type = set_ptr_count(var.type, get_ptr_count(rhs.type));
     var.type.qualifiers |= Qualifier::constant;
 
     m_currentLexar->getAndExpectNext(TokenType::SemiColon);   
@@ -787,7 +789,7 @@ StmtNode Parser::parseStatement() {
             } else {
                 return_value = std::get<0>(parseExpression());
             }
-            stmt = std::make_unique<Return_Ast>(return_value);
+            stmt = Return_Ast::make_node(std::move(return_value));
             m_currentLexar->getAndExpectNext(TokenType::SemiColon);
 
         }break;//TokenType::Return
@@ -923,7 +925,6 @@ StmtNode Parser::parseStatement() {
                     switch (peek_type) {
                     case TokenType::Eq:
                         stmt = Store_Ast::make_node(std::move(rhs), std::move(lhs));
-                        stmt = std::make_unique<Store_Ast>(rhs, lhs);
                         break;
                     case TokenType::PlusEq:
                         stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::ADD), std::move(lhs));
@@ -1214,7 +1215,9 @@ ExprResult Parser::parseDotExpression(Variable this_ptr, Variable this_, std::st
     if (m_currentLexar->peek()->type == TokenType::Dot) {
         m_currentLexar->getAndExpectNext(TokenType::Dot);
         m_currentLexar->getNext();
-
+        
+        TODO("parse dot");
+        /*
         Variable lhs_var = std::get<0>(lhs);
         if (lhs_var.parent == nullptr) {
             this_ptr = lhs_var;
@@ -1239,12 +1242,15 @@ ExprResult Parser::parseDotExpression(Variable this_ptr, Variable this_, std::st
 
         auto rhs = parseDotExpression(this_ptr, this_, func_prefix);
         return rhs;
+        */
     }
     return lhs;
 }
 ExprResult Parser::parseUnaryExpression() {
     tkn = &m_currentLexar->currentToken;
 
+    TODO("unary");
+        /*
     if ((*tkn)->type == TokenType::Minus) {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
@@ -1288,6 +1294,7 @@ ExprResult Parser::parseUnaryExpression() {
         m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::EQ, rhs, zero, result}});
         return {result, false};
     }
+    */
 
     return parseDotExpression();
 }
@@ -1305,6 +1312,8 @@ ExprResult Parser::parseMultiplicativeExpression() {
         m_currentLexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
 
+        TODO("multiply");
+        /*
         Variable result = make_temp_var(lhs.type);
 
         if (op_type == TokenType::Mul) {
@@ -1316,9 +1325,10 @@ ExprResult Parser::parseMultiplicativeExpression() {
         }
 
         lhs = result;
+        */
     }
 
-    return {lhs, false};
+    return {std::move(lhs), false};
 }
 ExprResult Parser::parseAdditiveExpression() {
     tkn = &m_currentLexar->currentToken;
@@ -1334,6 +1344,8 @@ ExprResult Parser::parseAdditiveExpression() {
         auto rhs = std::get<0>(parseMultiplicativeExpression());
 
 
+        TODO("add");
+        /*
         Variable result = make_temp_var(lhs.type);
         if (op_type == TokenType::Plus) {
             m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::ADD, lhs, rhs, result}});
@@ -1342,9 +1354,10 @@ ExprResult Parser::parseAdditiveExpression() {
         }
 
         lhs = result;
+        */
     }
 
-    return {lhs, false};
+    return {std::move(lhs), false};
 }
 ExprResult Parser::parseCondition(int min_prec) {
     tkn = &m_currentLexar->currentToken;
@@ -1368,12 +1381,13 @@ ExprResult Parser::parseCondition(int min_prec) {
             case TokenType::AndAnd:    op = BinOp::LAND; break;
             case TokenType::OrOr:      op = BinOp::LOR;  break;
             default:
-                return {lhs, lvalue};
+                return {std::move(lhs), lvalue};
         }
         // consume operator
         m_currentLexar->getNext();
         m_currentLexar->getNext();
 
+        /*
         Variable rhs = std::get<0>(parseCondition(prec + 1));
 
         Variable result = make_temp_var(TypeInfo::get_from_id(TypeId::Bool));
@@ -1381,10 +1395,10 @@ ExprResult Parser::parseCondition(int min_prec) {
         m_currentFunc->body.push_back({Op::BIN_OP, {op, lhs, rhs, result}});
 
         lhs = result;
-
+        */
     }
 
-    return {lhs, false};
+    return {std::move(lhs), false};
 }
 ExprResult Parser::parseExpression() {
     return parseCondition(0);
@@ -1398,7 +1412,8 @@ void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_addres
     if (this_ptr.type.info.kind != Kind::Void) args.push_back(this_ptr);
     while (m_currentLexar->peek()->type != TokenType::CParen) {
         m_currentLexar->getNext();
-        args.push_back(std::get<0>(parseExpression()));
+        TODO("call func");
+        //args.push_back(std::get<0>(parseExpression()));
         if (m_currentLexar->peek()->type != TokenType::CParen) {
             m_currentLexar->getAndExpectNext(TokenType::Comma);
             if (m_currentLexar->peek()->type == TokenType::CParen) {
@@ -1422,7 +1437,7 @@ void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_addres
         }
         // TODO: check every argument
     }
-    m_currentFunc->body.push_back({Op::CALL, {func, args, return_address}});
+    //m_currentFunc->body.push_back({Op::CALL, {func, args, return_address}});
     func.is_used = true;
 
     m_currentFuncStorage = &m_program.func_storage;
@@ -1451,14 +1466,15 @@ Func Parser::make_type_info_func(Struct s) {
     fn.arguments_count = 0;
     fn.stack_size = 48;
     m_program.var_storage.push_back(name);
-    fn.body = {
-        {Op::INIT_STRING, {typeinfo.members[3]}},
-        {Op::STORE_VAR, {id  , typeinfo.members[0]}},
-        {Op::STORE_VAR, {type, typeinfo.members[1]}},
-        {Op::STORE_VAR, {size, typeinfo.members[2]}},
-        {Op::STORE_VAR, {name, typeinfo.members[3]}},
-        {Op::RETURN   , {typeinfo}}
-    };
+    TODO("make fn");
+    //fn.body = {
+    //    {Op::INIT_STRING, {typeinfo.members[3]}},
+    //    {Op::STORE_VAR, {id  , typeinfo.members[0]}},
+    //    {Op::STORE_VAR, {type, typeinfo.members[1]}},
+    //    {Op::STORE_VAR, {size, typeinfo.members[2]}},
+    //    {Op::STORE_VAR, {name, typeinfo.members[3]}},
+    //    {Op::RETURN   , {typeinfo}}
+    //};
     current_offset = save;
     m_currentFunc = orig;
     return fn;

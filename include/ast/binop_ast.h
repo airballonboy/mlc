@@ -13,7 +13,6 @@ public:
     BinOp binop;
 public:
     Memory codegen(BaseCodegen& cg) override;
-    Memory codegen_ptr(BaseCodegen& cg) override;
     static std::unique_ptr<BinOp_Ast> make_node(Node _lhs, Node _rhs, BinOp _binop) {
         return std::move(std::make_unique<BinOp_Ast>(std::move(_lhs), std::move(_rhs), _binop));
     }

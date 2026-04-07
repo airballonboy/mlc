@@ -3,7 +3,7 @@
 #include "ast/ast.h"
 #include <string>
 
-class Jump_Ast : public AstNode {
+class Jump_Ast : public Statment_Ast {
 public:
     Jump_Ast(std::string _label) 
         : label(_label) {}

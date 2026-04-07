@@ -15,7 +15,6 @@ struct Vec3 {
         this.z = 0.0;
     }
 }
-module a;
 func static Vec3.new() -> Vec3* {
     return c_std::malloc(Vec3.type_info().size);
 }
