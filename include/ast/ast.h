@@ -11,6 +11,7 @@ class AstNode {
 public:
     Loc loc_start;
     Loc loc_end;
+    Type type;
     virtual ~AstNode() = default;
     virtual Memory codegen(BaseCodegen& cg) = 0;
     virtual Memory codegen_ptr(BaseCodegen& cg) = 0;

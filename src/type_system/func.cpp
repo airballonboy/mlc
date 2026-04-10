@@ -6,6 +6,7 @@
 
 Func::Func() {
     type = Type(Kind::Func);
+    body = std::make_unique<Body_Ast>();
 }
 Func::Func(Type ret_type, std::vector<Type> args) {
     type = Type(Kind::Func);
@@ -13,6 +14,7 @@ Func::Func(Type ret_type, std::vector<Type> args) {
     for (auto arg : args) {
         type.func_data->args.push_back(std::make_unique<Type>(arg));
     }
+    body = std::make_unique<Body_Ast>();
 }
 bool Func::is_in_storage(std::string_view name, const FunctionStorage& storage) {
     for (auto& func : storage) {

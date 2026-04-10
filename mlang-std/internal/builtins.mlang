@@ -6,11 +6,11 @@ struct TypeInfo {
 }
 
 
-func string.len() -> int {
-    int len=0;
-    while (**this) {
-        *this += 1;
-        len += 1;
-    }
-    return len;
-}
+//func string.len() -> int {
+//    int len=0;
+//    while (**this) {
+//        *this += 1;
+//        len += 1;
+//    }
+//    return len;
+//}

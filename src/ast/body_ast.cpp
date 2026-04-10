@@ -2,5 +2,8 @@
 
 
 Memory Body_Ast::codegen(BaseCodegen& cg) {
-    TODO("");
+    for (auto& node : body) {
+        node->codegen(cg);
+    }
+    return {};
 }

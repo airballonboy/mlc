@@ -12,8 +12,11 @@ public:
     Variable var;
 public:
     Memory codegen(BaseCodegen& cg) override;
+    Memory codegen_ptr(BaseCodegen& cg) override;
     static std::unique_ptr<Load_Ast> make_node(Variable _var) {
-        return std::make_unique<Load_Ast>(_var);
+        auto x = std::make_unique<Load_Ast>(_var);
+        x->type = _var.type;
+        return x;
     }
 };
 

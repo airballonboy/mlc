@@ -41,10 +41,11 @@ Memory gnu_asm::emitLoad(Loc loc, Variable var) {
         if (var.type.info.kind == Kind::Int)
             mov.append(var.Int_val, Rax);
         else if (var.type.info.kind == Kind::String)
-            mov.append(var.name, Rip, Rax);
-        else if (var.type.info.kind == Kind::String)
+            lea.append(var.name, Rip, Rax);
+        else if (var.type.info.kind == Kind::Float) {
             movs.append(var.name, Rip, Xmm0);
-        else
+            return mem_reg(Xmm0);
+        } else
             TODO("unknown type of literal");
         return mem_reg(Rax);
     } else if (var.type.qualifiers & Qualifier::global) {
@@ -52,8 +53,13 @@ Memory gnu_asm::emitLoad(Loc loc, Variable var) {
         return mem_reg(Rax);
     } else {
         if (var.size <= 8) {
-            mov.append(mem_off(-var.offset, Rbp), mem_reg(Rax), var.size);
-            return mem_reg(Rax);
+            if (var.type.info.kind == Kind::Float) {
+                movs.append(mem_off(-var.offset, Rbp), mem_reg(Xmm0), var.size);
+                return mem_reg(Xmm0);
+            } else {
+                mov.append(mem_off(-var.offset, Rbp), mem_reg(Rax), var.size);
+                return mem_reg(Rax);
+            }
         } else if (var.size <= 16) {
             mov.append(mem_off(-var.offset, Rbp), mem_reg(Rax), 8);
             mov.append(mem_off(-var.offset + 8, Rbp), mem_reg(Rdx), var.size - 8);
@@ -77,8 +83,23 @@ Memory gnu_asm::emitDeref(Loc loc, Memory lhs) {
     mov.append(0, lhs.asm_mem.reg, lhs.asm_mem.reg, lhs.type.ptr_data->pointee->info.size);
     return lhs;
 }
-Memory gnu_asm::emitCall(Loc loc, Memory func, std::vector<Node> args) {
-    TODO("call function");
+Memory gnu_asm::emitCall(Loc loc, Func& func, std::vector<Node> args) {
+    for (size_t i = 0, f = 0, j = 0; j < args.size(); j++) {
+        if (args[j]->type.info.kind == Kind::Float) {
+            mov.append(args[j]->codegen(*this), mem_reg(arg_register_float[f]));
+            f++;
+        } else {
+            mov.append(args[j]->codegen(*this), mem_reg(arg_register[i]));
+            i++;
+        }
+    }
+    output.appendf("    call {}\n", func.name);
+
+    if (func.type.func_data->return_type->info.kind == Kind::Float) {
+        return mem_reg(Xmm0);
+    } else {
+        return mem_reg(Rax);
+    }
 }
 void gnu_asm::emitLabel(Loc loc, std::string label) {
     output.appendf("  .L{}:\n", label);
@@ -122,9 +143,9 @@ void gnu_asm::emitReturn(Loc loc, Memory ret) {
     output.append("    ret\n");
 }
 Memory gnu_asm::emitStore(Loc loc, Memory lhs, Memory rhs) {
-    assert(rhs.asm_mem.type != AsmType::Reg);
-    mov.append(lhs, rhs);
-    return rhs;
+    assert(lhs.asm_mem.type != AsmType::Reg);
+    mov.append(rhs, lhs);
+    return lhs;
 }
 Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
     auto is_float_op = lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float;
@@ -283,11 +304,6 @@ gnu_asm::gnu_asm(Program *prog) : BaseCodegen(prog) {
 
 void gnu_asm::compileProgram() {
     assert(m_program != nullptr);
-    Program_Ast prog;
-    for (auto& f : prog.func_storage) {
-        f->codegen(*this);
-    }
-    TODO("");
     output.append(".section .text\n");
     for (auto& func : m_program->func_storage) {
         if (!func.external && (func.is_used || ctx.lib)) {
@@ -372,7 +388,7 @@ void gnu_asm::compileFunction(Func& func) {
     // if the function doesn't return you make it return 0
     bool returned = false;
     bool is_member = func.arguments.size() > 0 && func.name.starts_with(func.arguments[0].type.info.name) && func.arguments[0].name == "this";
-    auto ret_type = *func.type.func_data->return_type;
+    auto ret_type = *func.type.func_data->return_type.get();
     if (ret_type.info.kind != Kind::Pointer) {
         if ((m_program->platform == Platform::Windows && ret_type.info.size > 8) ||
             (m_program->platform == Platform::Linux && ret_type.info.size > 16))

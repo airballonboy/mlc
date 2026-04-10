@@ -1,7 +1,6 @@
-
 #include "ast/store_ast.h"
 
 
 Memory Store_Ast::codegen(BaseCodegen& cg) {
-    TODO("");
+    return cg.emitStore(loc_start, lhs->codegen_ptr(cg), rhs->codegen(cg));
 }

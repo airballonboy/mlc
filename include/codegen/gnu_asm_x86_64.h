@@ -35,7 +35,7 @@ public:
     Memory emitLoad(Loc loc, Variable var) override;
     Memory emitRef(Loc loc, Variable var) override;
     Memory emitDeref(Loc loc, Memory lhs) override;
-    Memory emitCall(Loc loc, Memory func, std::vector<Node> args) override;
+    Memory emitCall(Loc loc, Func& func, std::vector<Node> args) override;
     Memory emitStore(Loc loc, Memory lhs, Memory rhs) override;
     Memory emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) override;
 

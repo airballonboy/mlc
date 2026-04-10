@@ -13,16 +13,16 @@ public:
     virtual void compileFunction(Func& func) {}
 
 public:
-    virtual void   emitReturn(Loc loc, Memory ret) {}
-    virtual void   emitJump(Loc loc, std::string label) {}
-    virtual void   emitJumpIfNot(Loc loc, std::string label, Memory cond) {}
-    virtual void   emitLabel(Loc loc, std::string Label) {}
-    virtual Memory emitLoad(Loc loc, Variable var) {}
-    virtual Memory emitRef(Loc loc, Variable var) {}
-    virtual Memory emitDeref(Loc loc, Memory lhs) {}
-    virtual Memory emitCall(Loc loc, Memory func, std::vector<Node> args) {}
-    virtual Memory emitStore(Loc loc, Memory lhs, Memory rhs) {}
-    virtual Memory emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {}
+    virtual void   emitReturn(Loc loc, Memory ret)                        {TODO("unimplemented");}
+    virtual void   emitJump(Loc loc, std::string label)                   {TODO("unimplemented");}
+    virtual void   emitJumpIfNot(Loc loc, std::string label, Memory cond) {TODO("unimplemented");}
+    virtual void   emitLabel(Loc loc, std::string Label)                  {TODO("unimplemented");}
+    virtual Memory emitLoad(Loc loc, Variable var)                        {TODO("unimplemented");}
+    virtual Memory emitRef(Loc loc, Variable var)                         {TODO("unimplemented");}
+    virtual Memory emitDeref(Loc loc, Memory lhs)                         {TODO("unimplemented");}
+    virtual Memory emitCall(Loc loc, Func& func, std::vector<Node> args) {TODO("unimplemented");}
+    virtual Memory emitStore(Loc loc, Memory lhs, Memory rhs)             {TODO("unimplemented");}
+    virtual Memory emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs)   {TODO("unimplemented");}
 protected:
     Program* m_program;
     Func*    m_func;

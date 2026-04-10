@@ -1,6 +1,10 @@
 #include "ast/load_ast.h"
+#include "codegen/gnu_asm_x86_64.h"
 
 
 Memory Load_Ast::codegen(BaseCodegen& cg) {
-    TODO("");
+    return cg.emitLoad(loc_start, var);
+}
+Memory Load_Ast::codegen_ptr(BaseCodegen& cg) {
+    return Memory{.asm_mem = {.type = AsmType::OffReg,.off = -var.offset, .off_reg = Rbp}};
 }

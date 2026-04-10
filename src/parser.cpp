@@ -16,6 +16,7 @@
 #include "ast/load_ast.h"
 #include <algorithm>
 #include <any>
+#include <cassert>
 #include <cstdint>
 #include <vector>
 
@@ -106,14 +107,14 @@ size_t Parser::align(size_t current_offset, Type type, std::string type_name) {
     return (current_offset + alignment - 1) & ~(alignment-1);
 }
 Parser::Parser(Lexar* lexar) {
-    m_currentLexar = lexar;
+    m_lexar = lexar;
 }
 Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     Variable var{};
     std::string type_name{};
     bool strct = false;
     if ((*tkn)->type != TokenType::TypeID && (*tkn)->type != TokenType::ID) {
-        m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID});
+        m_lexar->getAndExpectNext({TokenType::ID, TokenType::TypeID});
     }
     auto type = std::get<0>(parsePrimaryExpression());
     if (auto type_node = dynamic_cast<Load_Ast*>(type.get())) {
@@ -137,18 +138,18 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
         ERROR((*tkn)->loc, "type was not found");
     }
 
-    while (m_currentLexar->peek()->type == TokenType::Mul) {
-        m_currentLexar->getAndExpectNext(TokenType::Mul);
+    while (m_lexar->peek()->type == TokenType::Mul) {
+        m_lexar->getAndExpectNext(TokenType::Mul);
         var.size = 8;
         var.type = make_ptr(var.type);
     }
-    m_currentLexar->getAndExpectNext(TokenType::ID);
+    m_lexar->getAndExpectNext(TokenType::ID);
     if (strct) {
         std::string struct_name = (*tkn)->string_value;
         Func *orig_func;
         if (var.type.info.kind == Kind::Pointer) {
-            orig_func = m_currentFunc;
-            m_currentFunc = &default_func;
+            orig_func = m_func;
+            m_func = &default_func;
         }
         Variable new_var{};
         new_var = initStruct(type_name, struct_name, member);
@@ -158,7 +159,7 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
             new_var.size = 8;
         }
         if (var.type.info.kind == Kind::Pointer) {
-            m_currentFunc = orig_func;
+            m_func = orig_func;
         }
         for (auto& v : new_var.members) {
             v.parent->type = set_ptr_count(v.parent->type, get_ptr_count(new_var.type));
@@ -170,19 +171,19 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     }
 
 
-    if (Variable::is_in_storage(m_currentLexar->currentToken->string_value, var_store))
-        ERROR(m_currentLexar->currentToken->loc, mlog::format("redifinition of {}", m_currentLexar->currentToken->string_value));
+    if (Variable::is_in_storage(m_lexar->currentToken->string_value, var_store))
+        ERROR(m_lexar->currentToken->loc, mlog::format("redifinition of {}", m_lexar->currentToken->string_value));
     else 
-        var.name = m_currentLexar->currentToken->string_value;    
+        var.name = m_lexar->currentToken->string_value;    
 
     current_offset = align(current_offset, var.type, type_name);
     var.offset = current_offset;
     // TODO: support arrays
-    if (m_currentLexar->peek()->type == TokenType::OBracket) {
-        m_currentLexar->getAndExpectNext(TokenType::OBracket);
-        if (m_currentLexar->peek()->type == TokenType::IntLit)
-            m_currentLexar->getAndExpectNext(TokenType::IntLit);
-        m_currentLexar->getAndExpectNext(TokenType::CBracket);
+    if (m_lexar->peek()->type == TokenType::OBracket) {
+        m_lexar->getAndExpectNext(TokenType::OBracket);
+        if (m_lexar->peek()->type == TokenType::IntLit)
+            m_lexar->getAndExpectNext(TokenType::IntLit);
+        m_lexar->getAndExpectNext(TokenType::CBracket);
         TODO("support for arrays");   
     }
     var_store.push_back(var);
@@ -191,41 +192,41 @@ Variable& Parser::parseVariable(VariableStorage& var_store, bool member) {
     return var_store[var_store.size() - 1];
 }
 Program* Parser::parse() {
-    tkn = &m_currentLexar->currentToken;
+    tkn = &m_lexar->currentToken;
 
     m_currentFuncStorage = &m_program.func_storage;
-    m_currentFunc = &default_func;
+    m_func = &default_func;
 
     while ((*tkn)->type != TokenType::EndOfFile) {
         switch((*tkn)->type) {
             case TokenType::Func:{
                 parseFunction();
-                m_currentLexar->getNext();
-                m_currentFunc = &default_func;
+                m_lexar->getNext();
+                m_func = &default_func;
                 
             }break;//TokenType::Func
             case TokenType::Module: {
                 parseModuleDeclaration();
-                m_currentLexar->getNext();
+                m_lexar->getNext();
             }break;//TokenType::Module
             case TokenType::Const: {
                 auto var = parseConstant();
                 var.type.qualifiers |= Qualifier::global;
                 m_program.var_storage.push_back(var);
-                m_currentLexar->getNext();
+                m_lexar->getNext();
             }break;//TokenType::Hash
             case TokenType::Hash: {
                 parseHash();
-                m_currentLexar->getNext();
+                m_lexar->getNext();
             }break;//TokenType::Hash
             case TokenType::Struct: {
                 parseStructDeclaration();
-                m_currentLexar->getNext();
+                m_lexar->getNext();
             }break;//TokenType::Struct
             default: {
                 mlog::println(stderr, "unimplemented type of {} at {}:{}:{}",
                              printableToken.at((*tkn)->type), (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
-                m_currentLexar->getNext();
+                m_lexar->getNext();
 
             }break;
         }
@@ -285,10 +286,11 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
         if (strct->defaults.contains(i) && save_defaults) {
             auto def = strct->defaults.at(i);
             if (var.type.info.id == TypeId::String) {
-                TODO("m_currentFunc->body.push_back({Op::INIT_STRING, {var}})");
+                //ERROR((*tkn)->loc, "init str");
+                //TODO("m_currentFunc->body.push_back({Op::INIT_STRING, {var}})");
             }
             if (def.type.info.kind != Kind::Void && var.type.info.kind != Kind::Struct) {
-                TODO("m_currentFunc->body.push_back({Op::STORE_VAR, {def, var}})");
+                m_body->body.push_back(Store_Ast::make_node(var, Load_Ast::make_node(def)));
             }
             if (def.type.info.kind == Kind::Struct) {
                 for (size_t j = 0; j < def.members.size() && j < var.members.size(); j++) {
@@ -298,10 +300,11 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
                         def.members[j].size = 8;
                     }
                     if (def.members[j].type.info.id == TypeId::String) {
-                        TODO("m_currentFunc->body.push_back({Op::INIT_STRING, {var.members[j]}})");
+                        //ERROR((*tkn)->loc, "init str");
+                        //TODO("m_currentFunc->body.push_back({Op::INIT_STRING, {var.members[j]}})");
                     }
                     if (def.members[j].type.info.kind != Kind::Void && def.members[j].type.info.kind != Kind::Struct) {
-                        TODO("m_currentFunc->body.push_back({Op::STORE_VAR, {def.members[j], var.members[j]}})");
+                        m_body->body.push_back(Store_Ast::make_node(var.members[j], Load_Ast::make_node(def.members[j])));
                     }
                 }
             }
@@ -313,16 +316,16 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
     return *struct_var;
 }
 void Parser::parseStructDeclaration() {
-    m_currentLexar->getAndExpectNext(TokenType::ID);
-    tkn = &m_currentLexar->currentToken;
+    m_lexar->getAndExpectNext(TokenType::ID);
+    tkn = &m_lexar->currentToken;
 
     current_module_prefix = "";
-    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+    if (m_lexar->peek()->type == TokenType::ColonColon) {
         parseModulePrefix();
-        m_currentLexar->getAndExpectNext(TokenType::ID);
+        m_lexar->getAndExpectNext(TokenType::ID);
     }
     current_offset = 0;
-    std::string struct_name = current_module_prefix + m_currentLexar->currentToken->string_value;
+    std::string struct_name = current_module_prefix + m_lexar->currentToken->string_value;
     current_module_prefix = "";
 
     size_t struct_index = m_program.struct_storage.size();
@@ -344,7 +347,7 @@ void Parser::parseStructDeclaration() {
         m_program.func_storage.push_back(std::move(f));
     }
 
-    m_currentLexar->getAndExpectNext(TokenType::OCurly);
+    m_lexar->getAndExpectNext(TokenType::OCurly);
 
     current_struct.name = struct_name;
     while ((*tkn)->type != TokenType::CCurly) {
@@ -353,12 +356,12 @@ void Parser::parseStructDeclaration() {
             size_t func_index = m_program.func_storage.size();
             parseFunction(true, current_struct);
 
-            m_currentLexar->getNext();
+            m_lexar->getNext();
             current_offset = temp_offset;
             continue;
         }
-        Func* last_func = m_currentFunc;
-        m_currentFunc = &default_func;
+        Func* last_func = m_func;
+        m_func = &default_func;
         auto& var = parseVariable(current_struct.var_storage, true);
         int var_index = current_struct.var_storage.size()-1;
         current_struct.size = align(current_struct.size, var.type, var.type.info.name);
@@ -369,14 +372,14 @@ void Parser::parseStructDeclaration() {
         }
         var.offset = current_struct.size;
         current_struct.size += var.size;
-        m_currentFunc = last_func;
+        m_func = last_func;
         if (var.type.info.kind != Kind::Float)
             current_struct.is_float_only = false;
 
         // Defaults
-        if (m_currentLexar->peek()->type == TokenType::Eq) {
-            m_currentLexar->getAndExpectNext(TokenType::Eq);
-            m_currentLexar->getNext();
+        if (m_lexar->peek()->type == TokenType::Eq) {
+            m_lexar->getAndExpectNext(TokenType::Eq);
+            m_lexar->getNext();
             auto var2 = std::get<0>(parseExpression());
             TODO("default");
             //current_struct.defaults.emplace(var_index, var2);
@@ -401,8 +404,8 @@ void Parser::parseStructDeclaration() {
         } else {
             current_struct.defaults.emplace(var_index, Variable{ type_infos.at("void") });
         }
-        m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-        m_currentLexar->getNext();
+        m_lexar->getAndExpectNext(TokenType::SemiColon);
+        m_lexar->getNext();
     }
     type_infos.at(struct_name).size = current_struct.size;
     m_program.func_storage[type_info_func_index] = make_type_info_func(current_struct);
@@ -410,63 +413,67 @@ void Parser::parseStructDeclaration() {
 }
 Variable Parser::parseConstant() {
     Variable var{};
-    m_currentLexar->getAndExpectNext(TokenType::ID);   
+    m_lexar->getAndExpectNext(TokenType::ID);   
     var.name = (*tkn)->string_value;
-    m_currentLexar->getAndExpectNext(TokenType::Eq);   
-    m_currentLexar->getNext();   
-    auto [rhs, lvalue] = parseExpression();
-    TODO("constants");
-    //var.type = rhs.type;
-    //var.size    = rhs.size;
-    //copy_val(rhs, var);
-    //var.members = rhs.members;
-    //var.parent  = rhs.parent;
-    //var.type = set_ptr_count(var.type, get_ptr_count(rhs.type));
-    var.type.qualifiers |= Qualifier::constant;
+    m_lexar->getAndExpectNext(TokenType::Eq);   
+    m_lexar->getNext();   
+    auto [rhs_expr, lvalue] = parseExpression();
+    if (auto val = dynamic_cast<Load_Ast*>(rhs_expr.get())) {
+        auto rhs = val->var;
+        assert(rhs.type.qualifiers & Qualifier::constant);
+        var.type = rhs.type;
+        var.size    = rhs.size;
+        copy_val(rhs, var);
+        var.members = rhs.members;
+        var.parent  = rhs.parent;
+        var.type = set_ptr_count(var.type, get_ptr_count(rhs.type));
+    } else {
+        TODO("constants");
+    }
 
-    m_currentLexar->getAndExpectNext(TokenType::SemiColon);   
+    m_lexar->getAndExpectNext(TokenType::SemiColon);   
     return var;
 }
 void Parser::parseModuleDeclaration() {
-    m_currentLexar->getAndExpectNext(TokenType::ID);
+    m_lexar->getAndExpectNext(TokenType::ID);
 
     ModuleStorage* current_mod = &m_program.module_storage;
 
     if (m_program.module_storage.contains((*tkn)->string_value)) {
-        if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        if (m_lexar->peek()->type == TokenType::ColonColon) {
             current_mod = &current_mod->at((*tkn)->string_value).module_storage;
-            m_currentLexar->getAndExpectNext(TokenType::ColonColon);
-            m_currentLexar->getAndExpectNext(TokenType::ID);
+            m_lexar->getAndExpectNext(TokenType::ColonColon);
+            m_lexar->getAndExpectNext(TokenType::ID);
         } else {
             TODO("redeclare module");
         }
     }
 
     current_mod->emplace((*tkn)->string_value, Module{});
-    m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+    m_lexar->getAndExpectNext(TokenType::SemiColon);
 }
 void Parser::parseHash() {
-    m_currentLexar->getAndExpectNext({TokenType::Import, TokenType::Include, TokenType::Extern, TokenType::Not});
+    m_lexar->getAndExpectNext({TokenType::Import, TokenType::Include, TokenType::Extern, TokenType::Not});
     switch ((*tkn)->type) {
         case TokenType::Not: {
             // Ignore shebangs
             auto line = (*tkn)->loc.line;
-            while (m_currentLexar->peek()->loc.line == line) {
-                m_currentLexar->getNext();
+            while (m_lexar->peek()->loc.line == line) {
+                m_lexar->getNext();
             }
         }break;//TokenType::Not
         case TokenType::Include: {
-            if (m_currentLexar->peek()->loc.line == (*tkn)->loc.line)
-                m_currentLexar->getAndExpectNext(TokenType::Less);
+            if (m_lexar->peek()->loc.line == (*tkn)->loc.line)
+                m_lexar->getAndExpectNext(TokenType::Less);
             else 
                 TODO("no file provided to include");
 
             std::string file_name{};
-            while (m_currentLexar->peek()->loc.line == (*tkn)->loc.line && m_currentLexar->peek()->type != TokenType::Greater) {
-                m_currentLexar->getNext();
+            while (m_lexar->peek()->loc.line == (*tkn)->loc.line && m_lexar->peek()->type != TokenType::Greater) {
+                m_lexar->getNext();
                 file_name += (*tkn)->string_value;
             }
-            m_currentLexar->getNext();
+            m_lexar->getNext();
             for (std::string& file : included_files) if (file == file_name) goto end_of_include;
             if (file_name == (*tkn)->loc.inputPath)
                 TODO("cannot include the current file");
@@ -475,7 +482,7 @@ void Parser::parseHash() {
 
                 Lexar l(readFileToString(file_path), file_path);
 
-                m_currentLexar->pushtokensaftercurrent(&l);
+                m_lexar->pushtokensaftercurrent(&l);
                 included_files.push_back(file_name);
             } else {
                 TODO("file not found");
@@ -488,32 +495,34 @@ void Parser::parseHash() {
         case TokenType::Import: {
             TODO("handle imports");
         }break;//TokenType::Import
+        default:
+            TODO("unexpected");
     }
 }
 void Parser::parseExtern() {
-    m_currentLexar->getAndExpectNext(TokenType::Func);
+    m_lexar->getAndExpectNext(TokenType::Func);
 
     Func func = Func();
-    m_currentFunc = &func;
+    m_func = &func;
     func.external = true;
 
     // Func name
-    m_currentLexar->getAndExpectNext(TokenType::ID);
+    m_lexar->getAndExpectNext(TokenType::ID);
     current_module_prefix = "";
-    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+    if (m_lexar->peek()->type == TokenType::ColonColon) {
         parseModulePrefix();
-        m_currentLexar->getAndExpectNext(TokenType::ID);
+        m_lexar->getAndExpectNext(TokenType::ID);
     }
-    func.name = current_module_prefix + m_currentLexar->currentToken->string_value;
+    func.name = current_module_prefix + m_lexar->currentToken->string_value;
     func.link_name = func.name;                
     current_module_prefix = "";
 
-    m_currentLexar->getAndExpectNext(TokenType::OParen);
-    while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile) {
-        if (m_currentLexar->peek()->type == TokenType::Dot) {
-            m_currentLexar->getAndExpectNext(TokenType::Dot);
-            m_currentLexar->getAndExpectNext(TokenType::Dot);
-            m_currentLexar->getAndExpectNext(TokenType::Dot);
+    m_lexar->getAndExpectNext(TokenType::OParen);
+    while (m_lexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile) {
+        if (m_lexar->peek()->type == TokenType::Dot) {
+            m_lexar->getAndExpectNext(TokenType::Dot);
+            m_lexar->getAndExpectNext(TokenType::Dot);
+            m_lexar->getAndExpectNext(TokenType::Dot);
             func.c_variadic = true;
             
             break;
@@ -521,24 +530,24 @@ void Parser::parseExtern() {
             func.local_variables.push_back(parseVariable(func.arguments));
             func.arguments_count++;
         }
-        if (m_currentLexar->peek()->type != TokenType::CParen) {
-            m_currentLexar->getAndExpectNext(TokenType::Comma);
-            if (m_currentLexar->peek()->type == TokenType::CParen) {
+        if (m_lexar->peek()->type != TokenType::CParen) {
+            m_lexar->getAndExpectNext(TokenType::Comma);
+            if (m_lexar->peek()->type == TokenType::CParen) {
                 ERROR((*tkn)->loc, "cannot do trailing commas in function calls");
             }
         }
     }
 
-    m_currentLexar->getAndExpectNext(TokenType::CParen);
+    m_lexar->getAndExpectNext(TokenType::CParen);
 
     // Returns
-    if (m_currentLexar->peek()->type == TokenType::Arrow) {
-        m_currentLexar->getAndExpectNext(TokenType::Arrow);
-        m_currentLexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
+    if (m_lexar->peek()->type == TokenType::Arrow) {
+        m_lexar->getAndExpectNext(TokenType::Arrow);
+        m_lexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
         current_module_prefix = "";
-        if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        if (m_lexar->peek()->type == TokenType::ColonColon) {
             parseModulePrefix(); 
-            m_currentLexar->getNext();
+            m_lexar->getNext();
         }
         *func.type.func_data->return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
         current_module_prefix = "";
@@ -552,16 +561,16 @@ void Parser::parseExtern() {
         };
         func.arguments.emplace(func.arguments.begin(), ret);
     }
-    if (m_currentLexar->peek()->type == TokenType::OBracket) {
-        m_currentLexar->getAndExpectNext(TokenType::OBracket);
+    if (m_lexar->peek()->type == TokenType::OBracket) {
+        m_lexar->getAndExpectNext(TokenType::OBracket);
         do {
-            m_currentLexar->getAndExpectNext(TokenType::ID);
+            m_lexar->getAndExpectNext(TokenType::ID);
             std::string s = (*tkn)->string_value;
-            m_currentLexar->getAndExpectNext(TokenType::Eq);
-            m_currentLexar->getAndExpectNext(TokenType::DQoute);
-            m_currentLexar->getAndExpectNext(TokenType::StringLit);
+            m_lexar->getAndExpectNext(TokenType::Eq);
+            m_lexar->getAndExpectNext(TokenType::DQoute);
+            m_lexar->getAndExpectNext(TokenType::StringLit);
             std::string seq = (*tkn)->string_value;
-            m_currentLexar->getAndExpectNext(TokenType::DQoute);
+            m_lexar->getAndExpectNext(TokenType::DQoute);
 
             if (s == "link_name")
                 func.link_name = seq;                
@@ -572,18 +581,18 @@ void Parser::parseExtern() {
             else 
                 TODO("ERROR: UNREACHABLE");
             
-            if (m_currentLexar->peek()->type != TokenType::CBracket) {
-                m_currentLexar->getAndExpectNext(TokenType::Comma);
+            if (m_lexar->peek()->type != TokenType::CBracket) {
+                m_lexar->getAndExpectNext(TokenType::Comma);
             } else {
-                m_currentLexar->getAndExpectNext(TokenType::CBracket);
+                m_lexar->getAndExpectNext(TokenType::CBracket);
             }
         } while ((*tkn)->type != TokenType::CBracket);
     }
 
-    m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+    m_lexar->getAndExpectNext(TokenType::SemiColon);
 
     m_program.func_storage.push_back(std::move(func));
-    m_currentFunc = &default_func;
+    m_func = &default_func;
 
 }
 void Parser::parseModulePrefix() {
@@ -598,10 +607,10 @@ void Parser::parseModulePrefix() {
     current_module_storage = &m_program.module_storage.at((*tkn)->string_value).module_storage;
     current_module_prefix += (*tkn)->string_value + "__";
 
-    m_currentLexar->getAndExpectNext(TokenType::ColonColon);
+    m_lexar->getAndExpectNext(TokenType::ColonColon);
 
-    while ((m_currentLexar->peek() + 1)->type == TokenType::ColonColon) {
-        m_currentLexar->getAndExpectNext(TokenType::ID);
+    while ((m_lexar->peek() + 1)->type == TokenType::ColonColon) {
+        m_lexar->getAndExpectNext(TokenType::ID);
         if (!current_module_storage->contains((*tkn)->string_value)) { 
             mlog::println("{}:{}:{} tkn = {}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset, (*tkn)->string_value);
             TODO("error");
@@ -611,28 +620,28 @@ void Parser::parseModulePrefix() {
         current_module_storage = &current_module_storage->at((*tkn)->string_value).module_storage;
         current_module_prefix += (*tkn)->string_value + "__";
 
-        m_currentLexar->getAndExpectNext(TokenType::ColonColon);
+        m_lexar->getAndExpectNext(TokenType::ColonColon);
     }
 }
-Func Parser::parseFunction(bool member, Struct parent) {
-    tkn = &m_currentLexar->currentToken;
+void Parser::parseFunction(bool member, Struct parent) {
+    tkn = &m_lexar->currentToken;
     current_offset = 0;
     Func func = Func();
     std::string name{};
-    m_currentFunc = &func;
-    if (m_currentLexar->peek()->type == TokenType::Static) {
-        m_currentLexar->getAndExpectNext(TokenType::Static);
+    m_func = &func;
+    if (m_lexar->peek()->type == TokenType::Static) {
+        m_lexar->getAndExpectNext(TokenType::Static);
         func.is_static = true;
     }
-    m_currentLexar->getAndExpectNext({TokenType::ID, TokenType::TypeID});
+    m_lexar->getAndExpectNext({TokenType::ID, TokenType::TypeID});
     current_module_prefix = "";
-    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+    if (m_lexar->peek()->type == TokenType::ColonColon) {
         parseModulePrefix();
-        m_currentLexar->getAndExpectNext(TokenType::ID);
+        m_lexar->getAndExpectNext(TokenType::ID);
     }
     if (member) {
         name = parent.name + "___" + current_module_prefix + (*tkn)->string_value;
-    } else if (!member && m_currentLexar->peek()->type == TokenType::Dot) {
+    } else if (!member && m_lexar->peek()->type == TokenType::Dot) {
         std::string type_name = current_module_prefix + (*tkn)->string_value;
         if (type_infos.contains(type_name)) {
             auto type = type_infos.at(type_name);
@@ -642,12 +651,12 @@ Func Parser::parseFunction(bool member, Struct parent) {
                 parent.name = type_name;
         }
         member = true;
-        m_currentLexar->getAndExpectNext(TokenType::Dot);
-        m_currentLexar->getAndExpectNext(TokenType::ID);
+        m_lexar->getAndExpectNext(TokenType::Dot);
+        m_lexar->getAndExpectNext(TokenType::ID);
         current_module_prefix = "";
-        if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        if (m_lexar->peek()->type == TokenType::ColonColon) {
             parseModulePrefix();
-            m_currentLexar->getAndExpectNext(TokenType::ID);
+            m_lexar->getAndExpectNext(TokenType::ID);
         }
         name = type_name + "___" + current_module_prefix + (*tkn)->string_value;
     } else {
@@ -672,40 +681,39 @@ Func Parser::parseFunction(bool member, Struct parent) {
         func.local_variables.push_back(this_pointer);
         func.arguments.push_back(this_pointer);
     }
-    m_currentLexar->getAndExpectNext(TokenType::OParen);
+    m_lexar->getAndExpectNext(TokenType::OParen);
     VariableStorage args_temp_storage{};
-    m_currentFunc = &default_func;
-    while (m_currentLexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_currentLexar->peek()->type != TokenType::EndOfFile) {
+    m_func = &default_func;
+    while (m_lexar->peek()->type != TokenType::CParen && (*tkn)->type != TokenType::EndOfFile && m_lexar->peek()->type != TokenType::EndOfFile) {
         parseVariable(args_temp_storage);
-        if (m_currentLexar->peek()->type != TokenType::CParen) {
-            m_currentLexar->expectNext(TokenType::Comma);
-            m_currentLexar->getNext();
+        if (m_lexar->peek()->type != TokenType::CParen) {
+            m_lexar->expectNext(TokenType::Comma);
+            m_lexar->getNext();
         }
     }
-    m_currentFunc = &func;
-    m_currentLexar->getAndExpectNext(TokenType::CParen);
-    m_currentLexar->expectNext({TokenType::Arrow, TokenType::OCurly});
+    m_lexar->getAndExpectNext(TokenType::CParen);
+    m_lexar->expectNext({TokenType::Arrow, TokenType::OCurly});
 
     // Returns
-    if (m_currentLexar->peek()->type == TokenType::Arrow) {
-        m_currentLexar->getAndExpectNext(TokenType::Arrow);
-        m_currentLexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
+    if (m_lexar->peek()->type == TokenType::Arrow) {
+        m_lexar->getAndExpectNext(TokenType::Arrow);
+        m_lexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
         current_module_prefix = "";
-        if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+        if (m_lexar->peek()->type == TokenType::ColonColon) {
             parseModulePrefix();
-            m_currentLexar->getNext();
+            m_lexar->getNext();
         }
         if (type_infos.contains(current_module_prefix + (*tkn)->string_value))
             *func.type.func_data->return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
         else 
             ERROR((*tkn)->loc, mlog::format("Type {} does not exist", current_module_prefix + (*tkn)->string_value));
-        if (m_currentLexar->peek()->type == TokenType::OBracket) {
-            m_currentLexar->getNext();
-            m_currentLexar->getAndExpectNext(TokenType::CBracket);
+        if (m_lexar->peek()->type == TokenType::OBracket) {
+            m_lexar->getNext();
+            m_lexar->getAndExpectNext(TokenType::CBracket);
             TODO("add arrays return");
         }
-        while (m_currentLexar->peek()->type == TokenType::Mul) {
-            m_currentLexar->getNext();
+        while (m_lexar->peek()->type == TokenType::Mul) {
+            m_lexar->getNext();
             *func.type.func_data->return_type = make_ptr(*func.type.func_data->return_type);
         }
         current_module_prefix = "";
@@ -727,19 +735,16 @@ Func Parser::parseFunction(bool member, Struct parent) {
         }
     }
 
-    m_currentLexar->getAndExpectNext(TokenType::OCurly);
+    m_lexar->getAndExpectNext(TokenType::OCurly);
 
-    // For recursion
     auto func_index = m_program.func_storage.size();
     m_program.func_storage.push_back(std::move(func));
+    m_func = &m_program.func_storage[func_index];
 
-    parseBlock();
+    m_func->body = parseBlock();
 
-    func.stack_size = max_locals_offset;
+    m_func->stack_size = max_locals_offset;
     max_locals_offset = 8;
-    m_program.func_storage[func_index] = std::move(func);
-
-    return func;
 }
 size_t temp_offset = 0;
 Variable make_temp_var(Type type) {
@@ -764,7 +769,6 @@ void delete_temp_vars() {
 
 StmtNode Parser::parseStatement() {
     StmtNode stmt;
-    stmt->loc_start = (*tkn)->loc;
     statement_count++;
     switch ((*tkn)->type) {
         case TokenType::SemiColon: { }break;
@@ -773,10 +777,10 @@ StmtNode Parser::parseStatement() {
         }break;//TokenType::OCurly
         case TokenType::Return: {
             Node return_value;
-            m_currentLexar->getNext();
+            m_lexar->getNext();
 
             if ((*tkn)->type == TokenType::SemiColon) {
-                if (m_currentFunc->type.func_data->return_type->info.kind == Kind::Void) TODO("error on no return");
+                if (m_func->type.func_data->return_type->info.kind == Kind::Void) TODO("error on no return");
                 return_value = std::make_unique<Load_Ast>(Variable{
                     .type    = Type(
                         type_infos.at("int8"),
@@ -790,7 +794,7 @@ StmtNode Parser::parseStatement() {
                 return_value = std::get<0>(parseExpression());
             }
             stmt = Return_Ast::make_node(std::move(return_value));
-            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+            m_lexar->getAndExpectNext(TokenType::SemiColon);
 
         }break;//TokenType::Return
         case TokenType::If: {
@@ -827,7 +831,7 @@ StmtNode Parser::parseStatement() {
             */
         }break;//TokenType::If
         case TokenType::While: {
-            TODO("if");
+            TODO("while");
             /*
             m_currentLexar->getAndExpectNext(TokenType::OParen);
             m_currentLexar->getNext();
@@ -850,35 +854,37 @@ StmtNode Parser::parseStatement() {
         }break;//TokenType::While
         case TokenType::ID:
         case TokenType::TypeID: {
-            TODO("new local var");
-            /*
             std::string type_name = (*tkn)->string_value;
-            size_t current_point = m_currentLexar->currentTokenIndex;
-            auto current_body    = m_currentFunc->body;
-            auto type = std::get<0>(parsePrimaryExpression());
-            auto peek = m_currentLexar->peek();
-            m_currentLexar->currentTokenIndex = current_point - 1;
-            m_currentLexar->getNext();
-            if (type.type.info.name == "typeid") {
-                type_name = TypeInfo::get_from_id(type.Int_val).name;
+            size_t current_point = m_lexar->currentTokenIndex;
+            auto current_body_size = m_body->body.size();
+            auto node = std::get<0>(parsePrimaryExpression());
+            auto peek = m_lexar->peek();
+            m_lexar->currentTokenIndex = current_point - 1;
+            m_lexar->getNext();
+            if (auto type_node = dynamic_cast<Load_Ast*>(node.get())) {
+                if (type_node->var.type.info.id != TypeId::Typeid) {
+                    m_body->body.resize(current_body_size);
+                    goto defau;
+                }
+                type_name = TypeInfo::get_from_id(type_node->var.Int_val).name;
             } else {
-                m_currentFunc->body = current_body;
+                m_body->body.resize(current_body_size);
                 goto defau;
             }
-            auto saved_body = m_currentFunc->body;
-            auto var = parseVariable(m_currentFunc->local_variables);
+            current_body_size = m_body->body.size();
+            auto var = parseVariable(m_func->local_variables);
 
             // TODO: factor out to a function
             if (var.type.info.id == TypeId::String) {
-                m_currentFunc->local_variables.push_back(var);
-                m_currentFunc->body.push_back({Op::INIT_STRING, {var}});
+                m_func->local_variables.push_back(var);
+                //m_body->body.push_back({Op::INIT_STRING, {var}});
             }
-            if (m_currentLexar->peek()->type == TokenType::Eq) {
-                m_currentLexar->getAndExpectNext(TokenType::Eq);
-                m_currentLexar->getNext();
-                m_currentFunc->body = saved_body;
+            if (m_lexar->peek()->type == TokenType::Eq) {
+                m_lexar->getAndExpectNext(TokenType::Eq);
+                m_lexar->getNext();
+                m_func->body->body.resize(current_body_size);
                 auto var2 = std::get<0>(parseExpression());
-                m_currentFunc->body.push_back({Op::STORE_VAR, {var2, var}});
+                stmt = Store_Ast::make_node(var, std::move(var2));
             } else if (var.type.info.kind != Kind::String && var.type.info.kind != Kind::Struct) {
                 Variable default_val;
                 default_val.type.qualifiers = Qualifier::literal | Qualifier::constant;
@@ -895,7 +901,7 @@ StmtNode Parser::parseStatement() {
                     default_val.Int_val = std::any_cast<int64_t>(Variable::default_value(var.type));
                 }
 
-                m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+                stmt = Store_Ast::make_node(var, Load_Ast::make_node(default_val));
             } else if (var.type.info.kind == Kind::Pointer) {
                 Variable default_val;
                 default_val.type = type_infos.at("int64");
@@ -904,22 +910,20 @@ StmtNode Parser::parseStatement() {
 
                 default_val.name = "def_value";
                 default_val.Int_val = std::any_cast<int64_t>(Variable::default_value(default_val.type));
-                m_currentFunc->body.push_back({Op::STORE_VAR, {default_val, var}});
+                stmt = Store_Ast::make_node(var, Load_Ast::make_node(default_val));
             }
 
-            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
-            */
+            m_lexar->getAndExpectNext(TokenType::SemiColon);
         }break;//TokenType::TypeID
         default: {
         defau:
-            auto data = parseDotExpression();
-            auto &[lhs, lvalue] = data;
-            auto peek_type = m_currentLexar->peek()->type;
+            auto [lhs, lvalue] = parseDotExpression();
+            auto peek_type = m_lexar->peek()->type;
 
             if (lvalue) {
                 if (peek_type == TokenType::Eq || peek_type == TokenType::PlusEq || peek_type == TokenType::MinusEq || peek_type == TokenType::MulEq) {
-                    m_currentLexar->getNext();
-                    m_currentLexar->getNext();
+                    m_lexar->getNext();
+                    m_lexar->getNext();
                     auto rhs = std::get<0>(parseExpression());
 
                     switch (peek_type) {
@@ -939,9 +943,11 @@ StmtNode Parser::parseStatement() {
                     }
 
                 }
+            } else {
+                stmt = std::move(lhs);
             }
 
-            m_currentLexar->getAndExpectNext(TokenType::SemiColon);
+            m_lexar->getAndExpectNext(TokenType::SemiColon);
         }
     }
     delete_temp_vars();
@@ -951,21 +957,24 @@ StmtNode Parser::parseStatement() {
 
 BodyNode Parser::parseBlock() {
     size_t offset = current_offset;
-    auto storage = m_currentFunc->local_variables;
-    BodyNode body;
-    body->loc_start = (*tkn)->loc;
+    auto storage = m_func->local_variables;
+    BodyNode body = std::make_unique<Body_Ast>();
+    m_body = body.get();
+    m_body->loc_start = (*tkn)->loc;
 
-    while (m_currentLexar->peek()->type != TokenType::CCurly) {
-        m_currentLexar->getNext();
-        body->body.push_back(parseStatement());
+    while (m_lexar->peek()->type != TokenType::CCurly) {
+        m_lexar->getNext();
+        m_body->body.push_back(parseStatement());
     }
-    m_currentLexar->getAndExpectNext(TokenType::CCurly);
+    m_lexar->getAndExpectNext(TokenType::CCurly);
+    m_body->loc_end = (*tkn)->loc;
 
     if (current_offset > max_locals_offset) max_locals_offset = current_offset;
 
-    m_currentFunc->local_variables = storage;
+    m_func->local_variables = storage;
     current_offset = offset;
 
+    return body;
 }
 void print_var(Variable var) {
     mlog::println("name: {}", var.name);
@@ -981,13 +990,13 @@ void print_var(Variable var) {
 }
 ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std::string func_prefix) {
     ExprResult data;
-    tkn = &m_currentLexar->currentToken;
+    tkn = &m_lexar->currentToken;
     Variable var;
     bool ret_lvalue = false;
 
 
     if ((*tkn)->type == TokenType::DQoute) {
-        m_currentLexar->getAndExpectNext(TokenType::StringLit);
+        m_lexar->getAndExpectNext(TokenType::StringLit);
         var = {
             .type = Type(
                 type_infos.at("string"),
@@ -998,7 +1007,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .size = 8,
         };
         m_program.var_storage.push_back(var);
-        m_currentLexar->getAndExpectNext(TokenType::DQoute);
+        m_lexar->getAndExpectNext(TokenType::DQoute);
         return {Load_Ast::make_node(var), ret_lvalue};
     }
 
@@ -1079,7 +1088,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         */
     }
     if ((*tkn)->type == TokenType::Mul) { 
-        m_currentLexar->getNext();
+        m_lexar->getNext();
         auto [var, lvalue] = parsePrimaryExpression();
         var = Deref_Ast::make_node(std::move(var));
         ret_lvalue = true;
@@ -1087,7 +1096,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
     }
     if ((*tkn)->type == TokenType::And) {
         Loc loc = (*tkn)->loc;
-        m_currentLexar->getNext();
+        m_lexar->getNext();
         auto [var, lvalue] = parsePrimaryExpression();
         auto var_ = dynamic_cast<Load_Ast*>(var.get());
         if (!lvalue) ERROR(loc, "cannot refernce a non lvalue");
@@ -1096,15 +1105,15 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
     }
 
     current_module_prefix = "";
-    if (m_currentLexar->peek()->type == TokenType::ColonColon) {
+    if (m_lexar->peek()->type == TokenType::ColonColon) {
         parseModulePrefix();
-        m_currentLexar->getAndExpectNext(TokenType::ID);
+        m_lexar->getAndExpectNext(TokenType::ID);
     }
 
-    std::string name      = current_module_prefix + m_currentLexar->currentToken->string_value;
-    std::string func_name = current_module_prefix + func_prefix + m_currentLexar->currentToken->string_value;
+    std::string name      = current_module_prefix + m_lexar->currentToken->string_value;
+    std::string func_name = current_module_prefix + func_prefix + m_lexar->currentToken->string_value;
     if ((*tkn)->type == TokenType::ID || (*tkn)->type == TokenType::TypeID) {
-        if (m_currentLexar->peek()->type == TokenType::OParen) {
+        if (m_lexar->peek()->type == TokenType::OParen) {
             if (!Func::is_in_storage(func_name, m_program.func_storage)) {
                 mlog::println("functions:");
                 for (auto& func : m_program.func_storage) {
@@ -1121,52 +1130,51 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             }
             if (!func.is_static && this_.type.info.id == TypeId::Typeid)
                 TODO("cannot use Typeid to call a non static function");
+            ExprNode result;
             if (!func.is_static)
-                parseFuncCall(func, this_ptr, var);
+                result = parseFuncCall(func, this_ptr, var);
             else 
-                parseFuncCall(func, {type_infos.at("void")}, var);
+                result = parseFuncCall(func, {type_infos.at("void")}, var);
             var.parent = nullptr;
-            TODO("unimplemented");
-            //return {var, ret_lvalue};
+            return {std::move(result), ret_lvalue};
         }
         if (type_infos.contains(name)) {
             TypeInfo type = type_infos.at(name);
             //Struct_literal
-                TODO("unimplemented");
-            /*
             if (type.kind == Kind::Struct) {
                 VariableStorage v{};
-                if (m_currentLexar->peek()->type == TokenType::OCurly) {
-                    m_currentLexar->getNext();
-                    while (m_currentLexar->peek()->type != TokenType::CCurly) {
-                        m_currentLexar->getNext();
-                        v.push_back(std::get<0>(parseExpression()));
-                        if (m_currentLexar->peek()->type == TokenType::Comma)
-                            m_currentLexar->getAndExpectNext(TokenType::Comma);
+                if (m_lexar->peek()->type == TokenType::OCurly) {
+                    m_lexar->getNext();
+                    while (m_lexar->peek()->type != TokenType::CCurly) {
+                        m_lexar->getNext();
+                        TODO("unimplemented");
+                        //v.push_back(std::get<0>(parseExpression()));
+                        if (m_lexar->peek()->type == TokenType::Comma)
+                            m_lexar->getAndExpectNext(TokenType::Comma);
                     }
-                    m_currentLexar->getAndExpectNext(TokenType::CCurly);
+                    m_lexar->getAndExpectNext(TokenType::CCurly);
                     // saving offset to make struct literal temporary
                     auto save_off  = current_offset;
-                    auto save_func = m_currentFunc;
+                    auto save_func = m_func;
                     auto strct = Struct::get_from_name(name, m_program.struct_storage);
-                    m_currentFunc = &default_func;
+                    m_func = &default_func;
                     var = initStruct(name, mlog::format("%%tmp%%{}", temp_count++));
-                    m_currentFunc  = save_func;
-                    for (size_t i = 0; i < var.members.size(); i++) {
-                        var.members[i].name = v[i].name;
-                        if (i < v.size()) {
-                            copy_val(v[i], var.members[i]);
-                        } else if (strct.defaults.contains(i)) {
-                            v.push_back(strct.defaults.at(i));
-                            copy_val(v[i], var.members[i]);
-                        } else {
-                            v.push_back({.type = type_infos.at("void")});
-                        }
-                        m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
-                    }
+                    m_func  = save_func;
+                    //for (size_t i = 0; i < var.members.size(); i++) {
+                    //    var.members[i].name = v[i].name;
+                    //    if (i < v.size()) {
+                    //        copy_val(v[i], var.members[i]);
+                    //    } else if (strct.defaults.contains(i)) {
+                    //        v.push_back(strct.defaults.at(i));
+                    //        copy_val(v[i], var.members[i]);
+                    //    } else {
+                    //        v.push_back({.type = type_infos.at("void")});
+                    //    }
+                    //    m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
+                    //}
                     if (current_offset > max_locals_offset) max_locals_offset = current_offset;
                     current_offset = save_off;
-                    return {var, false};
+                    return {Load_Ast::make_node(var), false};
                 }
             }
             var.name = type.name;
@@ -1174,51 +1182,50 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             var.type = type_infos.at("typeid");
             var.type.qualifiers = Qualifier::literal | Qualifier::constant;
             var.Int_val = (int64_t)type.id;
-            return {var, false};
-            */
+            return {Load_Ast::make_node(var), false};
         }
-        TODO("unimplemented");
-        /*
         if (this_ptr.type.info.kind != Kind::Void) {
             auto var_ = Variable::get_from_name(name, this_.members);
             var_.parent = new Variable;
             *var_.parent = this_;
-            return {var_, true};
+            return {Load_Ast::make_node(var_), true};
         } else if (Variable::is_in_storage((*tkn)->string_value, m_program.var_storage)) {
             var = Variable::get_from_name((*tkn)->string_value, m_program.var_storage);
-            return {var, true};
-        } else if (Variable::is_in_storage(name, m_currentFunc->local_variables)) {
-            var = Variable::get_from_name(name, m_currentFunc->local_variables);
+            return {Load_Ast::make_node(var), true};
+        } else if (Variable::is_in_storage(name, m_func->local_variables)) {
+            var = Variable::get_from_name(name, m_func->local_variables);
             ret_lvalue = true;
-            return {var, ret_lvalue};
+            return {Load_Ast::make_node(var), ret_lvalue};
         } else {
             TODO(mlog::format("ERROR: variable `{}` at {}:{}:{} wasn't found", name, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
         }
-        */
     }
 
     // Paranthesis
     if ((*tkn)->type == TokenType::OParen) {
-        m_currentLexar->getNext(); 
+        m_lexar->getNext(); 
         data = parseExpression();
         auto &[var, lvalue] = data;
-        m_currentLexar->getAndExpectNext(TokenType::CParen);
+        m_lexar->getAndExpectNext(TokenType::CParen);
         //return {var, ret_lvalue};
     }
 
     ERROR((*tkn)->loc, mlog::format("unexpected token of type {}", printableToken.at((*tkn)->type)));
 }
 ExprResult Parser::parseDotExpression(Variable this_ptr, Variable this_, std::string func_prefix) {
-    tkn = &m_currentLexar->currentToken;
-    auto lhs = parsePrimaryExpression(this_ptr, this_, func_prefix);
+    tkn = &m_lexar->currentToken;
+    auto [lhs, lvalue] = parsePrimaryExpression(this_ptr, this_, func_prefix);
 
-    if (m_currentLexar->peek()->type == TokenType::Dot) {
-        m_currentLexar->getAndExpectNext(TokenType::Dot);
-        m_currentLexar->getNext();
+    if (m_lexar->peek()->type == TokenType::Dot) {
+        m_lexar->getAndExpectNext(TokenType::Dot);
+        m_lexar->getNext();
         
-        TODO("parse dot");
-        /*
-        Variable lhs_var = std::get<0>(lhs);
+        Variable lhs_var;
+        if (auto lhs_node = dynamic_cast<Load_Ast*>(lhs.get())) {
+            lhs_var = lhs_node->var;
+        } else {
+            TODO("cannot do dot on expressions currently");
+        }
         if (lhs_var.parent == nullptr) {
             this_ptr = lhs_var;
             this_    = lhs_var;
@@ -1242,26 +1249,25 @@ ExprResult Parser::parseDotExpression(Variable this_ptr, Variable this_, std::st
 
         auto rhs = parseDotExpression(this_ptr, this_, func_prefix);
         return rhs;
-        */
     }
-    return lhs;
+    return {std::move(lhs), lvalue};
 }
 ExprResult Parser::parseUnaryExpression() {
-    tkn = &m_currentLexar->currentToken;
+    tkn = &m_lexar->currentToken;
 
-    TODO("unary");
-        /*
     if ((*tkn)->type == TokenType::Minus) {
-        m_currentLexar->getNext();
+        m_lexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
-        Variable result = make_temp_var(rhs.type);
-        if (rhs.type.qualifiers & Qualifier::literal) {
-            if (rhs.type.info.kind == Kind::Float) {
-                Variable::get_from_name(rhs.name, m_program.var_storage).Double_val = -rhs.Double_val;
-                return {rhs, false};
-            } else {
-                rhs.Int_val = -rhs.Int_val;
-                m_currentFunc->body.push_back({Op::STORE_VAR, {rhs, result}});
+        if (auto rhs_node = dynamic_cast<Load_Ast*>(rhs.get())) {
+            auto rhs_var = rhs_node->var;
+            if (rhs_var.type.qualifiers & Qualifier::literal) {
+                if (rhs_var.type.info.kind == Kind::Float) {
+                    Variable::get_from_name(rhs_var.name, m_program.var_storage).Double_val = -rhs_var.Double_val;
+                    return {Load_Ast::make_node(rhs_var), false};
+                } else {
+                    rhs_var.Int_val = -rhs_var.Int_val;
+                    return {Load_Ast::make_node(rhs_var), false};
+                }
             }
         } else {
             Variable zero   = {
@@ -1273,12 +1279,11 @@ ExprResult Parser::parseUnaryExpression() {
                 .Int_val = (int64_t)0,
                 .size = 1,
             };
-            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::SUB, zero, rhs, result}});
+            return {BinOp_Ast::make_node(Load_Ast::make_node(zero), std::move(rhs), BinOp::SUB), false};
         }
-        return {result, false};
     }
     if ((*tkn)->type == TokenType::Not) {
-        m_currentLexar->getNext();
+        m_lexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
         auto type = Type(TypeInfo::get_from_id(TypeId::Bool));
         Variable result = make_temp_var(type);
@@ -1291,81 +1296,65 @@ ExprResult Parser::parseUnaryExpression() {
             .Int_val = 0,
             .size = 1,
         };
-        m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::EQ, rhs, zero, result}});
-        return {result, false};
+        return {BinOp_Ast::make_node(std::move(rhs), Load_Ast::make_node(zero), BinOp::EQ), false};
     }
-    */
 
     return parseDotExpression();
 }
 ExprResult Parser::parseMultiplicativeExpression() {
-    tkn = &m_currentLexar->currentToken;
-    // TODO: fix this it should return lvalue not false
-    auto lhs = std::get<0>(parseUnaryExpression());
+    tkn = &m_lexar->currentToken;
+    auto [lhs, lvalue] = parseUnaryExpression();
 
     while ((*tkn)->type != TokenType::EndOfFile) {
-        auto peek = m_currentLexar->peek()->type;
+        auto peek = m_lexar->peek()->type;
         if (peek != TokenType::Mul && peek != TokenType::Div && peek != TokenType::Mod) break;
 
-        m_currentLexar->getNext();
+        m_lexar->getNext();
         auto op_type = (*tkn)->type;
-        m_currentLexar->getNext();
+        m_lexar->getNext();
         auto rhs = std::get<0>(parseUnaryExpression());
-
-        TODO("multiply");
-        /*
-        Variable result = make_temp_var(lhs.type);
+        lvalue = false;
 
         if (op_type == TokenType::Mul) {
-            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::MUL, lhs, rhs, result}});
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::MUL);
         } else if (op_type == TokenType::Div) {
-            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::DIV, lhs, rhs, result}});
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::DIV);
         } else if (op_type == TokenType::Mod) {
-            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::MOD, lhs, rhs, result}});
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::MOD);
         }
-
-        lhs = result;
-        */
     }
 
-    return {std::move(lhs), false};
+    return {std::move(lhs), lvalue};
 }
 ExprResult Parser::parseAdditiveExpression() {
-    tkn = &m_currentLexar->currentToken;
-    auto lhs = std::get<0>(parseMultiplicativeExpression());
+    tkn = &m_lexar->currentToken;
+    auto [lhs, lvalue] = parseMultiplicativeExpression();
 
     while ((*tkn)->type != TokenType::EndOfFile) {
-        TokenType peek = m_currentLexar->peek()->type;
+        TokenType peek = m_lexar->peek()->type;
         if (peek != TokenType::Plus && peek != TokenType::Minus) break;
 
-        m_currentLexar->getNext();
+        m_lexar->getNext();
         TokenType op_type = (*tkn)->type;
-        m_currentLexar->getNext();
+        m_lexar->getNext();
         auto rhs = std::get<0>(parseMultiplicativeExpression());
+        lvalue = false;
 
-
-        TODO("add");
-        /*
-        Variable result = make_temp_var(lhs.type);
         if (op_type == TokenType::Plus) {
-            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::ADD, lhs, rhs, result}});
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::ADD);
         } else {
-            m_currentFunc->body.push_back({Op::BIN_OP, {BinOp::SUB, lhs, rhs, result}});
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::SUB);
         }
-
-        lhs = result;
-        */
     }
 
-    return {std::move(lhs), false};
+    return {std::move(lhs), lvalue};
 }
 ExprResult Parser::parseCondition(int min_prec) {
-    tkn = &m_currentLexar->currentToken;
-    auto data = parseAdditiveExpression();
-    auto &[lhs, lvalue] = data;
+    tkn = &m_lexar->currentToken;
+    auto [lhs, lvalue] = parseAdditiveExpression();
 
     while ((*tkn)->type != TokenType::EndOfFile) {
-        auto peek = m_currentLexar->peek()->type;
+        auto peek = m_lexar->peek()->type;
         int prec = get_cond_precedence(peek);
         if (prec < min_prec) 
             break;
@@ -1384,18 +1373,11 @@ ExprResult Parser::parseCondition(int min_prec) {
                 return {std::move(lhs), lvalue};
         }
         // consume operator
-        m_currentLexar->getNext();
-        m_currentLexar->getNext();
+        m_lexar->getNext();
+        m_lexar->getNext();
 
-        /*
-        Variable rhs = std::get<0>(parseCondition(prec + 1));
-
-        Variable result = make_temp_var(TypeInfo::get_from_id(TypeId::Bool));
-
-        m_currentFunc->body.push_back({Op::BIN_OP, {op, lhs, rhs, result}});
-
-        lhs = result;
-        */
+        auto rhs = std::get<0>(parseCondition(prec + 1));
+        lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), op);
     }
 
     return {std::move(lhs), false};
@@ -1404,29 +1386,27 @@ ExprResult Parser::parseExpression() {
     return parseCondition(0);
 }
 
-void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_address) {
+ExprNode Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_address) {
     std::string loc = mlog::format("{}:{}:{}", (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset);
-    VariableStorage args{};
+    std::vector<Node> args{};
     size_t given_args_count = 0;
-    m_currentLexar->getAndExpectNext(TokenType::OParen);
-    if (this_ptr.type.info.kind != Kind::Void) args.push_back(this_ptr);
-    while (m_currentLexar->peek()->type != TokenType::CParen) {
-        m_currentLexar->getNext();
-        TODO("call func");
-        //args.push_back(std::get<0>(parseExpression()));
-        if (m_currentLexar->peek()->type != TokenType::CParen) {
-            m_currentLexar->getAndExpectNext(TokenType::Comma);
-            if (m_currentLexar->peek()->type == TokenType::CParen) {
+    m_lexar->getAndExpectNext(TokenType::OParen);
+    if (this_ptr.type.info.kind != Kind::Void) args.push_back(Load_Ast::make_node(this_ptr));
+    while (m_lexar->peek()->type != TokenType::CParen) {
+        m_lexar->getNext();
+        //TODO("call func");
+        args.push_back(std::get<0>(parseExpression()));
+        if (m_lexar->peek()->type != TokenType::CParen) {
+            m_lexar->getAndExpectNext(TokenType::Comma);
+            if (m_lexar->peek()->type == TokenType::CParen) {
                 ERROR((*tkn)->loc, "cannot do trailing commas in function calls");
             }
         }
         given_args_count++;
     }
-    m_currentLexar->getAndExpectNext(TokenType::CParen);
+    m_lexar->getAndExpectNext(TokenType::CParen);
     if (!func.variadic && !func.c_variadic) {
         if (func.arguments_count != given_args_count) {
-            for (auto& arg : args)
-                mlog::println("{} {}", arg.name, arg.type.info.name);
             mlog::println("----------------------");
             for (auto& arg : func.arguments)
                 mlog::println("{} {}", arg.name, arg.type.info.name);
@@ -1437,18 +1417,19 @@ void Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_addres
         }
         // TODO: check every argument
     }
-    //m_currentFunc->body.push_back({Op::CALL, {func, args, return_address}});
     func.is_used = true;
 
     m_currentFuncStorage = &m_program.func_storage;
     current_module_prefix = "";
+    return Call_Ast::make_node(func, std::move(args));
 }
 Func Parser::make_type_info_func(Struct s) {
     auto save = current_offset;
-    auto orig = m_currentFunc;
+    auto orig = m_func;
     uint32_t literal = Qualifier::literal | Qualifier::constant;
     Func fn = Func();
-    m_currentFunc = &fn;
+    m_func = &fn;
+    m_body = fn.body.get();
     fn.name = s.name + "___" + "type_info";
     *fn.type.func_data->return_type = Type(type_infos.at("TypeInfo"));
     fn.is_static = true;
@@ -1466,16 +1447,13 @@ Func Parser::make_type_info_func(Struct s) {
     fn.arguments_count = 0;
     fn.stack_size = 48;
     m_program.var_storage.push_back(name);
-    TODO("make fn");
-    //fn.body = {
-    //    {Op::INIT_STRING, {typeinfo.members[3]}},
-    //    {Op::STORE_VAR, {id  , typeinfo.members[0]}},
-    //    {Op::STORE_VAR, {type, typeinfo.members[1]}},
-    //    {Op::STORE_VAR, {size, typeinfo.members[2]}},
-    //    {Op::STORE_VAR, {name, typeinfo.members[3]}},
-    //    {Op::RETURN   , {typeinfo}}
-    //};
+    
+    fn.body->body.push_back(Store_Ast::make_node(typeinfo.members[0], Load_Ast::make_node(id)));
+    fn.body->body.push_back(Store_Ast::make_node(typeinfo.members[1], Load_Ast::make_node(type)));
+    fn.body->body.push_back(Store_Ast::make_node(typeinfo.members[2], Load_Ast::make_node(size)));
+    fn.body->body.push_back(Store_Ast::make_node(typeinfo.members[3], Load_Ast::make_node(name)));
+    fn.body->body.push_back(Return_Ast::make_node(Load_Ast::make_node(typeinfo)));
     current_offset = save;
-    m_currentFunc = orig;
+    m_func = orig;
     return fn;
 }

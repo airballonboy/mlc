@@ -13,7 +13,7 @@
 Memory ir::emitLoad(Loc loc, Variable var) { }
 Memory ir::emitRef(Loc loc, Variable var) { }
 Memory ir::emitDeref(Loc loc, Memory lhs) { }
-Memory ir::emitCall(Loc loc, Memory func, std::vector<Node> args) { }
+Memory ir::emitCall(Loc loc, Func& func, std::vector<Node> args) { }
 void   ir::emitLabel(Loc loc, std::string label) { }
 void   ir::emitJump(Loc loc, std::string label) { }
 void   ir::emitJumpIfNot(Loc loc, std::string label, Memory cond) { }

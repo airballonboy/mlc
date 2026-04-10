@@ -2,5 +2,6 @@
 
 
 Memory Call_Ast::codegen(BaseCodegen& cg) {
-    TODO("");
+    cg.emitCall(loc_start, func, std::move(args));
+    return {};
 }
