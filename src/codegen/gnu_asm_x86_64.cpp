@@ -182,18 +182,6 @@ Memory gnu_asm::emitCall(Loc loc, Func& func, std::vector<Node> args) {
         return mem_reg(Rax, *func.type.func_data->return_type);
     }
 }
-void gnu_asm::emitLabel(Loc loc, std::string label) {
-    output.appendf("  .L{}:\n", label);
-}
-void gnu_asm::emitJump(Loc loc, std::string label) {
-    output.appendf("    jmp .L{}\n", label);
-}
-void gnu_asm::emitJumpIfNot(Loc loc, std::string label, Memory cond) {
-    assert(cond.asm_mem.type == AsmType::Reg);
-    output.appendf("    testb {}, {}\n", cond.asm_mem.reg._8, cond.asm_mem.reg._8);
-    output.appendf("    jz .L{}\n", label);
-    free_mem(cond);
-}
 void gnu_asm::emitReturn(Loc loc, Memory ret) {
     if (m_program->platform == Platform::Windows) {
         if (ret.type.info.kind == Kind::Float) {
@@ -210,6 +198,7 @@ void gnu_asm::emitReturn(Loc loc, Memory ret) {
             if (ret.type.info.kind == Kind::Float) {
                 mov.append(ret, mem_reg(Xmm0), ret.type.info.size);
             } else if (ret.type.info.kind == Kind::Struct) {
+                TODO("emitReturn: linux");
                 if (Struct::get_from_name(ret.type.info.name, m_program->struct_storage).is_float_only) {
                     mov.append(ret, mem_reg(Xmm0), ret.type.info.size);
                 } else 
@@ -218,7 +207,6 @@ void gnu_asm::emitReturn(Loc loc, Memory ret) {
                 mov.append(ret, mem_reg(Rax), ret.type.info.size);
             }
         }
-        TODO("emitReturn: linux");
     }
     add.append(m_func->stack_size, Rsp);
     function_epilogue();
@@ -290,6 +278,19 @@ Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
     free_mem(lhs);
     free_mem(rhs);
     return out_reg;
+}
+
+void gnu_asm::emitLabel(Loc loc, std::string label) {
+    output.appendf("  .L{}:\n", label);
+}
+void gnu_asm::emitJump(Loc loc, std::string label) {
+    output.appendf("    jmp .L{}\n", label);
+}
+void gnu_asm::emitJumpIfNot(Loc loc, std::string label, Memory cond) {
+    assert(cond.asm_mem.type == AsmType::Reg);
+    output.appendf("    testb {}, {}\n", cond.asm_mem.reg._8, cond.asm_mem.reg._8);
+    output.appendf("    jz .L{}\n", label);
+    free_mem(cond);
 }
 
 gnu_asm::gnu_asm(Program *prog) : BaseCodegen(prog) {
