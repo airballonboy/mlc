@@ -172,3 +172,19 @@ void AsmInstruction::append(Register src, std::string global_label, Register des
                        global_label, REG_SIZE(dest, 8)
     );
 }
+
+Memory mem_off(int64_t off, Register reg, Type t) {
+    return {.mem_type = MemType::Asm, .type = t, .asm_mem = {.type = AsmType::OffReg, .off = off, .off_reg = reg}};
+}
+Memory mem_reg(Register reg, Type t) {
+    return {.mem_type = MemType::Asm, .type = t, .asm_mem = {.type = AsmType::Reg, .reg = reg}};
+}
+Memory mem_2reg(Register reg1, Register reg2, Type t) {
+    return {.mem_type = MemType::Asm, .type = t, .asm_mem = {.type = AsmType::Reg, .reg1 = reg1, .reg2 = reg2}};
+}
+Memory mem_global(const char* label, Register reg, Type t) {
+    return {.mem_type = MemType::Asm, .type = t, .asm_mem = {.type = AsmType::Global, .label = (char*)label, .label_reg = reg}};
+}
+Memory mem_array(int64_t disp, Register base, Register index, size_t scale, Type t) {
+    return {.mem_type = MemType::Asm, .type = t, .asm_mem = {.type = AsmType::ArrayIndex, .disp = disp, .base = base, .index = index, .scale = scale}};
+}

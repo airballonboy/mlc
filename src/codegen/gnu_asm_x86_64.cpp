@@ -21,60 +21,141 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
-Memory mem_off(int64_t off, Register reg) {
-    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::OffReg, .off = off, .off_reg = reg}};
+
+
+bool is_float_reg(Register reg) {return xmm.contains(reg._64);}
+
+static std::vector<std::pair<Register, bool>> available_reg = {
+    {Rax, true},
+    {Rbx, true},
+    {R13, true},
+    {R14, true},
+    {R15, true},
+};
+static std::vector<std::pair<Register, bool>> available_float_reg = {
+    {Xmm12, true},
+    {Xmm13, true},
+    {Xmm14, true},
+    {Xmm15, true},
+};
+
+Register get_available_int_reg() {
+    if (available_reg.size() < 1) TODO("no available Registers");
+    Register reg;
+    for (auto& [reg_, avail] : available_reg) {
+        if (avail) {
+            reg = reg_;
+            avail = false;
+            break;
+        }
+    }
+    return reg;
 }
-Memory mem_reg(Register reg) {
-    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::Reg, .reg = reg}};
+Register get_available_float_reg() {
+    if (available_float_reg.size() < 1) TODO("no available Registers");
+    Register reg;
+    for (auto& [reg_, avail] : available_float_reg) {
+        if (avail) {
+            reg = reg_;
+            avail = false;
+            break;
+        }
+    }
+    return reg;
 }
-Memory mem_2reg(Register reg1, Register reg2) {
-    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::Reg, .reg1 = reg1, .reg2 = reg2}};
+
+void free_int_reg(Register reg) {
+    if (r64.contains(reg._64)) {
+        for (auto& [reg_, avail] : available_reg) {
+            if (reg_._64 == reg._64) {
+                avail = true;
+                break;
+            }
+        }
+    } else 
+        TODO("register doesn't exist");
 }
-Memory mem_global(const char* label, Register reg) {
-    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::Global, .label = (char*)label, .label_reg = reg}};
+void free_float_reg(Register reg) {
+    if (xmm.contains(reg._64)) {
+        for (auto& [reg_, avail] : available_float_reg) {
+            if (reg_._64 == reg._64) {
+                avail = true;
+                break;
+            }
+        }
+    } else 
+        TODO("register doesn't exist");
 }
-Memory mem_array(int64_t disp, Register base, Register index, size_t scale) {
-    return {.mem_type = MemType::Asm, .asm_mem = {.type = AsmType::ArrayIndex, .disp = disp, .base = base, .index = index, .scale = scale}};
+void free_mem(Memory mem) {
+    switch (mem.asm_mem.type) {
+        case AsmType::Reg: {
+            if (is_float_reg(mem.asm_mem.reg))
+                free_float_reg(mem.asm_mem.reg);
+            else
+                free_int_reg(mem.asm_mem.reg);
+        } break;
+        case AsmType::OffReg: {
+            if (is_float_reg(mem.asm_mem.off_reg))
+                free_float_reg(mem.asm_mem.off_reg);
+            else
+                free_int_reg(mem.asm_mem.off_reg);
+        } break;
+
+        case AsmType::ArrayIndex: 
+        case AsmType::Global: 
+        case AsmType::None:
+        default:
+            TODO("");
+    }
 }
+
+#define WARNING(...) mlog::println("\nWarning: {}\n", mlog::format(__VA_ARGS__))
+
+
+
+
 Memory gnu_asm::emitLoad(Loc loc, Variable var) {
+    auto reg = var.type.info.kind == Kind::Float ? get_available_float_reg() : get_available_int_reg();
+    Memory mem;
     if (var.type.qualifiers & Qualifier::literal) {
         if (var.type.info.kind == Kind::Int)
-            mov.append(var.Int_val, Rax);
+            mov.append(var.Int_val, reg);
         else if (var.type.info.kind == Kind::String)
-            lea.append(var.name, Rip, Rax);
+            lea.append(var.name, Rip, reg);
         else if (var.type.info.kind == Kind::Float) {
-            movs.append(var.name, Rip, Xmm0);
-            return mem_reg(Xmm0);
+            movs.append(var.name, Rip, reg);
+            mem =  mem_reg(reg, var.type);
         } else
             TODO("unknown type of literal");
-        return mem_reg(Rax);
+        mem = mem_reg(reg, var.type);
     } else if (var.type.qualifiers & Qualifier::global) {
-        mov.append(mem_global(var.name.c_str(), Rip), mem_reg(Rax), var.size);
-        return mem_reg(Rax);
+        mov.append(mem_global(var.name.c_str(), Rip), mem_reg(reg), var.size);
+        mem = mem_reg(reg, var.type);
     } else {
         if (var.size <= 8) {
             if (var.type.info.kind == Kind::Float) {
-                movs.append(mem_off(-var.offset, Rbp), mem_reg(Xmm0), var.size);
-                return mem_reg(Xmm0);
+                movs.append(mem_off(-var.offset, Rbp), mem_reg(reg), var.size);
+                mem = mem_reg(reg, var.type);
             } else {
-                mov.append(mem_off(-var.offset, Rbp), mem_reg(Rax), var.size);
-                return mem_reg(Rax);
+                mov.append(mem_off(-var.offset, Rbp), mem_reg(reg), var.size);
+                mem = mem_reg(reg, var.type);
             }
         } else if (var.size <= 16) {
-            mov.append(mem_off(-var.offset, Rbp), mem_reg(Rax), 8);
+            mov.append(mem_off(-var.offset, Rbp), mem_reg(reg), 8);
             mov.append(mem_off(-var.offset + 8, Rbp), mem_reg(Rdx), var.size - 8);
-            return mem_2reg(Rax, Rdx);
+            mem = mem_2reg(reg, Rdx, var.type);
         } else {
-            lea.append(mem_off(-var.offset, Rbp), mem_reg(Rax), var.size);
-            return mem_off(0, Rax);
+            lea.append(mem_off(-var.offset, Rbp), mem_reg(reg), var.size);
+            mem = mem_off(0, reg, var.type);
         }
     }
+    return mem;
 }
 
 Memory gnu_asm::emitRef(Loc loc, Variable var) {
     assert(var.parent == nullptr);
     lea.append(var.offset, Rbp, Rax, var.size);
-    return mem_reg(Rax);
+    return mem_reg(Rax, var.type);
 }
 Memory gnu_asm::emitDeref(Loc loc, Memory lhs) {
     assert(lhs.type.info.kind == Kind::Pointer || lhs.type.info.id == TypeIds.at("pointer"));
@@ -96,9 +177,9 @@ Memory gnu_asm::emitCall(Loc loc, Func& func, std::vector<Node> args) {
     output.appendf("    call {}\n", func.name);
 
     if (func.type.func_data->return_type->info.kind == Kind::Float) {
-        return mem_reg(Xmm0);
+        return mem_reg(Xmm0, *func.type.func_data->return_type);
     } else {
-        return mem_reg(Rax);
+        return mem_reg(Rax, *func.type.func_data->return_type);
     }
 }
 void gnu_asm::emitLabel(Loc loc, std::string label) {
@@ -111,6 +192,7 @@ void gnu_asm::emitJumpIfNot(Loc loc, std::string label, Memory cond) {
     assert(cond.asm_mem.type == AsmType::Reg);
     output.appendf("    testb {}, {}\n", cond.asm_mem.reg._8, cond.asm_mem.reg._8);
     output.appendf("    jz .L{}\n", label);
+    free_mem(cond);
 }
 void gnu_asm::emitReturn(Loc loc, Memory ret) {
     if (m_program->platform == Platform::Windows) {
@@ -141,30 +223,34 @@ void gnu_asm::emitReturn(Loc loc, Memory ret) {
     add.append(m_func->stack_size, Rsp);
     function_epilogue();
     output.append("    ret\n");
+    free_mem(ret);
 }
 Memory gnu_asm::emitStore(Loc loc, Memory lhs, Memory rhs) {
     assert(lhs.asm_mem.type != AsmType::Reg);
     mov.append(rhs, lhs);
+    free_mem(rhs);
     return lhs;
 }
 Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
     auto is_float_op = lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float;
     auto op_size = std::max(lhs.type.info.size, rhs.type.info.size);
     auto bin_op = get_binop(op, is_float_op);
+    auto out_reg = is_float_op ? mem_reg(Xmm0, lhs.type) : mem_reg(Rax, lhs.type);
+    auto& mov_inst = is_float_op ? movs : mov;
     
     switch (op) {
         case BinOp::SUB:
         case BinOp::MUL: 
         case BinOp::ADD: 
             bin_op.append(rhs, lhs, op_size);
-            mov.append(lhs, mem_reg(Rax));
+            mov_inst.append(lhs, out_reg);
             break;
         case BinOp::DIV:
         case BinOp::MOD:
             if (is_float_op) {
                 if (op == BinOp::MOD) TODO("no operator mod for floats");
                 bin_op.append(rhs, lhs, op_size);
-                mov.append(lhs, mem_reg(Rax));
+                mov_inst.append(lhs, out_reg);
             } else {
                 mov.append(lhs, mem_reg(Rax));
                 output.append("    cqto\n");
@@ -172,6 +258,7 @@ Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
                 if (op != BinOp::DIV) {
                     mov.append(Rdx, Rax, op_size);
                 }
+                mov.append(mem_reg(Rax), out_reg, op_size);
             }
             break;
         case BinOp::EQ:
@@ -200,88 +287,11 @@ Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
             //mov_var(reg1, result);
         }break;
     }
-    return {};
+    free_mem(lhs);
+    free_mem(rhs);
+    return out_reg;
 }
 
-static std::vector<std::pair<Register, bool>> available_float_reg = {
-    {Xmm12, true},
-    {Xmm13, true},
-    {Xmm14, true},
-    {Xmm15, true},
-};
-Register get_available_float_reg() {
-    if (available_float_reg.size() < 1) TODO("no available Registers");
-    Register reg;
-    for (auto& [reg_, avail] : available_float_reg) {
-        if (avail) {
-            reg = reg_;
-            avail = false;
-            break;
-        }
-    }
-    return reg;
-}
-
-void free_float_reg(Register reg) {
-    for (auto& [reg_, avail] : available_float_reg) {
-        if (reg_._64 == reg._64)
-            if (avail == true)
-                return;
-    }
-    if (xmm.contains(reg._64)) {
-        for (auto& [reg_, avail] : available_float_reg) {
-            if (reg_._64 == reg._64) {
-                avail = true;
-                break;
-            }
-        }
-    } else 
-        TODO("register doesn't exist");
-}
-static std::vector<std::pair<Register, bool>> available_reg = {
-    {Rax, true},
-    {Rbx, true},
-    {R13, true},
-    {R14, true},
-    {R15, true},
-};
-Register get_available_int_reg() {
-    if (available_reg.size() < 1) TODO("no available Registers");
-    Register reg;
-    for (auto& [reg_, avail] : available_reg) {
-        if (avail) {
-            reg = reg_;
-            avail = false;
-            break;
-        }
-    }
-    return reg;
-}
-
-void free_int_reg(Register reg) {
-    for (auto& [reg_, avail] : available_reg) {
-        if (reg_._64 == reg._64)
-            if (avail == true)
-                return;
-    }
-    if (r64.contains(reg._64)) {
-        for (auto& [reg_, avail] : available_reg) {
-            if (reg_._64 == reg._64) {
-                avail = true;
-                break;
-            }
-        }
-    } else 
-        TODO("register doesn't exist");
-}
-bool is_float_reg(Register reg) {
-    return xmm.contains(reg._64);
-}
-
-#define WARNING(...) mlog::println("\nWarning: {}\n", mlog::format(__VA_ARGS__))
-
-
-#define REG_SIZE(REG, SIZE)   (SIZE) == 8 ? (REG)._64 : (SIZE) == 4 ? (REG)._32 : (SIZE) == 2 ? (REG)._16 : (REG)._8 
 gnu_asm::gnu_asm(Program *prog) : BaseCodegen(prog) {
     if (m_program->platform == Platform::Windows) {
         arg_register = {

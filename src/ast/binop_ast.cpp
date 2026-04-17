@@ -6,5 +6,5 @@
 Memory BinOp_Ast::codegen(BaseCodegen& cg) {
     auto lhs_mem = lhs->codegen(cg);
     auto rhs_mem = rhs->codegen(cg);
-    return cg.emitBinOp({}, binop, lhs_mem, rhs_mem);
+    return cg.emitBinOp(loc_start, binop, lhs_mem, rhs_mem);
 }

@@ -1207,7 +1207,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         data = parseExpression();
         auto &[var, lvalue] = data;
         m_lexar->getAndExpectNext(TokenType::CParen);
-        //return {var, ret_lvalue};
+        return {std::move(var), ret_lvalue};
     }
 
     ERROR((*tkn)->loc, mlog::format("unexpected token of type {}", printableToken.at((*tkn)->type)));
