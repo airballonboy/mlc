@@ -397,6 +397,7 @@ void gnu_asm::compileConstant(Variable var) {
 }
 void gnu_asm::compileFunction(Func& func) {
     // if the function doesn't return you make it return 0
+    m_func = &func;
     bool returned = false;
     bool is_member = func.arguments.size() > 0 && func.name.starts_with(func.arguments[0].type.info.name) && func.arguments[0].name == "this";
     auto ret_type = *func.type.func_data->return_type.get();
