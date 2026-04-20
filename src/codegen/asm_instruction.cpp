@@ -41,6 +41,7 @@ void AsmInstruction::append(Memory src, Memory dest, size_t size) {
     if (src.asm_mem.type == AsmType::Reg) {
         switch (dest.asm_mem.type) {
         case AsmType::Reg:
+            if (src.asm_mem.reg._64 == dest.asm_mem.reg._64) break;
             append(src.asm_mem.reg, dest.asm_mem.reg, size);
             break;
         case AsmType::OffReg:

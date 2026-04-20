@@ -777,11 +777,9 @@ StmtNode Parser::parseStatement() {
         }break;//TokenType::OCurly
         case TokenType::Return: {
             Node return_value;
-            m_lexar->getNext();
-
-            if ((*tkn)->type == TokenType::SemiColon) {
-                if (m_func->type.func_data->return_type->info.kind == Kind::Void) TODO("error on no return");
-                return_value = std::make_unique<Load_Ast>(Variable{
+            if (m_lexar->peek()->type == TokenType::SemiColon) {
+                if (m_func->type.func_data->return_type->info.kind != Kind::Void) TODO("error on no return");
+                return_value = Load_Ast::make_node(Variable{
                     .type    = Type(
                         type_infos.at("int8"),
                         Qualifier::literal | Qualifier::constant
@@ -791,6 +789,7 @@ StmtNode Parser::parseStatement() {
                     .size    = 1,
                 });
             } else {
+                m_lexar->getNext();
                 return_value = std::get<0>(parseExpression());
             }
             stmt = Return_Ast::make_node(std::move(return_value));
@@ -911,6 +910,10 @@ StmtNode Parser::parseStatement() {
                 default_val.name = "def_value";
                 default_val.Int_val = std::any_cast<int64_t>(Variable::default_value(default_val.type));
                 stmt = Store_Ast::make_node(var, Load_Ast::make_node(default_val));
+            } else if (var.type.info.kind == Kind::Struct) {
+                stmt = Load_Ast::make_node({.type = var.type});
+            } else {
+                TODO("error");
             }
 
             m_lexar->getAndExpectNext(TokenType::SemiColon);

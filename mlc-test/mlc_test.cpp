@@ -47,8 +47,9 @@ int main () {
         bool test_result = false;
         string&& test_output = "";
         if (build_status == 0) {
-            auto [test_status, test_output] = cmd_with_output("{}", output_file);
-            test_output_match = (test_output == output);
+            auto [test_status, test_output_] = cmd_with_output("{}", output_file);
+            test_output_match = (test_output_ == output);
+            test_output = test_output_;
             test_result = (test_status == 0) && test_output_match;
             // Delete output files after testing them
             fs::remove(output_file);
@@ -60,16 +61,16 @@ int main () {
 
         if (build_status != 0) {
             total_output += format("[ERROR] build couldn't complete\n");
-            total_output += format("  on file: {}:\n", test);
-            total_output += format("    error     = `{}`\n", escape_new_lines(err));
-            total_output += format("    exit_code = {}\n", build_status);
+            total_output += format("  On file: {}:\n", test);
+            total_output += format("    Error     = `{}`\n", escape_new_lines(err));
+            total_output += format("    Exit_code = {}\n", build_status);
         }
 
         if (!test_output_match) {
             total_output += format("[ERROR] output mismatch\n");
-            total_output += format("  on file: {}:\n", test);
-            total_output += format("    expected \"{}\"\n", escape_new_lines(output));
-            total_output += format("    but got  \"{}\"\n", escape_new_lines(test_output));
+            total_output += format("  On file: {}:\n", test);
+            total_output += format("    Expected \"{}\"\n", escape_new_lines(output));
+            total_output += format("    But got  \"{}\"\n", escape_new_lines(test_output));
         }
 
         if (build_status != 0) number_of_faild_builds += 1;

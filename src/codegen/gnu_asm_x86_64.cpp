@@ -166,13 +166,15 @@ Memory gnu_asm::emitDeref(Loc loc, Memory lhs) {
 }
 Memory gnu_asm::emitCall(Loc loc, Func& func, std::vector<Node> args) {
     for (size_t i = 0, f = 0, j = 0; j < args.size(); j++) {
+        auto arg_mem = args[j]->codegen(*this);
         if (args[j]->type.info.kind == Kind::Float) {
-            mov.append(args[j]->codegen(*this), mem_reg(arg_register_float[f]));
+            mov.append(arg_mem, mem_reg(arg_register_float[f]));
             f++;
         } else {
-            mov.append(args[j]->codegen(*this), mem_reg(arg_register[i]));
+            mov.append(arg_mem, mem_reg(arg_register[i]));
             i++;
         }
+        free_mem(arg_mem);
     }
     output.appendf("    call {}\n", func.name);
 
@@ -222,6 +224,7 @@ Memory gnu_asm::emitStore(Loc loc, Memory lhs, Memory rhs) {
 Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
     auto is_float_op = lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float;
     auto op_size = std::max(lhs.type.info.size, rhs.type.info.size);
+    if (op_size < 2) op_size = 2;
     auto bin_op = get_binop(op, is_float_op);
     auto out_reg = is_float_op ? mem_reg(Xmm0, lhs.type) : mem_reg(Rax, lhs.type);
     auto& mov_inst = is_float_op ? movs : mov;
@@ -618,24 +621,6 @@ void gnu_asm::compileFunction(Func& func) {
                         }
                     }
                 }
-            }break;
-            case Op::JUMP_IF_NOT: {
-                std::string label = std::get<std::string>(inst.args[0]);
-                Variable    expr = std::get<Variable>(inst.args[1]);
-                auto reg = get_available_int_reg();
-                mov_var(expr, reg);
-                output.appendf("    testb {}, {}\n", reg._8, reg._8);
-                output.appendf("    jz L{}\n", label);
-                free_int_reg(reg);
-            }break;
-            case Op::JUMP: {
-                std::string label = std::get<std::string>(inst.args[0]);
-                output.appendf("    jmp L{}\n", label);
-            }break;
-            case Op::LABEL: {
-                std::string label = std::get<std::string>(inst.args[0]);
-
-                output.appendf("L{}:\n", label);
             }break;
             case Op::BIN_OP: {
                 BinOp    op  = std::get<BinOp>(inst.args[0]);

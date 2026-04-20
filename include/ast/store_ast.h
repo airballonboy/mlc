@@ -18,8 +18,9 @@ public:
         return x;
     }
     static std::unique_ptr<Store_Ast> make_node(Node _lhs, Node _rhs) {
+        auto t = _lhs->type;
         auto x = std::make_unique<Store_Ast>(std::move(_lhs), std::move(_rhs));
-        x->type = _lhs->type;
+        x->type = t;
         return x;
     }
 };

@@ -14,8 +14,9 @@ public:
 public:
     Memory codegen(BaseCodegen& cg) override;
     static std::unique_ptr<Deref_Ast> make_node(Node _lhs) {
+        auto t = _lhs->type;
         auto x = std::make_unique<Deref_Ast>(std::move(_lhs));
-        x->type = _lhs->type;
+        x->type = t;
         return x;
     }
 };
