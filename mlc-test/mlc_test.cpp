@@ -51,6 +51,9 @@ int main () {
             test_output_match = (test_output == output);
             test_result = (test_status == 0) && test_output_match;
             // Delete output files after testing them
+#if defined(WIN32)
+            output_file += ".exe";
+#endif
             fs::remove(output_file);
         }
         string pretty_test_name = remove_substr(test, "mlc-test/");
