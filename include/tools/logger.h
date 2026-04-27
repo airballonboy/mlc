@@ -81,6 +81,7 @@ inline void error(const char* prefix, const char* errorMassage)
 #define TODO(x) \
     do { \
         mlog::log("TODO: ", mlog::Blue, mlog::format("\n   {}:{} \033[{}m{}\033[0m", __FILE_NAME__, __LINE__, mlog::Red, x).c_str()); \
+        /*asm("int3");*/ \
         exit(1); \
     }while(0)
 #endif

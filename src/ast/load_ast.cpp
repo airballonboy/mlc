@@ -6,5 +6,5 @@ Memory Load_Ast::codegen(BaseCodegen& cg) {
     return cg.emitLoad(loc_start, var);
 }
 Memory Load_Ast::codegen_ptr(BaseCodegen& cg) {
-    return Memory{.asm_mem = {.type = AsmType::OffReg,.off = -var.offset, .off_reg = Rbp}};
+    return cg.getVarPtr(loc_start, var);
 }

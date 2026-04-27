@@ -22,7 +22,7 @@ public:
     void mov_var(Register src   , Variable dest);
     void mov_var(Variable src   , Variable dest);
     void mov_member(Variable src, Register dest);
-    void mov_member(Register src, Variable dest);
+    Memory get_member_ptr(Variable var);
     void deref(Register, int64_t deref_count);
     void cast_float_size(Register reg, size_t orig_size, size_t new_size);
     void cast_int_size(Register reg, size_t orig_size, size_t new_size);
@@ -38,6 +38,7 @@ public:
     Memory emitCall(Loc loc, Func& func, std::vector<Node> args) override;
     Memory emitStore(Loc loc, Memory lhs, Memory rhs) override;
     Memory emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) override;
+    Memory getVarPtr(Loc loc, Variable var) override;
 
 public:
     std::vector<Register> arg_register;

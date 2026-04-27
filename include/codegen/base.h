@@ -20,9 +20,10 @@ public:
     virtual Memory emitLoad(Loc loc, Variable var)                        {TODO("unimplemented");}
     virtual Memory emitRef(Loc loc, Variable var)                         {TODO("unimplemented");}
     virtual Memory emitDeref(Loc loc, Memory lhs)                         {TODO("unimplemented");}
-    virtual Memory emitCall(Loc loc, Func& func, std::vector<Node> args) {TODO("unimplemented");}
+    virtual Memory emitCall(Loc loc, Func& func, std::vector<Node> args)  {TODO("unimplemented");}
     virtual Memory emitStore(Loc loc, Memory lhs, Memory rhs)             {TODO("unimplemented");}
     virtual Memory emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs)   {TODO("unimplemented");}
+    virtual Memory getVarPtr(Loc loc, Variable var)                       {TODO("unimplemented");}
 protected:
     Program* m_program;
     Func*    m_func;

@@ -238,6 +238,7 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
     //default
     int strct_offset = 0;
     Struct* strct = nullptr;
+    save_defaults = false; //TODO: disabaled
 
     strct = &Struct::get_from_name(type_name, m_program.struct_storage); 
 
@@ -911,7 +912,7 @@ StmtNode Parser::parseStatement() {
                 default_val.Int_val = std::any_cast<int64_t>(Variable::default_value(default_val.type));
                 stmt = Store_Ast::make_node(var, Load_Ast::make_node(default_val));
             } else if (var.type.info.kind == Kind::Struct) {
-                stmt = Load_Ast::make_node({.type = var.type});
+                stmt = Empty_Ast::make_node();
             } else {
                 TODO("error");
             }
@@ -920,7 +921,10 @@ StmtNode Parser::parseStatement() {
         }break;//TokenType::TypeID
         default: {
         defau:
-            auto [lhs, lvalue] = parseDotExpression();
+            auto no_del = [](Expression_Ast*) {};
+            auto [lhs_ptr, lvalue] = parseDotExpression();
+            auto lhs = lhs_ptr.release();
+
             auto peek_type = m_lexar->peek()->type;
 
             if (lvalue) {
@@ -931,23 +935,23 @@ StmtNode Parser::parseStatement() {
 
                     switch (peek_type) {
                     case TokenType::Eq:
-                        stmt = Store_Ast::make_node(std::move(rhs), std::move(lhs));
+                        stmt = Store_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs));
                         break;
                     case TokenType::PlusEq:
-                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::ADD), std::move(lhs));
+                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), BinOp::ADD), std::move(std::unique_ptr<Expression_Ast>(lhs)));
                         break;
                     case TokenType::MinusEq:
-                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::SUB), std::move(lhs));
+                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), BinOp::SUB), std::move(std::unique_ptr<Expression_Ast>(lhs)));
                         break;
                     case TokenType::MulEq:
-                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::MUL), std::move(lhs));
+                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), BinOp::MUL), std::move(std::unique_ptr<Expression_Ast>(lhs)));
                         break;
                     default: TODO("unsupported Token found");
                     }
 
                 }
             } else {
-                stmt = std::move(lhs);
+                stmt = std::move(std::unique_ptr<Expression_Ast>(lhs));
             }
 
             m_lexar->getAndExpectNext(TokenType::SemiColon);
@@ -1145,13 +1149,12 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             TypeInfo type = type_infos.at(name);
             //Struct_literal
             if (type.kind == Kind::Struct) {
-                VariableStorage v{};
+                std::vector<ExprNode> v{};
                 if (m_lexar->peek()->type == TokenType::OCurly) {
                     m_lexar->getNext();
                     while (m_lexar->peek()->type != TokenType::CCurly) {
                         m_lexar->getNext();
-                        TODO("unimplemented");
-                        //v.push_back(std::get<0>(parseExpression()));
+                        v.push_back(std::get<0>(parseExpression()));
                         if (m_lexar->peek()->type == TokenType::Comma)
                             m_lexar->getAndExpectNext(TokenType::Comma);
                     }
@@ -1162,19 +1165,17 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     auto strct = Struct::get_from_name(name, m_program.struct_storage);
                     m_func = &default_func;
                     var = initStruct(name, mlog::format("%%tmp%%{}", temp_count++));
+                    var.type.qualifiers |= Qualifier::constant;
                     m_func  = save_func;
-                    //for (size_t i = 0; i < var.members.size(); i++) {
-                    //    var.members[i].name = v[i].name;
-                    //    if (i < v.size()) {
-                    //        copy_val(v[i], var.members[i]);
-                    //    } else if (strct.defaults.contains(i)) {
-                    //        v.push_back(strct.defaults.at(i));
-                    //        copy_val(v[i], var.members[i]);
-                    //    } else {
-                    //        v.push_back({.type = type_infos.at("void")});
-                    //    }
-                    //    m_currentFunc->body.push_back({Op::STORE_VAR, {v[i], var.members[i]}});
-                    //}
+                    for (size_t i = 0; i < var.members.size(); i++) {
+                        if (i < v.size()) {
+                        } else if (strct.defaults.contains(i)) {
+                            v.push_back(Load_Ast::make_node(strct.defaults.at(i)));
+                        } else {
+                            v.push_back(Load_Ast::make_node({.type = type_infos.at("void")}));
+                        }
+                        m_body->body.push_back(Store_Ast::make_node(var.members[i], std::move(v[i])));
+                    }
                     if (current_offset > max_locals_offset) max_locals_offset = current_offset;
                     current_offset = save_off;
                     return {Load_Ast::make_node(var), false};

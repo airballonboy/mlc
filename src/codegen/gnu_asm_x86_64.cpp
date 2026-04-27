@@ -21,6 +21,7 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
+#define DEBUG_NODES false
 
 
 bool is_float_reg(Register reg) {return xmm.contains(reg._64);}
@@ -115,6 +116,7 @@ void free_mem(Memory mem) {
 
 
 Memory gnu_asm::emitLoad(Loc loc, Variable var) {
+    if (DEBUG_NODES) mlog::println("emitLoad [name: {}, type: {}]", var.name, var.type.info.name);
     auto reg = var.type.info.kind == Kind::Float ? get_available_float_reg() : get_available_int_reg();
     Memory mem;
     if (var.type.qualifiers & Qualifier::literal) {
@@ -131,6 +133,9 @@ Memory gnu_asm::emitLoad(Loc loc, Variable var) {
     } else if (var.type.qualifiers & Qualifier::global) {
         mov.append(mem_global(var.name.c_str(), Rip), mem_reg(reg), var.size);
         mem = mem_reg(reg, var.type);
+    } else if (var.parent != nullptr) {
+        mov_member(var, reg);
+        mem = mem_reg(reg);
     } else {
         if (var.size <= 8) {
             if (var.type.info.kind == Kind::Float) {
@@ -153,11 +158,13 @@ Memory gnu_asm::emitLoad(Loc loc, Variable var) {
 }
 
 Memory gnu_asm::emitRef(Loc loc, Variable var) {
+    if (DEBUG_NODES) mlog::println("emitRef");
     assert(var.parent == nullptr);
     lea.append(var.offset, Rbp, Rax, var.size);
     return mem_reg(Rax, var.type);
 }
 Memory gnu_asm::emitDeref(Loc loc, Memory lhs) {
+    if (DEBUG_NODES) mlog::println("emitDeref");
     assert(lhs.type.info.kind == Kind::Pointer || lhs.type.info.id == TypeIds.at("pointer"));
     assert(lhs.asm_mem.type == AsmType::Reg);
     assert(lhs.type.ptr_data->pointee->info.size <= 8);
@@ -165,6 +172,7 @@ Memory gnu_asm::emitDeref(Loc loc, Memory lhs) {
     return lhs;
 }
 Memory gnu_asm::emitCall(Loc loc, Func& func, std::vector<Node> args) {
+    if (DEBUG_NODES) mlog::println("emitCall");
     for (size_t i = 0, f = 0, j = 0; j < args.size(); j++) {
         auto arg_mem = args[j]->codegen(*this);
         if (args[j]->type.info.kind == Kind::Float) {
@@ -185,6 +193,7 @@ Memory gnu_asm::emitCall(Loc loc, Func& func, std::vector<Node> args) {
     }
 }
 void gnu_asm::emitReturn(Loc loc, Memory ret) {
+    if (DEBUG_NODES) mlog::println("emitReturn");
     if (m_program->platform == Platform::Windows) {
         if (ret.type.info.kind == Kind::Float) {
             mov.append(ret, mem_reg(Xmm0));
@@ -215,13 +224,34 @@ void gnu_asm::emitReturn(Loc loc, Memory ret) {
     output.append("    ret\n");
     free_mem(ret);
 }
+Memory gnu_asm::getVarPtr(Loc loc, Variable var) {
+    Memory mem;
+    if (var.parent == nullptr) {
+        mem = mem_off(-var.offset, Rbp);
+    } else {
+        mem = get_member_ptr(var);
+    }
+    mem.type = var.type;
+    return mem;
+}
 Memory gnu_asm::emitStore(Loc loc, Memory lhs, Memory rhs) {
+    if (DEBUG_NODES) mlog::println("emitStore [type: {}]", lhs.type.info.name);
     assert(lhs.asm_mem.type != AsmType::Reg);
-    mov.append(rhs, lhs);
+    if (lhs.type.info.size > 8) {
+        output.appendf("    cld\n");
+        mov.append(rhs, mem_reg(Rsi));
+        lea.append(lhs, mem_reg(Rdi));
+        mov.append(lhs.type.info.size, Rcx);
+        output.appendf("    rep movsb\n");
+        TODO("");
+    } else {
+        mov.append(rhs, lhs);
+    }
     free_mem(rhs);
     return lhs;
 }
 Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
+    if (DEBUG_NODES) mlog::println("emitBinOp");
     auto is_float_op = lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float;
     auto op_size = std::max(lhs.type.info.size, rhs.type.info.size);
     if (op_size < 2) op_size = 2;
@@ -284,12 +314,15 @@ Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
 }
 
 void gnu_asm::emitLabel(Loc loc, std::string label) {
+    if (DEBUG_NODES) mlog::println("emitLabel");
     output.appendf("  .L{}:\n", label);
 }
 void gnu_asm::emitJump(Loc loc, std::string label) {
+    if (DEBUG_NODES) mlog::println("emitJump");
     output.appendf("    jmp .L{}\n", label);
 }
 void gnu_asm::emitJumpIfNot(Loc loc, std::string label, Memory cond) {
+    if (DEBUG_NODES) mlog::println("emitJumpIfNot");
     assert(cond.asm_mem.type == AsmType::Reg);
     output.appendf("    testb {}, {}\n", cond.asm_mem.reg._8, cond.asm_mem.reg._8);
     output.appendf("    jz .L{}\n", label);
@@ -1151,10 +1184,10 @@ void gnu_asm::call_func(Func& func, VariableStorage args) {
         call_func_linux(func, args);
     }
 }
-void gnu_asm::mov_member(Register src, Variable dest) {
-    Variable current = dest;
-    Variable* parent = dest.parent;
-    size_t off = 0;
+Memory gnu_asm::get_member_ptr(Variable var) {
+    Variable current = var;
+    Variable* parent = var.parent;
+    int64_t off = 0;
     Register reg = get_available_int_reg();
     if (parent == nullptr)
         off = current.offset;
@@ -1171,31 +1204,20 @@ void gnu_asm::mov_member(Register src, Variable dest) {
             mov_member(*parent, reg);
             parent->deref_count = get_ptr_count(parent->type) - 1;
             deref(reg, parent->deref_count);
-            //mov_var(current.offset, reg, reg);
-            if (is_float_reg(src))
-                movs.append(src, off, reg, dest.size);
-            else 
-                mov.append(src, off, reg, dest.size);
             free_int_reg(reg);
-            return;
+            return mem_off(off, reg);
         }
         current = *current.parent;
     }
-    if (dest.deref_count > 0) {
-        dest.deref_count -= 1;
-        mov.append(-off, Rbp, reg);
-        deref(reg, dest.deref_count);
-        if (is_float_reg(src))
-            movs.append(src, 0, reg, dest.size);
-        else 
-            mov.append(src, 0, reg, dest.size);
-    } else {
-        if (is_float_reg(src))
-            movs.append(src, -off, Rbp, dest.size);
-        else 
-            mov.append(src, -off, Rbp, dest.size);
-    }
     free_int_reg(reg);
+    if (var.deref_count > 0) {
+        var.deref_count -= 1;
+        mov.append(-off, Rbp, reg);
+        deref(reg, var.deref_count);
+        return mem_off(0, reg);
+    } else {
+        return mem_off(-off, Rbp);
+    }
 }
 void gnu_asm::mov_member(Variable src, Register dest) {
     Variable current = src;
@@ -1209,11 +1231,9 @@ void gnu_asm::mov_member(Variable src, Register dest) {
             off = current.offset - off;
             break;
         }
-        //mlog::println("curr {}, par {}", current.name, parent->name);
         off += current.offset;
         if (parent->type.info.kind != Kind::Pointer) {
         } else {
-            //mlog::println("deref => curr {}, par {}", current.name, parent->name);
             auto reg = get_available_int_reg();
             mov_member(*parent, reg);
             parent->deref_count = get_ptr_count(parent->type) - 1;
@@ -1309,7 +1329,7 @@ void gnu_asm::mov_var(Register src, Variable dest) {
         mov.append(src, dest.name, Rip);
     } else {
         if (dest.parent != nullptr) {
-            mov_member(src, dest);
+            TODO("mov_member(src, dest)");
         } else {
             if (dest.deref_count > 0) {
                 dest.deref_count -= 1;

@@ -1,5 +1,11 @@
 #include <c_std.mlang>
 
+struct Vec {
+    int x;
+    int y;
+}
 func main() {
-    c_std::printf("Hello, World!\n");
+    Vec ve;
+    ve = Vec{1212, 3};
+    c_std::printf("Vec[%d, %d]\n", ve.x, ve.y);
 }

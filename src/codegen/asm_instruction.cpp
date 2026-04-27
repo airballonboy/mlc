@@ -41,7 +41,7 @@ void AsmInstruction::append(Memory src, Memory dest, size_t size) {
     if (src.asm_mem.type == AsmType::Reg) {
         switch (dest.asm_mem.type) {
         case AsmType::Reg:
-            if (src.asm_mem.reg._64 == dest.asm_mem.reg._64) break;
+            if (m_instName == "mov" && src.asm_mem.reg._64 == dest.asm_mem.reg._64) break;
             append(src.asm_mem.reg, dest.asm_mem.reg, size);
             break;
         case AsmType::OffReg:
@@ -128,11 +128,19 @@ void AsmInstruction::append(Register src, Register dest, size_t size) {
     );
 }
 void AsmInstruction::append(int64_t int_value, Register dest, size_t size) {
-    m_output->appendf("    {} $0x{:x}, {}\n",
-                       INST_SIZE(m_instName, m_instSuffixs, size),
-                       static_cast<uint64_t>(int_value),
-                       REG_SIZE(dest, size)
-    );
+    if (int_value != 0) {
+        m_output->appendf("    {} $0x{:x}, {}\n",
+                           INST_SIZE(m_instName, m_instSuffixs, size),
+                           static_cast<uint64_t>(int_value),
+                           REG_SIZE(dest, size)
+        );
+    } else {
+        m_output->appendf("    {} {}, {}\n",
+                           INST_SIZE(std::string("xor"), m_instSuffixs, size),
+                           REG_SIZE(dest, size),
+                           REG_SIZE(dest, size)
+        );
+    }
 }
 void AsmInstruction::append(int64_t  int_value, std::string label, Register dest, size_t size) {
     m_output->appendf("    {} $0x{:x}, {}({})\n",
