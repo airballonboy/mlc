@@ -12,7 +12,9 @@ public:
     std::string label;
     Node condition;
 public:
-    Memory codegen(BaseCodegen& cg) override;
+    Memory codegen(BaseCodegen& cg) override {
+        TODO("");
+    }
     static std::unique_ptr<JumpIfNot_Ast> make_node(std::string _label, Node _cond) {
         return std::make_unique<JumpIfNot_Ast>(_label, std::move(_cond));
     }

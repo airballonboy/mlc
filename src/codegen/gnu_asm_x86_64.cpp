@@ -21,161 +21,74 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
-#define DEBUG_NODES false
-
-
-bool is_float_reg(Register reg) {return xmm.contains(reg._64);}
-
-static std::vector<std::pair<Register, bool>> available_reg = {
-    {Rax, true},
-    {Rbx, true},
-    {R13, true},
-    {R14, true},
-    {R15, true},
-};
-static std::vector<std::pair<Register, bool>> available_float_reg = {
-    {Xmm12, true},
-    {Xmm13, true},
-    {Xmm14, true},
-    {Xmm15, true},
-};
-
-Register get_available_int_reg() {
-    if (available_reg.size() < 1) TODO("no available Registers");
-    Register reg;
-    for (auto& [reg_, avail] : available_reg) {
-        if (avail) {
-            reg = reg_;
-            avail = false;
-            break;
-        }
-    }
-    return reg;
-}
-Register get_available_float_reg() {
-    if (available_float_reg.size() < 1) TODO("no available Registers");
-    Register reg;
-    for (auto& [reg_, avail] : available_float_reg) {
-        if (avail) {
-            reg = reg_;
-            avail = false;
-            break;
-        }
-    }
-    return reg;
-}
-
-void free_int_reg(Register reg) {
-    if (r64.contains(reg._64)) {
-        for (auto& [reg_, avail] : available_reg) {
-            if (reg_._64 == reg._64) {
-                avail = true;
-                break;
-            }
-        }
-    } else 
-        TODO("register doesn't exist");
-}
-void free_float_reg(Register reg) {
-    if (xmm.contains(reg._64)) {
-        for (auto& [reg_, avail] : available_float_reg) {
-            if (reg_._64 == reg._64) {
-                avail = true;
-                break;
-            }
-        }
-    } else 
-        TODO("register doesn't exist");
-}
-void free_mem(Memory mem) {
-    switch (mem.asm_mem.type) {
-        case AsmType::Reg: {
-            if (is_float_reg(mem.asm_mem.reg))
-                free_float_reg(mem.asm_mem.reg);
-            else
-                free_int_reg(mem.asm_mem.reg);
-        } break;
-        case AsmType::OffReg: {
-            if (is_float_reg(mem.asm_mem.off_reg))
-                free_float_reg(mem.asm_mem.off_reg);
-            else
-                free_int_reg(mem.asm_mem.off_reg);
-        } break;
-
-        case AsmType::ArrayIndex: 
-        case AsmType::Global: 
-        case AsmType::None:
-        default:
-            TODO("");
-    }
-}
+#define DEBUG_NODES true
 
 #define WARNING(...) mlog::println("\nWarning: {}\n", mlog::format(__VA_ARGS__))
 
 
-
-
-Memory gnu_asm::emitLoad(Loc loc, Variable var) {
-    if (DEBUG_NODES) mlog::println("emitLoad [name: {}, type: {}]", var.name, var.type.info.name);
-    auto reg = var.type.info.kind == Kind::Float ? get_available_float_reg() : get_available_int_reg();
+Memory gnu_asm::emitLoad(Load_Ast* nd) {
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitLoad [name: {}, type: {}]", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset, nd->var.name, nd->var.type.info.name);
+    auto reg = nd->var.type.info.kind == Kind::Float ? get_available_float_reg() : get_available_int_reg();
     Memory mem;
-    if (var.type.qualifiers & Qualifier::literal) {
-        if (var.type.info.kind == Kind::Int)
-            mov.append(var.Int_val, reg);
-        else if (var.type.info.kind == Kind::String)
-            lea.append(var.name, Rip, reg);
-        else if (var.type.info.kind == Kind::Float) {
-            movs.append(var.name, Rip, reg);
-            mem =  mem_reg(reg, var.type);
+    if (nd->var.type.qualifiers & Qualifier::literal) {
+        if (nd->var.type.info.kind == Kind::Int)
+            mov.append(nd->var.Int_val, reg);
+        else if (nd->var.type.info.kind == Kind::String)
+            lea.append(nd->var.name, Rip, reg);
+        else if (nd->var.type.info.kind == Kind::Float) {
+            movs.append(nd->var.name, Rip, reg);
+            mem =  mem_reg(reg, nd->var.type);
         } else
             TODO("unknown type of literal");
-        mem = mem_reg(reg, var.type);
-    } else if (var.type.qualifiers & Qualifier::global) {
-        mov.append(mem_global(var.name.c_str(), Rip), mem_reg(reg), var.size);
-        mem = mem_reg(reg, var.type);
-    } else if (var.parent != nullptr) {
-        mov_member(var, reg);
+        mem = mem_reg(reg, nd->var.type);
+    } else if (nd->var.type.qualifiers & Qualifier::global) {
+        mov.append(mem_global(nd->var.name.c_str(), Rip), mem_reg(reg), nd->var.size);
+        mem = mem_reg(reg, nd->var.type);
+    } else if (nd->var.parent != nullptr) {
+        mov_member(nd->var, reg);
         mem = mem_reg(reg);
     } else {
-        if (var.size <= 8) {
-            if (var.type.info.kind == Kind::Float) {
-                movs.append(mem_off(-var.offset, Rbp), mem_reg(reg), var.size);
-                mem = mem_reg(reg, var.type);
+        if (nd->var.size <= 8) {
+            if (nd->var.type.info.kind == Kind::Float) {
+                movs.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg), nd->var.size);
+                mem = mem_reg(reg, nd->var.type);
             } else {
-                mov.append(mem_off(-var.offset, Rbp), mem_reg(reg), var.size);
-                mem = mem_reg(reg, var.type);
+                mov.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg), nd->var.size);
+                mem = mem_reg(reg, nd->var.type);
             }
-        } else if (var.size <= 16) {
-            mov.append(mem_off(-var.offset, Rbp), mem_reg(reg), 8);
-            mov.append(mem_off(-var.offset + 8, Rbp), mem_reg(Rdx), var.size - 8);
-            mem = mem_2reg(reg, Rdx, var.type);
+        } else if (nd->var.size <= 16) {
+            mov.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg), 8);
+            mov.append(mem_off(-nd->var.offset + 8, Rbp), mem_reg(Rdx), nd->var.size - 8);
+            mem = mem_2reg(reg, Rdx, nd->var.type);
         } else {
-            lea.append(mem_off(-var.offset, Rbp), mem_reg(reg), var.size);
-            mem = mem_off(0, reg, var.type);
+            lea.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg), nd->var.size);
+            mem = mem_off(0, reg, nd->var.type);
         }
     }
     return mem;
 }
 
-Memory gnu_asm::emitRef(Loc loc, Variable var) {
-    if (DEBUG_NODES) mlog::println("emitRef");
-    assert(var.parent == nullptr);
-    lea.append(var.offset, Rbp, Rax, var.size);
-    return mem_reg(Rax, var.type);
+Memory gnu_asm::emitRef(Ref_Ast* nd) {
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitRef", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    assert(nd->lhs.parent == nullptr);
+    lea.append(nd->lhs.offset, Rbp, Rax, nd->lhs.size);
+    return mem_reg(Rax, nd->lhs.type);
 }
-Memory gnu_asm::emitDeref(Loc loc, Memory lhs) {
-    if (DEBUG_NODES) mlog::println("emitDeref");
+Memory gnu_asm::emitDeref(Deref_Ast* nd) {
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitDeref", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    auto lhs = nd->lhs->codegen(*this);
     assert(lhs.type.info.kind == Kind::Pointer || lhs.type.info.id == TypeIds.at("pointer"));
     assert(lhs.asm_mem.type == AsmType::Reg);
     assert(lhs.type.ptr_data->pointee->info.size <= 8);
     mov.append(0, lhs.asm_mem.reg, lhs.asm_mem.reg, lhs.type.ptr_data->pointee->info.size);
     return lhs;
 }
-Memory gnu_asm::emitCall(Loc loc, Func& func, std::vector<Node> args) {
-    if (DEBUG_NODES) mlog::println("emitCall");
-    for (size_t i = 0, f = 0, j = 0; j < args.size(); j++) {
-        auto arg_mem = args[j]->codegen(*this);
-        if (args[j]->type.info.kind == Kind::Float) {
+
+Memory gnu_asm::emitCall(Call_Ast* nd) {
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitCall", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    for (size_t i = 0, f = 0, j = 0; j < nd->args.size(); j++) {
+        auto arg_mem = nd->args[j]->codegen(*this);
+        if (nd->args[j]->type.info.kind == Kind::Float) {
             mov.append(arg_mem, mem_reg(arg_register_float[f]));
             f++;
         } else {
@@ -184,16 +97,17 @@ Memory gnu_asm::emitCall(Loc loc, Func& func, std::vector<Node> args) {
         }
         free_mem(arg_mem);
     }
-    output.appendf("    call {}\n", func.name);
+    output.appendf("    call {}\n", nd->func.name);
 
-    if (func.type.func_data->return_type->info.kind == Kind::Float) {
-        return mem_reg(Xmm0, *func.type.func_data->return_type);
+    if (nd->func.type.func_data->return_type->info.kind == Kind::Float) {
+        return mem_reg(Xmm0, *nd->func.type.func_data->return_type);
     } else {
-        return mem_reg(Rax, *func.type.func_data->return_type);
+        return mem_reg(Rax, *nd->func.type.func_data->return_type);
     }
 }
-void gnu_asm::emitReturn(Loc loc, Memory ret) {
-    if (DEBUG_NODES) mlog::println("emitReturn");
+void gnu_asm::emitReturn(Return_Ast* nd) {
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitReturn", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    auto ret = nd->ret->codegen(*this);
     if (m_program->platform == Platform::Windows) {
         if (ret.type.info.kind == Kind::Float) {
             mov.append(ret, mem_reg(Xmm0));
@@ -224,7 +138,7 @@ void gnu_asm::emitReturn(Loc loc, Memory ret) {
     output.append("    ret\n");
     free_mem(ret);
 }
-Memory gnu_asm::getVarPtr(Loc loc, Variable var) {
+Memory gnu_asm::getVarPtr(Variable var) {
     Memory mem;
     if (var.parent == nullptr) {
         mem = mem_off(-var.offset, Rbp);
@@ -234,32 +148,36 @@ Memory gnu_asm::getVarPtr(Loc loc, Variable var) {
     mem.type = var.type;
     return mem;
 }
-Memory gnu_asm::emitStore(Loc loc, Memory lhs, Memory rhs) {
-    if (DEBUG_NODES) mlog::println("emitStore [type: {}]", lhs.type.info.name);
+Memory gnu_asm::emitStore(Store_Ast* nd) {
+    auto lhs = nd->lhs->codegen_ptr(*this);
+    auto rhs = nd->rhs->codegen(*this);
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitStore [type: {}]", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset, lhs.type.info.name);
     assert(lhs.asm_mem.type != AsmType::Reg);
     if (lhs.type.info.size > 8) {
+        TODO("");
         output.appendf("    cld\n");
         mov.append(rhs, mem_reg(Rsi));
         lea.append(lhs, mem_reg(Rdi));
         mov.append(lhs.type.info.size, Rcx);
         output.appendf("    rep movsb\n");
-        TODO("");
     } else {
         mov.append(rhs, lhs);
     }
     free_mem(rhs);
     return lhs;
 }
-Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
-    if (DEBUG_NODES) mlog::println("emitBinOp");
+Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitBinOp", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    auto lhs = nd->lhs->codegen(*this);
+    auto rhs = nd->rhs->codegen(*this);
     auto is_float_op = lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float;
     auto op_size = std::max(lhs.type.info.size, rhs.type.info.size);
     if (op_size < 2) op_size = 2;
-    auto bin_op = get_binop(op, is_float_op);
+    auto bin_op = get_binop(nd->binop, is_float_op);
     auto out_reg = is_float_op ? mem_reg(Xmm0, lhs.type) : mem_reg(Rax, lhs.type);
     auto& mov_inst = is_float_op ? movs : mov;
     
-    switch (op) {
+    switch (nd->binop) {
         case BinOp::SUB:
         case BinOp::MUL: 
         case BinOp::ADD: 
@@ -269,14 +187,14 @@ Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
         case BinOp::DIV:
         case BinOp::MOD:
             if (is_float_op) {
-                if (op == BinOp::MOD) TODO("no operator mod for floats");
+                if (nd->binop == BinOp::MOD) TODO("no operator mod for floats");
                 bin_op.append(rhs, lhs, op_size);
                 mov_inst.append(lhs, out_reg);
             } else {
                 mov.append(lhs, mem_reg(Rax));
                 output.append("    cqto\n");
                 bin_op.append(rhs, op_size);
-                if (op != BinOp::DIV) {
+                if (nd->binop != BinOp::DIV) {
                     mov.append(Rdx, Rax, op_size);
                 }
                 mov.append(mem_reg(Rax), out_reg, op_size);
@@ -313,19 +231,20 @@ Memory gnu_asm::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
     return out_reg;
 }
 
-void gnu_asm::emitLabel(Loc loc, std::string label) {
-    if (DEBUG_NODES) mlog::println("emitLabel");
-    output.appendf("  .L{}:\n", label);
+void gnu_asm::emitLabel(Label_Ast* nd) {
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitLabel", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    output.appendf("  .L{}:\n", nd->label);
 }
-void gnu_asm::emitJump(Loc loc, std::string label) {
-    if (DEBUG_NODES) mlog::println("emitJump");
-    output.appendf("    jmp .L{}\n", label);
+void gnu_asm::emitJump(Jump_Ast* nd) {
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitJump", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    output.appendf("    jmp .L{}\n", nd->label);
 }
-void gnu_asm::emitJumpIfNot(Loc loc, std::string label, Memory cond) {
-    if (DEBUG_NODES) mlog::println("emitJumpIfNot");
+void gnu_asm::emitJumpIfNot(JumpIfNot_Ast* nd) {
+    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitJumpIfNot", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    auto cond = nd->condition->codegen(*this);
     assert(cond.asm_mem.type == AsmType::Reg);
     output.appendf("    testb {}, {}\n", cond.asm_mem.reg._8, cond.asm_mem.reg._8);
-    output.appendf("    jz .L{}\n", label);
+    output.appendf("    jz .L{}\n", nd->label);
     free_mem(cond);
 }
 

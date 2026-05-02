@@ -12,7 +12,9 @@ public:
 
     Node lhs;
 public:
-    Memory codegen(BaseCodegen& cg) override;
+    Memory codegen(BaseCodegen& cg) override {
+        TODO("");
+    }
     static std::unique_ptr<Deref_Ast> make_node(Node _lhs) {
         auto t = _lhs->type;
         auto x = std::make_unique<Deref_Ast>(std::move(_lhs));

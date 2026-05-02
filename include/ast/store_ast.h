@@ -11,7 +11,9 @@ public:
     Node lhs;
     Node rhs;
 public:
-    Memory codegen(BaseCodegen& cg) override;
+    Memory codegen(BaseCodegen& cg) override {
+        return cg.emitStore(this);
+    }
     static std::unique_ptr<Store_Ast> make_node(Variable _lhs, ExprNode _rhs) {
         auto x = std::make_unique<Store_Ast>(Load_Ast::make_node(_lhs), std::move(_rhs));
         x->type = _lhs.type;

@@ -28,17 +28,17 @@ public:
     void cast_int_size(Register reg, size_t orig_size, size_t new_size);
 
 public:
-    void   emitJump(Loc loc, std::string label) override;
-    void   emitJumpIfNot(Loc loc, std::string label, Memory cond) override;
-    void   emitLabel(Loc loc, std::string label) override;
-    void   emitReturn(Loc loc, Memory ret) override;
-    Memory emitLoad(Loc loc, Variable var) override;
-    Memory emitRef(Loc loc, Variable var) override;
-    Memory emitDeref(Loc loc, Memory lhs) override;
-    Memory emitCall(Loc loc, Func& func, std::vector<Node> args) override;
-    Memory emitStore(Loc loc, Memory lhs, Memory rhs) override;
-    Memory emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) override;
-    Memory getVarPtr(Loc loc, Variable var) override;
+    void   emitReturn   (Return_Ast*    nd) override;
+    void   emitJump     (Jump_Ast*      nd) override;
+    void   emitJumpIfNot(JumpIfNot_Ast* nd) override;
+    void   emitLabel    (Label_Ast*     nd) override;
+    Memory emitLoad     (Load_Ast*      nd) override;
+    Memory emitRef      (Ref_Ast*       nd) override;
+    Memory emitDeref    (Deref_Ast*     nd) override;
+    Memory emitCall     (Call_Ast*      nd) override;
+    Memory emitStore    (Store_Ast*     nd) override;
+    Memory emitBinOp    (BinOp_Ast*     nd) override;
+    Memory getVarPtr    (Variable var)      override;
 
 public:
     std::vector<Register> arg_register;
@@ -121,3 +121,90 @@ const static std::unordered_set<std::string_view> xmm = {
     Xmm0._64, Xmm1._64, Xmm2._64, Xmm3._64, Xmm4._64, Xmm5._64, Xmm6._64, Xmm7._64, Xmm8._64,
     Xmm9._64, Xmm10._64, Xmm11._64, Xmm12._64, Xmm13._64, Xmm14._64, Xmm15._64
 };
+
+
+inline bool is_float_reg(Register reg) {return xmm.contains(reg._64);}
+
+static std::vector<std::pair<Register, bool>> available_reg = {
+    {Rax, true},
+    {Rbx, true},
+    {R13, true},
+    {R14, true},
+    {R15, true},
+};
+static std::vector<std::pair<Register, bool>> available_float_reg = {
+    {Xmm12, true},
+    {Xmm13, true},
+    {Xmm14, true},
+    {Xmm15, true},
+};
+
+inline Register get_available_int_reg() {
+    if (available_reg.size() < 1) TODO("no available Registers");
+    Register reg;
+    for (auto& [reg_, avail] : available_reg) {
+        if (avail) {
+            reg = reg_;
+            avail = false;
+            break;
+        }
+    }
+    return reg;
+}
+inline Register get_available_float_reg() {
+    if (available_float_reg.size() < 1) TODO("no available Registers");
+    Register reg;
+    for (auto& [reg_, avail] : available_float_reg) {
+        if (avail) {
+            reg = reg_;
+            avail = false;
+            break;
+        }
+    }
+    return reg;
+}
+
+inline void free_int_reg(Register reg) {
+    if (r64.contains(reg._64)) {
+        for (auto& [reg_, avail] : available_reg) {
+            if (reg_._64 == reg._64) {
+                avail = true;
+                break;
+            }
+        }
+    } else 
+        TODO("register doesn't exist");
+}
+inline void free_float_reg(Register reg) {
+    if (xmm.contains(reg._64)) {
+        for (auto& [reg_, avail] : available_float_reg) {
+            if (reg_._64 == reg._64) {
+                avail = true;
+                break;
+            }
+        }
+    } else 
+        TODO("register doesn't exist");
+}
+inline void free_mem(Memory mem) {
+    switch (mem.asm_mem.type) {
+        case AsmType::Reg: {
+            if (is_float_reg(mem.asm_mem.reg))
+                free_float_reg(mem.asm_mem.reg);
+            else
+                free_int_reg(mem.asm_mem.reg);
+        } break;
+        case AsmType::OffReg: {
+            if (is_float_reg(mem.asm_mem.off_reg))
+                free_float_reg(mem.asm_mem.off_reg);
+            else
+                free_int_reg(mem.asm_mem.off_reg);
+        } break;
+
+        case AsmType::ArrayIndex: 
+        case AsmType::Global: 
+        case AsmType::None:
+        default:
+            TODO("");
+    }
+}

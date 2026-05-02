@@ -1,5 +1,4 @@
 #pragma once
-#include "codegen/base.h"
 #include "ast/ast.h"
 #include <string>
 

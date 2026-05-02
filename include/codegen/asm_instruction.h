@@ -45,3 +45,4 @@ private:
     std::string* m_output;
     Register m_instSuffixs = {"q", "l", "w", "b"};
 };
+

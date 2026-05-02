@@ -7,16 +7,17 @@ class ir : public BaseCodegen {
 public:
     ir(Program* prog) : BaseCodegen(prog) {}
 
-    Memory emitLoad(Loc loc, Variable var) override;
-    Memory emitRef(Loc loc, Variable var) override;
-    Memory emitDeref(Loc loc, Memory lhs) override;
-    Memory emitCall(Loc loc, Func& func, std::vector<Node> args) override;
-    void   emitLabel(Loc loc, std::string label) override;
-    void   emitJump(Loc loc, std::string label) override;
-    void   emitJumpIfNot(Loc loc, std::string label, Memory cond) override;
-    void   emitReturn(Loc loc, Memory ret) override;
-    Memory emitStore(Loc loc, Memory lhs, Memory rhs) override;
-    Memory emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) override;
+    void   emitReturn   (Return_Ast*    nd) override;
+    void   emitJump     (Jump_Ast*      nd) override;
+    void   emitJumpIfNot(JumpIfNot_Ast* nd) override;
+    void   emitLabel    (Label_Ast*     nd) override;
+    Memory emitLoad     (Load_Ast*      nd) override;
+    Memory emitRef      (Ref_Ast*       nd) override;
+    Memory emitDeref    (Deref_Ast*     nd) override;
+    Memory emitCall     (Call_Ast*      nd) override;
+    Memory emitStore    (Store_Ast*     nd) override;
+    Memory emitBinOp    (BinOp_Ast*     nd) override;
+    Memory getVarPtr    (Variable var)      override;
 
     void compileProgram()  override;
     void compileFunction(Func& func) override;

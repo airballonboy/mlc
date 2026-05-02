@@ -1,7 +1,17 @@
 #pragma once
 #include "program.h"
-#include "token.h"
-#include "type_system/variable.h"
+
+
+class Return_Ast;
+class Jump_Ast;
+class JumpIfNot_Ast;
+class Label_Ast;
+class Load_Ast;
+class Ref_Ast;
+class Deref_Ast;
+class Call_Ast;
+class Store_Ast;
+class BinOp_Ast;
 
 class BaseCodegen {
 public:
@@ -13,17 +23,17 @@ public:
     virtual void compileFunction(Func& func) {}
 
 public:
-    virtual void   emitReturn(Loc loc, Memory ret)                        {TODO("unimplemented");}
-    virtual void   emitJump(Loc loc, std::string label)                   {TODO("unimplemented");}
-    virtual void   emitJumpIfNot(Loc loc, std::string label, Memory cond) {TODO("unimplemented");}
-    virtual void   emitLabel(Loc loc, std::string Label)                  {TODO("unimplemented");}
-    virtual Memory emitLoad(Loc loc, Variable var)                        {TODO("unimplemented");}
-    virtual Memory emitRef(Loc loc, Variable var)                         {TODO("unimplemented");}
-    virtual Memory emitDeref(Loc loc, Memory lhs)                         {TODO("unimplemented");}
-    virtual Memory emitCall(Loc loc, Func& func, std::vector<Node> args)  {TODO("unimplemented");}
-    virtual Memory emitStore(Loc loc, Memory lhs, Memory rhs)             {TODO("unimplemented");}
-    virtual Memory emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs)   {TODO("unimplemented");}
-    virtual Memory getVarPtr(Loc loc, Variable var)                       {TODO("unimplemented");}
+    virtual void   emitReturn   (Return_Ast* nd) { TODO("unimplemented"); }
+    virtual void   emitJump     (Jump_Ast* nd) { TODO("unimplemented"); }
+    virtual void   emitJumpIfNot(JumpIfNot_Ast* nd) { TODO("unimplemented"); }
+    virtual void   emitLabel    (Label_Ast* nd) { TODO("unimplemented"); }
+    virtual Memory emitLoad     (Load_Ast* nd) { TODO("unimplemented"); }
+    virtual Memory emitRef      (Ref_Ast* nd) { TODO("unimplemented"); }
+    virtual Memory emitDeref    (Deref_Ast* nd) { TODO("unimplemented"); }
+    virtual Memory emitCall     (Call_Ast* nd) { TODO("unimplemented"); }
+    virtual Memory emitStore    (Store_Ast* nd) { TODO("unimplemented"); }
+    virtual Memory emitBinOp    (BinOp_Ast* nd) { TODO("unimplemented"); }
+    virtual Memory getVarPtr    (Variable var) { TODO("unimplemented"); }
 protected:
     Program* m_program;
     Func*    m_func;

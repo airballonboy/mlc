@@ -11,7 +11,9 @@ public:
     Func& func;
     std::vector<Node> args;
 public:
-    Memory codegen(BaseCodegen& cg) override;
+    Memory codegen(BaseCodegen& cg) override {
+        return cg.emitCall(this);
+    }
     static std::unique_ptr<Call_Ast> make_node(Func& _func, std::vector<Node> _args) {
         auto fn = new Func();
         fn->type = _func.type;

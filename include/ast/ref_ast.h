@@ -9,7 +9,9 @@ public:
 
     Variable lhs;
 public:
-    Memory codegen(BaseCodegen& cg) override;
+    Memory codegen(BaseCodegen& cg) override {
+        TODO("");
+    }
     static std::unique_ptr<Ref_Ast> make_node(Variable _lhs) {
         auto x = std::make_unique<Ref_Ast>(_lhs);
         x->type = _lhs.type;

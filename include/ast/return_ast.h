@@ -9,7 +9,10 @@ public:
 
     Node ret;
 public:
-    Memory codegen(BaseCodegen& cg) override;
+    Memory codegen(BaseCodegen& cg) override {
+        cg.emitReturn(this);
+        return {};
+    }
     static std::unique_ptr<Return_Ast> make_node(Node _ret) {
         return std::make_unique<Return_Ast>(std::move(_ret));
     }

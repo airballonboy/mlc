@@ -10,35 +10,38 @@
 #include "type_system/variable.h"
 #include "type_system/type.h"
 
-void   ir::emitLabel(Loc loc, std::string label) {
-    TODO("emitLabel");
-}
-void   ir::emitJump(Loc loc, std::string label) {
-    TODO("emitJump");
-}
-void   ir::emitJumpIfNot(Loc loc, std::string label, Memory cond) {
-    TODO("emitJumpIfNot");
-}
-void   ir::emitReturn(Loc loc, Memory ret) {
+void ir::emitReturn(Return_Ast* nd) {
     TODO("emitReturn");
 }
-Memory ir::emitLoad(Loc loc, Variable var) {
+void ir::emitJump(Jump_Ast* nd) { 
+    TODO("emitJump");
+}
+void ir::emitJumpIfNot(JumpIfNot_Ast* nd) { 
+    TODO("emitJumpIfNot");
+}
+void ir::emitLabel(Label_Ast* nd) {
+    TODO("emitLabel");
+}
+Memory ir::emitLoad(Load_Ast* nd) {
     TODO("emitLoad");
 }
-Memory ir::emitRef(Loc loc, Variable var) {
+Memory ir::emitRef(Ref_Ast* nd) {
     TODO("emitRef");
 }
-Memory ir::emitDeref(Loc loc, Memory lhs) {
+Memory ir::emitDeref(Deref_Ast* nd) {
     TODO("emitDeref");
 }
-Memory ir::emitCall(Loc loc, Func& func, std::vector<Node> args) {
+Memory ir::emitCall(Call_Ast* nd) {
     TODO("emitCall");
 }
-Memory ir::emitStore(Loc loc, Memory lhs, Memory rhs) {
+Memory ir::emitStore(Store_Ast* nd) {
     TODO("emitStore");
 }
-Memory ir::emitBinOp(Loc loc, BinOp op, Memory lhs, Memory rhs) {
+Memory ir::emitBinOp(BinOp_Ast* nd) {
     TODO("emitBinOp");
+}
+Memory ir::getVarPtr(Variable var) {
+    TODO("getVarPtr");
 }
 void ir::compileProgram() {
     if (m_program == nullptr) return;
