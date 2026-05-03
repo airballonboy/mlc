@@ -72,8 +72,12 @@ Memory gnu_asm::emitLoad(Load_Ast* nd) {
 Memory gnu_asm::emitRef(Ref_Ast* nd) {
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitRef", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
     if (DEBUG_NODES) output.appendf("    // emitRef\n");
-    assert(nd->lhs.parent == nullptr);
-    lea.append(-nd->lhs.offset, Rbp, Rax, nd->lhs.size);
+    if (nd->lhs.parent != nullptr) {
+        nd->lhs.deref_count = -1;
+        mov_member(nd->lhs, Rax);
+    } else {
+        lea.append(-nd->lhs.offset, Rbp, Rax, nd->lhs.size);
+    }
     return mem_reg(Rax, nd->lhs.type);
 }
 Memory gnu_asm::emitDeref(Deref_Ast* nd) {
