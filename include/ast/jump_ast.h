@@ -11,8 +11,10 @@ public:
 public:
     Memory codegen(BaseCodegen& cg) override;
     Memory codegen_ptr(BaseCodegen& cg) override {TODO("not implemented");};
-    static std::unique_ptr<Jump_Ast> make_node(std::string _label) {
-        return std::make_unique<Jump_Ast>(_label);
+    static std::unique_ptr<Jump_Ast> make_node(std::string _label, Loc loc = {}) {
+        auto x = std::make_unique<Jump_Ast>(_label);
+        x->loc_start = loc;
+        return x;
     }
 };
 

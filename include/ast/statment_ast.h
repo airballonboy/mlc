@@ -13,7 +13,7 @@ public:
     Memory codegen(BaseCodegen& cg) override {
         return {};
     }
-    static std::unique_ptr<Empty_Ast> make_node() {
+    static std::unique_ptr<Empty_Ast> make_node(Loc loc = {}) {
         return std::make_unique<Empty_Ast>();
     }
     Memory codegen_ptr(BaseCodegen& cg) override {

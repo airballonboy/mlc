@@ -291,7 +291,7 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
                 //TODO("m_currentFunc->body.push_back({Op::INIT_STRING, {var}})");
             }
             if (def.type.info.kind != Kind::Void && var.type.info.kind != Kind::Struct) {
-                m_body->body.push_back(Store_Ast::make_node(var, Load_Ast::make_node(def)));
+                m_body->body.push_back(Store_Ast::make_node(var, Load_Ast::make_node(def), (*tkn)->loc));
             }
             if (def.type.info.kind == Kind::Struct) {
                 for (size_t j = 0; j < def.members.size() && j < var.members.size(); j++) {
@@ -305,7 +305,7 @@ Variable Parser::initStruct(std::string type_name, std::string struct_name, bool
                         //TODO("m_currentFunc->body.push_back({Op::INIT_STRING, {var.members[j]}})");
                     }
                     if (def.members[j].type.info.kind != Kind::Void && def.members[j].type.info.kind != Kind::Struct) {
-                        m_body->body.push_back(Store_Ast::make_node(var.members[j], Load_Ast::make_node(def.members[j])));
+                        m_body->body.push_back(Store_Ast::make_node(var.members[j], Load_Ast::make_node(def.members[j]), (*tkn)->loc));
                     }
                 }
             }
@@ -793,7 +793,7 @@ StmtNode Parser::parseStatement() {
                 m_lexar->getNext();
                 return_value = std::get<0>(parseExpression());
             }
-            stmt = Return_Ast::make_node(std::move(return_value));
+            stmt = Return_Ast::make_node(std::move(return_value), (*tkn)->loc);
             m_lexar->getAndExpectNext(TokenType::SemiColon);
 
         }break;//TokenType::Return
@@ -857,7 +857,7 @@ StmtNode Parser::parseStatement() {
             std::string type_name = (*tkn)->string_value;
             size_t current_point = m_lexar->currentTokenIndex;
             auto current_body_size = m_body->body.size();
-            auto node = std::get<0>(parsePrimaryExpression());
+            auto node = std::get<0>(parseDotExpression());
             auto peek = m_lexar->peek();
             m_lexar->currentTokenIndex = current_point - 1;
             m_lexar->getNext();
@@ -884,7 +884,7 @@ StmtNode Parser::parseStatement() {
                 m_lexar->getNext();
                 m_func->body->body.resize(current_body_size);
                 auto var2 = std::get<0>(parseExpression());
-                stmt = Store_Ast::make_node(var, std::move(var2));
+                stmt = Store_Ast::make_node(var, std::move(var2), (*tkn)->loc);
             } else if (var.type.info.kind != Kind::String && var.type.info.kind != Kind::Struct) {
                 Variable default_val;
                 default_val.type.qualifiers = Qualifier::literal | Qualifier::constant;
@@ -901,7 +901,7 @@ StmtNode Parser::parseStatement() {
                     default_val.Int_val = std::any_cast<int64_t>(Variable::default_value(var.type));
                 }
 
-                stmt = Store_Ast::make_node(var, Load_Ast::make_node(default_val));
+                stmt = Store_Ast::make_node(var, Load_Ast::make_node(default_val), (*tkn)->loc);
             } else if (var.type.info.kind == Kind::Pointer) {
                 Variable default_val;
                 default_val.type = type_infos.at("int64");
@@ -910,9 +910,9 @@ StmtNode Parser::parseStatement() {
 
                 default_val.name = "def_value";
                 default_val.Int_val = std::any_cast<int64_t>(Variable::default_value(default_val.type));
-                stmt = Store_Ast::make_node(var, Load_Ast::make_node(default_val));
+                stmt = Store_Ast::make_node(var, Load_Ast::make_node(default_val), (*tkn)->loc);
             } else if (var.type.info.kind == Kind::Struct) {
-                stmt = Empty_Ast::make_node();
+                stmt = Empty_Ast::make_node((*tkn)->loc);
             } else {
                 TODO("error");
             }
@@ -935,16 +935,16 @@ StmtNode Parser::parseStatement() {
 
                     switch (peek_type) {
                     case TokenType::Eq:
-                        stmt = Store_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs));
+                        stmt = Store_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), (*tkn)->loc);
                         break;
                     case TokenType::PlusEq:
-                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), BinOp::ADD), std::move(std::unique_ptr<Expression_Ast>(lhs)));
+                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), BinOp::ADD), std::move(std::unique_ptr<Expression_Ast>(lhs)), (*tkn)->loc);
                         break;
                     case TokenType::MinusEq:
-                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), BinOp::SUB), std::move(std::unique_ptr<Expression_Ast>(lhs)));
+                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), BinOp::SUB), std::move(std::unique_ptr<Expression_Ast>(lhs)), (*tkn)->loc);
                         break;
                     case TokenType::MulEq:
-                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), BinOp::MUL), std::move(std::unique_ptr<Expression_Ast>(lhs)));
+                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(std::move(std::unique_ptr<Expression_Ast>(lhs)), std::move(rhs), BinOp::MUL), std::move(std::unique_ptr<Expression_Ast>(lhs)), (*tkn)->loc);
                         break;
                     default: TODO("unsupported Token found");
                     }
@@ -1015,7 +1015,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         };
         m_program.var_storage.push_back(var);
         m_lexar->getAndExpectNext(TokenType::DQoute);
-        return {Load_Ast::make_node(var), ret_lvalue};
+        return {Load_Ast::make_node(var, (*tkn)->loc), ret_lvalue};
     }
 
     if ((*tkn)->type == TokenType::IntLit) {
@@ -1030,7 +1030,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .Int_val = value,
             .size  = size,
         };
-        return {Load_Ast::make_node(var), ret_lvalue};
+        return {Load_Ast::make_node(var, (*tkn)->loc), ret_lvalue};
     }
     if ((*tkn)->type == TokenType::DoubleLit) {
         var = {
@@ -1043,7 +1043,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             .size  = 8,
         };
         m_program.var_storage.push_back(var);
-        return {Load_Ast::make_node(var), ret_lvalue};
+        return {Load_Ast::make_node(var, (*tkn)->loc), ret_lvalue};
     }
     
     if ((*tkn)->type == TokenType::PlusPlus) {
@@ -1097,7 +1097,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
     if ((*tkn)->type == TokenType::Mul) { 
         m_lexar->getNext();
         auto [var, lvalue] = parsePrimaryExpression();
-        var = Deref_Ast::make_node(std::move(var));
+        var = Deref_Ast::make_node(std::move(var), (*tkn)->loc);
         ret_lvalue = true;
         return {std::move(var), ret_lvalue};
     }
@@ -1107,7 +1107,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
         auto [var, lvalue] = parsePrimaryExpression();
         auto var_ = dynamic_cast<Load_Ast*>(var.get());
         if (!lvalue) ERROR(loc, "cannot refernce a non lvalue");
-        var = Ref_Ast::make_node(var_->var);
+        var = Ref_Ast::make_node(var_->var, (*tkn)->loc);
         return {std::move(var), ret_lvalue};
     }
 
@@ -1170,15 +1170,15 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
                     for (size_t i = 0; i < var.members.size(); i++) {
                         if (i < v.size()) {
                         } else if (strct.defaults.contains(i)) {
-                            v.push_back(Load_Ast::make_node(strct.defaults.at(i)));
+                            v.push_back(Load_Ast::make_node(strct.defaults.at(i), (*tkn)->loc));
                         } else {
-                            v.push_back(Load_Ast::make_node({.type = type_infos.at("void")}));
+                            v.push_back(Load_Ast::make_node({.type = type_infos.at("void")}, (*tkn)->loc));
                         }
-                        m_body->body.push_back(Store_Ast::make_node(var.members[i], std::move(v[i])));
+                        m_body->body.push_back(Store_Ast::make_node(var.members[i], std::move(v[i]), (*tkn)->loc));
                     }
                     if (current_offset > max_locals_offset) max_locals_offset = current_offset;
                     current_offset = save_off;
-                    return {Load_Ast::make_node(var), false};
+                    return {Load_Ast::make_node(var, (*tkn)->loc), false};
                 }
             }
             var.name = type.name;
@@ -1186,20 +1186,20 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             var.type = type_infos.at("typeid");
             var.type.qualifiers = Qualifier::literal | Qualifier::constant;
             var.Int_val = (int64_t)type.id;
-            return {Load_Ast::make_node(var), false};
+            return {Load_Ast::make_node(var, (*tkn)->loc), false};
         }
         if (this_ptr.type.info.kind != Kind::Void) {
             auto var_ = Variable::get_from_name(name, this_.members);
             var_.parent = new Variable;
             *var_.parent = this_;
-            return {Load_Ast::make_node(var_), true};
+            return {Load_Ast::make_node(var_, (*tkn)->loc), true};
         } else if (Variable::is_in_storage((*tkn)->string_value, m_program.var_storage)) {
             var = Variable::get_from_name((*tkn)->string_value, m_program.var_storage);
-            return {Load_Ast::make_node(var), true};
+            return {Load_Ast::make_node(var, (*tkn)->loc), true};
         } else if (Variable::is_in_storage(name, m_func->local_variables)) {
             var = Variable::get_from_name(name, m_func->local_variables);
             ret_lvalue = true;
-            return {Load_Ast::make_node(var), ret_lvalue};
+            return {Load_Ast::make_node(var, (*tkn)->loc), ret_lvalue};
         } else {
             TODO(mlog::format("ERROR: variable `{}` at {}:{}:{} wasn't found", name, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
         }
@@ -1267,10 +1267,10 @@ ExprResult Parser::parseUnaryExpression() {
             if (rhs_var.type.qualifiers & Qualifier::literal) {
                 if (rhs_var.type.info.kind == Kind::Float) {
                     Variable::get_from_name(rhs_var.name, m_program.var_storage).Double_val = -rhs_var.Double_val;
-                    return {Load_Ast::make_node(rhs_var), false};
+                    return {Load_Ast::make_node(rhs_var, (*tkn)->loc), false};
                 } else {
                     rhs_var.Int_val = -rhs_var.Int_val;
-                    return {Load_Ast::make_node(rhs_var), false};
+                    return {Load_Ast::make_node(rhs_var, (*tkn)->loc), false};
                 }
             }
         } else {
@@ -1283,7 +1283,7 @@ ExprResult Parser::parseUnaryExpression() {
                 .Int_val = (int64_t)0,
                 .size = 1,
             };
-            return {BinOp_Ast::make_node(Load_Ast::make_node(zero), std::move(rhs), BinOp::SUB), false};
+            return {BinOp_Ast::make_node(Load_Ast::make_node(zero), std::move(rhs), BinOp::SUB, (*tkn)->loc), false};
         }
     }
     if ((*tkn)->type == TokenType::Not) {
@@ -1300,7 +1300,7 @@ ExprResult Parser::parseUnaryExpression() {
             .Int_val = 0,
             .size = 1,
         };
-        return {BinOp_Ast::make_node(std::move(rhs), Load_Ast::make_node(zero), BinOp::EQ), false};
+        return {BinOp_Ast::make_node(std::move(rhs), Load_Ast::make_node(zero), BinOp::EQ, (*tkn)->loc), false};
     }
 
     return parseDotExpression();
@@ -1320,11 +1320,11 @@ ExprResult Parser::parseMultiplicativeExpression() {
         lvalue = false;
 
         if (op_type == TokenType::Mul) {
-            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::MUL);
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::MUL, (*tkn)->loc);
         } else if (op_type == TokenType::Div) {
-            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::DIV);
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::DIV, (*tkn)->loc);
         } else if (op_type == TokenType::Mod) {
-            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::MOD);
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::MOD, (*tkn)->loc);
         }
     }
 
@@ -1345,9 +1345,9 @@ ExprResult Parser::parseAdditiveExpression() {
         lvalue = false;
 
         if (op_type == TokenType::Plus) {
-            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::ADD);
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::ADD, (*tkn)->loc);
         } else {
-            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::SUB);
+            lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), BinOp::SUB, (*tkn)->loc);
         }
     }
 
@@ -1381,7 +1381,7 @@ ExprResult Parser::parseCondition(int min_prec) {
         m_lexar->getNext();
 
         auto rhs = std::get<0>(parseCondition(prec + 1));
-        lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), op);
+        lhs = BinOp_Ast::make_node(std::move(lhs), std::move(rhs), op, (*tkn)->loc);
     }
 
     return {std::move(lhs), false};
@@ -1395,7 +1395,7 @@ ExprNode Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_ad
     std::vector<Node> args{};
     size_t given_args_count = 0;
     m_lexar->getAndExpectNext(TokenType::OParen);
-    if (this_ptr.type.info.kind != Kind::Void) args.push_back(Load_Ast::make_node(this_ptr));
+    if (this_ptr.type.info.kind != Kind::Void) args.push_back(Ref_Ast::make_node(this_ptr, (*tkn)->loc));
     while (m_lexar->peek()->type != TokenType::CParen) {
         m_lexar->getNext();
         //TODO("call func");
@@ -1425,7 +1425,7 @@ ExprNode Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_ad
 
     m_currentFuncStorage = &m_program.func_storage;
     current_module_prefix = "";
-    return Call_Ast::make_node(func, std::move(args));
+    return Call_Ast::make_node(func, std::move(args), (*tkn)->loc);
 }
 Func Parser::make_type_info_func(Struct s) {
     auto save = current_offset;

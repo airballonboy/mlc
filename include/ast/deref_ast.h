@@ -15,10 +15,11 @@ public:
     Memory codegen(BaseCodegen& cg) override {
         TODO("");
     }
-    static std::unique_ptr<Deref_Ast> make_node(Node _lhs) {
+    static std::unique_ptr<Deref_Ast> make_node(Node _lhs, Loc loc = {}) {
         auto t = _lhs->type;
         auto x = std::make_unique<Deref_Ast>(std::move(_lhs));
         x->type = t;
+        x->loc_start = loc;
         return x;
     }
 };

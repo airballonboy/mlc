@@ -15,10 +15,11 @@ public:
     Memory codegen(BaseCodegen& cg) override {
         return cg.emitBinOp(this);
     }
-    static std::unique_ptr<BinOp_Ast> make_node(Node _lhs, Node _rhs, BinOp _binop) {
+    static std::unique_ptr<BinOp_Ast> make_node(Node _lhs, Node _rhs, BinOp _binop, Loc loc = {}) {
         auto t = _lhs->type;
         auto x = std::make_unique<BinOp_Ast>(std::move(_lhs), std::move(_rhs), _binop);
         x->type = t;
+        x->loc_start = loc;
         return x;
     }
 };

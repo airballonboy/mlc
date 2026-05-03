@@ -4,8 +4,17 @@ struct Vec {
     int x;
     int y;
 }
-func main() {
+func Vec.print() {
+    c_std::printf("Vec[%d, %d]\n", this.x, this.y);
+}
+func static Vec.signature() {
+    c_std::printf("Vec[int, int]\n");
+}
+
+func main() -> int {
     Vec ve;
     ve = Vec{1212, 3};
-    c_std::printf("Vec[%d, %d]\n", ve.x, ve.y);
+    ve.print();
+    Vec.signature();
+    return 0;
 }

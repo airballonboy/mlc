@@ -15,8 +15,10 @@ public:
     Memory codegen(BaseCodegen& cg) override {
         TODO("");
     }
-    static std::unique_ptr<JumpIfNot_Ast> make_node(std::string _label, Node _cond) {
-        return std::make_unique<JumpIfNot_Ast>(_label, std::move(_cond));
+    static std::unique_ptr<JumpIfNot_Ast> make_node(std::string _label, Node _cond, Loc loc = {}) {
+        auto x = std::make_unique<JumpIfNot_Ast>(_label, std::move(_cond));
+        x->loc_start = loc;
+        return x;
     }
 };
 

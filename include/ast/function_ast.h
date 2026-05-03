@@ -13,8 +13,10 @@ public:
 public:
     Memory codegen(BaseCodegen& cg) override;
     Memory codegen_ptr(BaseCodegen& cg) override {TODO("not implemented");}
-    static std::unique_ptr<Func_Ast> make_node(Func& _func, BodyNode _body) {
-        return std::make_unique<Func_Ast>(_func, std::move(_body));
+    static std::unique_ptr<Func_Ast> make_node(Func& _func, BodyNode _body, Loc loc = {}) {
+        auto x = std::make_unique<Func_Ast>(_func, std::move(_body));
+        x->loc_start = loc;
+        return x;
     }
 };
 typedef std::unique_ptr<Func_Ast> FuncNode;

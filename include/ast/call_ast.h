@@ -14,12 +14,13 @@ public:
     Memory codegen(BaseCodegen& cg) override {
         return cg.emitCall(this);
     }
-    static std::unique_ptr<Call_Ast> make_node(Func& _func, std::vector<Node> _args) {
+    static std::unique_ptr<Call_Ast> make_node(Func& _func, std::vector<Node> _args, Loc loc = {}) {
         auto fn = new Func();
         fn->type = _func.type;
         fn->name = _func.name;
         auto x = std::make_unique<Call_Ast>(*fn, std::move(_args));
         x->type = *_func.type.func_data->return_type;
+        x->loc_start = loc;
         return x;
     }
 };

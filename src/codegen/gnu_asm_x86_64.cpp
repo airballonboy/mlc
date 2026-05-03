@@ -21,13 +21,14 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
-#define DEBUG_NODES true
+#define DEBUG_NODES false
 
 #define WARNING(...) mlog::println("\nWarning: {}\n", mlog::format(__VA_ARGS__))
 
 
 Memory gnu_asm::emitLoad(Load_Ast* nd) {
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitLoad [name: {}, type: {}]", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset, nd->var.name, nd->var.type.info.name);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitLoad [name: {}, type: {}]", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset, nd->var.name, nd->var.type.info.name);
+    if (DEBUG_NODES) output.appendf("    // emitLoad\n");
     auto reg = nd->var.type.info.kind == Kind::Float ? get_available_float_reg() : get_available_int_reg();
     Memory mem;
     if (nd->var.type.qualifiers & Qualifier::literal) {
@@ -61,7 +62,7 @@ Memory gnu_asm::emitLoad(Load_Ast* nd) {
             mov.append(mem_off(-nd->var.offset + 8, Rbp), mem_reg(Rdx), nd->var.size - 8);
             mem = mem_2reg(reg, Rdx, nd->var.type);
         } else {
-            lea.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg), nd->var.size);
+            lea.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg), nd->var.size > 8 ? 8 : nd->var.size);
             mem = mem_off(0, reg, nd->var.type);
         }
     }
@@ -69,13 +70,15 @@ Memory gnu_asm::emitLoad(Load_Ast* nd) {
 }
 
 Memory gnu_asm::emitRef(Ref_Ast* nd) {
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitRef", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitRef", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitRef\n");
     assert(nd->lhs.parent == nullptr);
-    lea.append(nd->lhs.offset, Rbp, Rax, nd->lhs.size);
+    lea.append(-nd->lhs.offset, Rbp, Rax, nd->lhs.size);
     return mem_reg(Rax, nd->lhs.type);
 }
 Memory gnu_asm::emitDeref(Deref_Ast* nd) {
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitDeref", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitDeref", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitDeref\n");
     auto lhs = nd->lhs->codegen(*this);
     assert(lhs.type.info.kind == Kind::Pointer || lhs.type.info.id == TypeIds.at("pointer"));
     assert(lhs.asm_mem.type == AsmType::Reg);
@@ -85,7 +88,8 @@ Memory gnu_asm::emitDeref(Deref_Ast* nd) {
 }
 
 Memory gnu_asm::emitCall(Call_Ast* nd) {
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitCall", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitCall", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitCall\n");
     for (size_t i = 0, f = 0, j = 0; j < nd->args.size(); j++) {
         auto arg_mem = nd->args[j]->codegen(*this);
         if (nd->args[j]->type.info.kind == Kind::Float) {
@@ -106,7 +110,8 @@ Memory gnu_asm::emitCall(Call_Ast* nd) {
     }
 }
 void gnu_asm::emitReturn(Return_Ast* nd) {
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitReturn", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitReturn", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitReturn\n");
     auto ret = nd->ret->codegen(*this);
     if (m_program->platform == Platform::Windows) {
         if (ret.type.info.kind == Kind::Float) {
@@ -151,7 +156,8 @@ Memory gnu_asm::getVarPtr(Variable var) {
 Memory gnu_asm::emitStore(Store_Ast* nd) {
     auto lhs = nd->lhs->codegen_ptr(*this);
     auto rhs = nd->rhs->codegen(*this);
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitStore [type: {}]", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset, lhs.type.info.name);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitStore [type: {}]", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset, lhs.type.info.name);
+    if (DEBUG_NODES) output.appendf("    // emitStore\n");
     assert(lhs.asm_mem.type != AsmType::Reg);
     if (lhs.type.info.size > 8) {
         TODO("");
@@ -167,7 +173,8 @@ Memory gnu_asm::emitStore(Store_Ast* nd) {
     return lhs;
 }
 Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitBinOp", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitBinOp", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitBinOp\n");
     auto lhs = nd->lhs->codegen(*this);
     auto rhs = nd->rhs->codegen(*this);
     auto is_float_op = lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float;
@@ -232,15 +239,18 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
 }
 
 void gnu_asm::emitLabel(Label_Ast* nd) {
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitLabel", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitLabel", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitLabel\n");
     output.appendf("  .L{}:\n", nd->label);
 }
 void gnu_asm::emitJump(Jump_Ast* nd) {
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitJump", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitJump", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitJump\n");
     output.appendf("    jmp .L{}\n", nd->label);
 }
 void gnu_asm::emitJumpIfNot(JumpIfNot_Ast* nd) {
-    if (DEBUG_NODES) mlog::println("{}:{}:{}: emitJumpIfNot", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitJumpIfNot", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitJumpIfNot\n");
     auto cond = nd->condition->codegen(*this);
     assert(cond.asm_mem.type == AsmType::Reg);
     output.appendf("    testb {}, {}\n", cond.asm_mem.reg._8, cond.asm_mem.reg._8);
@@ -352,6 +362,7 @@ void gnu_asm::compileConstant(Variable var) {
 }
 void gnu_asm::compileFunction(Func& func) {
     // if the function doesn't return you make it return 0
+    if (DEBUG_NODES) mlog::println("{}:", func.name);
     m_func = &func;
     bool returned = false;
     bool is_member = func.arguments.size() > 0 && func.name.starts_with(func.arguments[0].type.info.name) && func.arguments[0].name == "this";

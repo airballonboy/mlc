@@ -14,14 +14,16 @@ public:
     Memory codegen(BaseCodegen& cg) override {
         return cg.emitStore(this);
     }
-    static std::unique_ptr<Store_Ast> make_node(Variable _lhs, ExprNode _rhs) {
+    static std::unique_ptr<Store_Ast> make_node(Variable _lhs, ExprNode _rhs, Loc loc = {}) {
         auto x = std::make_unique<Store_Ast>(Load_Ast::make_node(_lhs), std::move(_rhs));
         x->type = _lhs.type;
+        x->loc_start = loc;
         return x;
     }
-    static std::unique_ptr<Store_Ast> make_node(Node _lhs, Node _rhs) {
+    static std::unique_ptr<Store_Ast> make_node(Node _lhs, Node _rhs, Loc loc = {}) {
         auto t = _lhs->type;
         auto x = std::make_unique<Store_Ast>(std::move(_lhs), std::move(_rhs));
+        x->loc_start = loc;
         x->type = t;
         return x;
     }
