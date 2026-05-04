@@ -429,7 +429,7 @@ Variable Parser::parseConstant() {
         var.parent  = rhs.parent;
         var.type = set_ptr_count(var.type, get_ptr_count(rhs.type));
     } else {
-        TODO("constants");
+        ERROR((*tkn)->loc, "running code is currently not supported while declaring constant");
     }
 
     m_lexar->getAndExpectNext(TokenType::SemiColon);   
@@ -446,7 +446,7 @@ void Parser::parseModuleDeclaration() {
             m_lexar->getAndExpectNext(TokenType::ColonColon);
             m_lexar->getAndExpectNext(TokenType::ID);
         } else {
-            TODO("redeclare module");
+            ERROR((*tkn)->loc, "cannot redaclare a module");
         }
     }
 
@@ -467,7 +467,7 @@ void Parser::parseHash() {
             if (m_lexar->peek()->loc.line == (*tkn)->loc.line)
                 m_lexar->getAndExpectNext(TokenType::Less);
             else 
-                TODO("no file provided to include");
+                ERROR((*tkn)->loc, "expected a file name maybe try\n    #include <filename>");
 
             std::string file_name{};
             while (m_lexar->peek()->loc.line == (*tkn)->loc.line && m_lexar->peek()->type != TokenType::Greater) {
@@ -477,7 +477,7 @@ void Parser::parseHash() {
             m_lexar->getNext();
             for (std::string& file : included_files) if (file == file_name) goto end_of_include;
             if (file_name == (*tkn)->loc.inputPath)
-                TODO("cannot include the current file");
+                ERROR((*tkn)->loc, "cannot include the current file");
             if (fileExistsInPaths(file_name, ctx.includePaths)) {
                 std::string file_path = getFilePathFromPaths(file_name, ctx.includePaths);
 
@@ -486,7 +486,7 @@ void Parser::parseHash() {
                 m_lexar->pushtokensaftercurrent(&l);
                 included_files.push_back(file_name);
             } else {
-                TODO("file not found");
+                ERROR((*tkn)->loc, "the file you were trying to include was not found in the included paths");
             };
         end_of_include:;
         }break;//TokenType::Include
@@ -626,6 +626,7 @@ void Parser::parseModulePrefix() {
 }
 void Parser::parseFunction(bool member, Struct parent) {
     tkn = &m_lexar->currentToken;
+    Loc start_loc = (*tkn)->loc;
     current_offset = 0;
     Func func = Func();
     std::string name{};
@@ -664,7 +665,7 @@ void Parser::parseFunction(bool member, Struct parent) {
         name = current_module_prefix + (*tkn)->string_value;
     }
     if (func.is_static && !member) 
-        TODO("cannot have static non member functions");
+        ERROR(start_loc, "cannot have static non member functions");
     func.name = name;
     current_module_prefix = "";
     if (name == "main") 
@@ -699,6 +700,7 @@ void Parser::parseFunction(bool member, Struct parent) {
     if (m_lexar->peek()->type == TokenType::Arrow) {
         m_lexar->getAndExpectNext(TokenType::Arrow);
         m_lexar->getAndExpectNext({TokenType::TypeID, TokenType::ID});
+        Loc return_type_loc = (*tkn)->loc;
         current_module_prefix = "";
         if (m_lexar->peek()->type == TokenType::ColonColon) {
             parseModulePrefix();
@@ -707,7 +709,7 @@ void Parser::parseFunction(bool member, Struct parent) {
         if (type_infos.contains(current_module_prefix + (*tkn)->string_value))
             *func.type.func_data->return_type = type_infos.at(current_module_prefix + (*tkn)->string_value);
         else 
-            ERROR((*tkn)->loc, mlog::format("Type {} does not exist", current_module_prefix + (*tkn)->string_value));
+            ERROR(return_type_loc, mlog::format("Type {} does not exist", current_module_prefix + (*tkn)->string_value));
         if (m_lexar->peek()->type == TokenType::OBracket) {
             m_lexar->getNext();
             m_lexar->getAndExpectNext(TokenType::CBracket);
@@ -771,6 +773,7 @@ void delete_temp_vars() {
 StmtNode Parser::parseStatement() {
     StmtNode stmt;
     statement_count++;
+    Loc stmt_start = (*tkn)->loc;
     switch ((*tkn)->type) {
         case TokenType::SemiColon: { }break;
         case TokenType::OCurly: {
@@ -779,7 +782,8 @@ StmtNode Parser::parseStatement() {
         case TokenType::Return: {
             Node return_value;
             if (m_lexar->peek()->type == TokenType::SemiColon) {
-                if (m_func->type.func_data->return_type->info.kind != Kind::Void) TODO("error on no return");
+                if (m_func->type.func_data->return_type->info.kind != Kind::Void)
+                    ERROR(stmt_start, "cannot do `return;` on functions with a return type");
                 return_value = Load_Ast::make_node(Variable{
                     .type    = Type(
                         type_infos.at("int8"),
@@ -958,6 +962,7 @@ StmtNode Parser::parseStatement() {
         }
     }
     delete_temp_vars();
+    stmt->loc_start = stmt_start;
     stmt->loc_end = (*tkn)->loc;
     return stmt;
 }
@@ -1201,7 +1206,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             ret_lvalue = true;
             return {Load_Ast::make_node(var, (*tkn)->loc), ret_lvalue};
         } else {
-            TODO(mlog::format("ERROR: variable `{}` at {}:{}:{} wasn't found", name, (*tkn)->loc.inputPath, (*tkn)->loc.line, (*tkn)->loc.offset));
+            ERROR((*tkn)->loc, mlog::format("variable `{}` at {}:{}:{} wasn't found", name));
         }
     }
 
