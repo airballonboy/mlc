@@ -123,6 +123,7 @@ void gnu_asm::emitReturn(Return_Ast* nd) {
         } else if (ret.type.info.size <= 8 || ret.type.info.kind == Kind::Pointer) {
             mov.append(ret, mem_reg(Rax));
         } else {
+            TODO("copy structs");
             int8_t it = m_func->is_member ? 1 : 0;
             m_func->arguments[it].deref_count = 1;
             mov.append(ret, mem_off(-m_func->arguments[it].offset, Rip));
