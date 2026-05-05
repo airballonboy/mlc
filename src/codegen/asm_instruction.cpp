@@ -128,7 +128,7 @@ void AsmInstruction::append(Register src, Register dest, size_t size) {
     );
 }
 void AsmInstruction::append(int64_t int_value, Register dest, size_t size) {
-    if (int_value != 0) {
+    if (int_value != 0 || m_instName != "mov") {
         m_output->appendf("    {} $0x{:x}, {}\n",
                            INST_SIZE(m_instName, m_instSuffixs, size),
                            static_cast<uint64_t>(int_value),
