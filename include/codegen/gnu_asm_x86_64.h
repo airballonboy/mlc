@@ -52,33 +52,33 @@ private:
     AsmInstruction& get_compare_binop(BinOp bin_op, bool is_float);
 
 public:
-    AsmInstruction movabs = AsmInstruction("movabs", output);                   ;
-    AsmInstruction lea    = AsmInstruction("lea"   , output);
-    AsmInstruction cmp    = AsmInstruction("cmp"   , output);
-    AsmInstruction mov    = AsmInstruction("mov"   , output);
-    AsmInstruction add    = AsmInstruction("add"   , output);
-    AsmInstruction sub    = AsmInstruction("sub"   , output);
-    AsmInstruction imul   = AsmInstruction("imul"  , output);
-    AsmInstruction idiv   = AsmInstruction("idiv"  , output);
-    AsmInstruction adds   = AsmInstruction("adds"  , output, {"d", "s", "s", "s"});
-    AsmInstruction movs   = AsmInstruction("movs"  , output, {"d", "s", "s", "s"});
-    AsmInstruction subs   = AsmInstruction("subs"  , output, {"d", "s", "s", "s"});
-    AsmInstruction muls   = AsmInstruction("muls"  , output, {"d", "s", "s", "s"});
-    AsmInstruction divs   = AsmInstruction("divs"  , output, {"d", "s", "s", "s"});
-    AsmInstruction comis  = AsmInstruction("comis" , output, {"d", "s", "s", "s"});
-    AsmInstruction sete   = AsmInstruction("sete"  , output, {"", "", "", ""});
-    AsmInstruction setne  = AsmInstruction("setne" , output, {"", "", "", ""});
-    AsmInstruction setl   = AsmInstruction("setl"  , output, {"", "", "", ""});
-    AsmInstruction setle  = AsmInstruction("setle" , output, {"", "", "", ""});
-    AsmInstruction setg   = AsmInstruction("setg"  , output, {"", "", "", ""});
-    AsmInstruction setge  = AsmInstruction("setge" , output, {"", "", "", ""});
-    AsmInstruction setb   = AsmInstruction("setb"  , output, {"", "", "", ""});
-    AsmInstruction setbe  = AsmInstruction("setbe" , output, {"", "", "", ""});
-    AsmInstruction seta   = AsmInstruction("seta"  , output, {"", "", "", ""});
-    AsmInstruction setnb  = AsmInstruction("setnb" , output, {"", "", "", ""});
+    AsmInstruction movabs = AsmInstruction("movabs");                   ;
+    AsmInstruction lea    = AsmInstruction("lea" , {"q", "q", "q", "q"});
+    AsmInstruction cmp    = AsmInstruction("cmp");
+    AsmInstruction mov    = AsmInstruction("mov");
+    AsmInstruction add    = AsmInstruction("add");
+    AsmInstruction sub    = AsmInstruction("sub");
+    AsmInstruction imul   = AsmInstruction("imul");
+    AsmInstruction idiv   = AsmInstruction("idiv");
+    AsmInstruction adds   = AsmInstruction("adds" , {"d", "s", "s", "s"});
+    AsmInstruction movs   = AsmInstruction("movs" , {"d", "s", "s", "s"});
+    AsmInstruction subs   = AsmInstruction("subs" , {"d", "s", "s", "s"});
+    AsmInstruction muls   = AsmInstruction("muls" , {"d", "s", "s", "s"});
+    AsmInstruction divs   = AsmInstruction("divs" , {"d", "s", "s", "s"});
+    AsmInstruction comis  = AsmInstruction("comis", {"d", "s", "s", "s"});
+    AsmInstruction sete   = AsmInstruction("sete" , {"", "", "", ""});
+    AsmInstruction setne  = AsmInstruction("setne", {"", "", "", ""});
+    AsmInstruction setl   = AsmInstruction("setl" , {"", "", "", ""});
+    AsmInstruction setle  = AsmInstruction("setle", {"", "", "", ""});
+    AsmInstruction setg   = AsmInstruction("setg" , {"", "", "", ""});
+    AsmInstruction setge  = AsmInstruction("setge", {"", "", "", ""});
+    AsmInstruction setb   = AsmInstruction("setb" , {"", "", "", ""});
+    AsmInstruction setbe  = AsmInstruction("setbe", {"", "", "", ""});
+    AsmInstruction seta   = AsmInstruction("seta" , {"", "", "", ""});
+    AsmInstruction setnb  = AsmInstruction("setnb", {"", "", "", ""});
 
-    AsmInstruction and_   = AsmInstruction("and" , output);
-    AsmInstruction or_    = AsmInstruction("or"  , output);
+    AsmInstruction and_   = AsmInstruction("and");
+    AsmInstruction or_    = AsmInstruction("or");
 };
 
 const Register Rip   = {"%rip"  , "%rip"  , "%rip"  , "%rip"};
@@ -200,11 +200,16 @@ inline void free_mem(Memory mem) {
             else
                 free_int_reg(mem.asm_mem.off_reg);
         } break;
+        case AsmType::TWO_Reg: {
+            if (is_float_reg(mem.asm_mem.reg1)) free_float_reg(mem.asm_mem.reg1);
+            else                               free_int_reg(mem.asm_mem.reg1);
+            if (is_float_reg(mem.asm_mem.reg2)) free_float_reg(mem.asm_mem.reg2);
+            else                               free_int_reg(mem.asm_mem.reg2);
+        } break;
 
         case AsmType::ArrayIndex: 
         case AsmType::Global: 
         case AsmType::None:
-        default:
             TODO("");
     }
 }

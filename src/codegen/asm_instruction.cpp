@@ -1,5 +1,6 @@
 #include "codegen/asm_instruction.h"
 #include "ast/mem/memory.h"
+#include "codegen/gnu_asm_x86_64.h"
 #include "tools/format.h"
 #include "tools/logger.h"
 #include <cassert>
@@ -47,6 +48,9 @@ void AsmInstruction::append(Memory src, Memory dest, size_t size) {
         case AsmType::OffReg:
             append(src.asm_mem.reg, dest.asm_mem.off, dest.asm_mem.off_reg, size);
             break;
+        case AsmType::TWO_Reg:
+            TODO("implement two regs");
+            break;
         case AsmType::ArrayIndex:
             TODO("implement array index");
             break;
@@ -60,6 +64,10 @@ void AsmInstruction::append(Memory src, Memory dest, size_t size) {
         switch (dest.asm_mem.type) {
         case AsmType::Reg:
             append(src.asm_mem.off, src.asm_mem.off_reg, dest.asm_mem.reg, size);
+            break;
+        case AsmType::TWO_Reg:
+            append(src.asm_mem.off  , src.asm_mem.off_reg, dest.asm_mem.reg1, 8);
+            append(src.asm_mem.off+8, src.asm_mem.off_reg, dest.asm_mem.reg2, size-8);
             break;
         case AsmType::OffReg:
         case AsmType::ArrayIndex:
@@ -76,10 +84,20 @@ void AsmInstruction::append(Memory src, Memory dest, size_t size) {
         case AsmType::OffReg:
         case AsmType::ArrayIndex:
         case AsmType::Global:
+        case AsmType::TWO_Reg:
         case AsmType::None:
             TODO("invalid Memory type");
             break;
         }
+    } else if (src.asm_mem.type == AsmType::TWO_Reg) {
+        assert(m_instName == "mov" || m_instName == "movs");
+        assert(dest.asm_mem.type == AsmType::OffReg);
+        mov.append(mem_reg(src.asm_mem.reg1), dest, 8);
+        if (xmm.contains(src.asm_mem.reg2._64))
+            movs.append(mem_reg(src.asm_mem.reg2), mem_off(dest.asm_mem.off+8, dest.asm_mem.off_reg), size - 8);
+        else
+            mov.append(mem_reg(src.asm_mem.reg1), mem_off(dest.asm_mem.off+8, dest.asm_mem.off_reg), size - 8);
+
     } else {
         TODO("invalid Memory type");
     }
@@ -189,7 +207,7 @@ Memory mem_reg(Register reg, Type t) {
     return {.mem_type = MemType::Asm, .type = t, .asm_mem = {.type = AsmType::Reg, .reg = reg}};
 }
 Memory mem_2reg(Register reg1, Register reg2, Type t) {
-    return {.mem_type = MemType::Asm, .type = t, .asm_mem = {.type = AsmType::Reg, .reg1 = reg1, .reg2 = reg2}};
+    return {.mem_type = MemType::Asm, .type = t, .asm_mem = {.type = AsmType::TWO_Reg, .reg1 = reg1, .reg2 = reg2}};
 }
 Memory mem_global(const char* label, Register reg, Type t) {
     return {.mem_type = MemType::Asm, .type = t, .asm_mem = {.type = AsmType::Global, .label = (char*)label, .label_reg = reg}};

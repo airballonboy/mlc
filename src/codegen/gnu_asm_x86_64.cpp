@@ -47,7 +47,7 @@ Memory gnu_asm::emitLoad(Load_Ast* nd) {
         mem = mem_reg(reg, nd->var.type);
     } else if (nd->var.parent != nullptr) {
         mov_member(nd->var, reg);
-        mem = mem_reg(reg);
+        mem = mem_reg(reg, nd->var.type);
     } else {
         if (nd->var.size <= 8) {
             if (nd->var.type.info.kind == Kind::Float) {
@@ -58,12 +58,11 @@ Memory gnu_asm::emitLoad(Load_Ast* nd) {
                 mem = mem_reg(reg, nd->var.type);
             }
         } else if (nd->var.size <= 16) {
-            mov.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg), 8);
-            mov.append(mem_off(-nd->var.offset + 8, Rbp), mem_reg(Rdx), nd->var.size - 8);
-            mem = mem_2reg(reg, Rdx, nd->var.type);
+            lea.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg));
+            mem = mem_reg(reg, make_ptr(nd->var.type));
         } else {
-            lea.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg), nd->var.size > 8 ? 8 : nd->var.size);
-            mem = mem_off(0, reg, nd->var.type);
+            lea.append(mem_off(-nd->var.offset, Rbp), mem_reg(reg));
+            mem = mem_reg(reg, make_ptr(nd->var.type));
         }
     }
     return mem;
@@ -76,9 +75,9 @@ Memory gnu_asm::emitRef(Ref_Ast* nd) {
         nd->lhs.deref_count = -1;
         mov_member(nd->lhs, Rax);
     } else {
-        lea.append(-nd->lhs.offset, Rbp, Rax, nd->lhs.size);
+        lea.append(-nd->lhs.offset, Rbp, Rax);
     }
-    return mem_reg(Rax, nd->lhs.type);
+    return mem_reg(Rax, make_ptr(nd->lhs.type));
 }
 Memory gnu_asm::emitDeref(Deref_Ast* nd) {
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitDeref", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
@@ -94,8 +93,28 @@ Memory gnu_asm::emitDeref(Deref_Ast* nd) {
 Memory gnu_asm::emitCall(Call_Ast* nd) {
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitCall", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
     if (DEBUG_NODES) output.appendf("    // emitCall\n");
+    Memory ret_mem = {};
+    auto ret_type = *nd->func.type.func_data->return_type;
+    auto ret_in_mem = false;
+    if (ret_type.info.kind != Kind::Pointer) {
+        if ((m_program->platform == Platform::Windows && ret_type.info.size > 8) ||
+            (m_program->platform == Platform::Linux && ret_type.info.size > 16))
+        {
+            assert(ret_type.info.id != TypeId::Void);
+            assert(ret_type.info.kind != Kind::Void);
+            auto ret_ptr = Ref_Ast::make_node(nd->ret_addr);
+            nd->args.emplace(nd->args.begin(), std::move(ret_ptr));
+            ret_in_mem = true;
+        }
+    }
     for (size_t i = 0, f = 0, j = 0; j < nd->args.size(); j++) {
         auto arg_mem = nd->args[j]->codegen(*this);
+        if (ret_in_mem && j == 0) ret_mem = arg_mem;
+        if (nd->func.c_variadic) {
+            if (arg_mem.type.info.kind == Kind::Float) {
+                cast_float_size(arg_mem.asm_mem.reg, arg_mem.type.info.size, 8);
+            }
+        }
         if (nd->args[j]->type.info.kind == Kind::Float) {
             mov.append(arg_mem, mem_reg(arg_register_float[f]));
             f++;
@@ -107,40 +126,174 @@ Memory gnu_asm::emitCall(Call_Ast* nd) {
     }
     output.appendf("    call {}\n", nd->func.name);
 
-    if (nd->func.type.func_data->return_type->info.kind == Kind::Float) {
-        return mem_reg(Xmm0, *nd->func.type.func_data->return_type);
-    } else {
-        return mem_reg(Rax, *nd->func.type.func_data->return_type);
+    if (ret_type.info.kind != Kind::Void) {
+        if (m_program->platform == Platform::Windows) {
+            if (ret_type.info.kind == Kind::Float) {
+                return mem_reg(Xmm0, ret_type);
+            } else if (nd->func.type.func_data->return_type->info.size <= 8 || nd->func.type.info.kind == Kind::Pointer) {
+                return mem_reg(Rax, ret_type);
+            } else {
+                return ret_mem;
+            }
+        } else {
+            if (nd->func.type.func_data->return_type->info.size <= 8 || nd->func.type.info.kind == Kind::Pointer) {
+                if (ret_type.info.kind == Kind::Float) {
+                    return mem_reg(Xmm0, ret_type);
+                } else if (ret_type.info.kind == Kind::Struct) {
+                    if (Struct::get_from_name(ret_type.info.name, m_program->struct_storage).is_float_only) {
+                        return mem_reg(Xmm0, ret_type);
+                    } else 
+                        return mem_reg(Rax, ret_type);
+                } else {
+                    return mem_reg(Rax, ret_type);
+                }
+            } else if (nd->func.type.func_data->return_type->info.size <= 16) {
+                if (Struct::get_from_name(ret_type.info.name, m_program->struct_storage).is_float_only) {
+                    return mem_2reg(Xmm0, Xmm1, ret_type);
+                } else {
+                    Register slots[2] = {Xmm0, Xmm1};
+                    bool first_xmm = true;
+                    size_t current_size = 0;
+                    size_t i = 0;
+                    for (auto elem : Struct::get_from_name(ret_type.info.name, m_program->struct_storage).var_storage) {
+                        current_size += elem.size;
+                        if (current_size <= 8) {
+                            if (elem.type.info.kind == Kind::Float) {
+                                slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
+                            } else {
+                                slots[0] = Rax;
+                            }
+                            if (slots[0]._64 != Xmm0._64) {
+                                first_xmm = false;
+                                slots[1] = Xmm0;
+                            }
+                        } else {
+                            if (elem.type.info.kind == Kind::Float) {
+                                if (first_xmm)
+                                    slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
+                                else
+                                    slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
+                            } else {
+                                if (first_xmm)
+                                    slots[1] = Rax;
+                                else 
+                                    slots[1] = Rdx;
+                            }
+                        }
+                    }
+                    return mem_2reg(slots[0], slots[1], ret_type);
+                }
+            } else {
+                return ret_mem;
+            }
+        }
     }
+    // TODO: should return none
+    return mem_reg(Rax);
 }
 void gnu_asm::emitReturn(Return_Ast* nd) {
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitReturn", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
     if (DEBUG_NODES) output.appendf("    // emitReturn\n");
+    auto ret_type = *m_func->type.func_data->return_type;
     auto ret = nd->ret->codegen(*this);
     if (m_program->platform == Platform::Windows) {
-        if (ret.type.info.kind == Kind::Float) {
+        if (ret_type.info.kind == Kind::Float) {
             mov.append(ret, mem_reg(Xmm0));
-        } else if (ret.type.info.size <= 8 || ret.type.info.kind == Kind::Pointer) {
+        } else if (ret_type.info.size <= 8 || ret_type.info.kind == Kind::Pointer) {
             mov.append(ret, mem_reg(Rax));
         } else {
-            TODO("copy structs");
             int8_t it = m_func->is_member ? 1 : 0;
             m_func->arguments[it].deref_count = 1;
-            mov.append(ret, mem_off(-m_func->arguments[it].offset, Rip));
+
+            output.append("    cld\n");
+            mov.append(mem_off(-m_func->arguments[it].offset, Rbp), mem_reg(Rdi));
+            if (ret.type.info.kind == Kind::Pointer) {
+                mov.append(ret, mem_reg(Rsi));
+                mov.append(ret_type.info.size, Rcx, 8);
+            } else {
+                TODO("copy structs");
+            }
+            output.append("    rep movsb\n");
         }
     } else if (m_program->platform == Platform::Linux) {
-        if (ret.type.info.size <= 8 || m_func->type.info.kind == Kind::Pointer) {
-            if (ret.type.info.kind == Kind::Float) {
-                mov.append(ret, mem_reg(Xmm0), ret.type.info.size);
-            } else if (ret.type.info.kind == Kind::Struct) {
-                TODO("emitReturn: linux");
-                if (Struct::get_from_name(ret.type.info.name, m_program->struct_storage).is_float_only) {
-                    mov.append(ret, mem_reg(Xmm0), ret.type.info.size);
+        if (ret_type.info.size <= 8 || m_func->type.info.kind == Kind::Pointer) {
+            if (ret_type.info.kind == Kind::Float) {
+                mov.append(ret, mem_reg(Xmm0), ret_type.info.size);
+            } else if (ret_type.info.kind == Kind::Struct) {
+                if (Struct::get_from_name(ret_type.info.name, m_program->struct_storage).is_float_only) {
+                    mov.append(ret, mem_reg(Xmm0), ret_type.info.size);
                 } else 
-                    mov.append(ret, mem_reg(Rax), ret.type.info.size);
+                    mov.append(ret, mem_reg(Rax), ret_type.info.size);
             } else {
-                mov.append(ret, mem_reg(Rax), ret.type.info.size);
+                mov.append(ret, mem_reg(Rax), ret_type.info.size);
             }
+        } else if (ret_type.info.size <= 16) {
+            if (Struct::get_from_name(ret_type.info.name, m_program->struct_storage).is_float_only) {
+                size_t size = ret_type.info.size;
+                assert(ret.asm_mem.type == AsmType::Reg);
+                assert(ret.type.info.kind == Kind::Pointer);
+                movs.append(mem_off(0, ret.asm_mem.reg), mem_reg(Xmm0), 8);
+                movs.append(mem_off(8, ret.asm_mem.reg), mem_reg(Xmm1), ret_type.info.size - 8);
+            } else {
+                Register slots[2] = {Xmm0, Xmm1};
+                AsmInstruction* mov_insts[2] = {&mov, &mov};
+                bool first_xmm = true;
+                size_t current_size = 0;
+                size_t i = 0;
+                for (auto elem : Struct::get_from_name(ret_type.info.name, m_program->struct_storage).var_storage) {
+                    current_size += elem.size;
+                    if (current_size <= 8) {
+                        if (elem.type.info.kind == Kind::Float) {
+                            slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
+                            mov_insts[0] = (slots[0]._64 == Xmm0._64) ? &movs : &mov;
+                        } else {
+                            slots[0] = Rax;
+                            mov_insts[0] = &mov;
+                        }
+                        if (slots[0]._64 != Xmm0._64) {
+                            first_xmm = false;
+                            slots[1] = Xmm0;
+                            mov_insts[1] = &movs;
+                        }
+                    } else {
+                        if (elem.type.info.kind == Kind::Float) {
+                            if (first_xmm) {
+                                slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
+                                mov_insts[1] = (slots[1]._64 == Xmm1._64) ? &movs : &mov;
+                            } else {
+                                slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
+                                mov_insts[1] = (slots[1]._64 == Xmm0._64) ? &movs : &mov;
+                            }
+                        } else {
+                            if (first_xmm) {
+                                slots[1] = Rax;
+                                mov_insts[1] = &mov;
+                            } else {
+                                slots[1] = Rdx;
+                                mov_insts[1] = &movs;
+                            }
+                        }
+                    }
+                }
+                size_t size = ret_type.info.size;
+                assert(ret.asm_mem.type == AsmType::Reg);
+                assert(ret.type.info.kind == Kind::Pointer);
+                mov_insts[0]->append(mem_off(0, ret.asm_mem.reg), mem_reg(slots[0]), 8);
+                mov_insts[1]->append(mem_off(8, ret.asm_mem.reg), mem_reg(slots[1]), ret_type.info.size - 8);
+            }
+        } else {
+            int8_t it = m_func->is_member ? 1 : 0;
+            m_func->arguments[it].deref_count = 1;
+
+            output.append("    cld\n");
+            mov.append(mem_off(-m_func->arguments[it].offset, Rbp), mem_reg(Rdi));
+            if (ret.type.info.kind == Kind::Pointer) {
+                mov.append(ret, mem_reg(Rsi));
+                mov.append(ret_type.info.size, Rcx, 8);
+            } else {
+                TODO("copy structs");
+            }
+            output.append("    rep movsb\n");
         }
     }
     add.append(m_func->stack_size, Rsp);
@@ -161,18 +314,25 @@ Memory gnu_asm::getVarPtr(Variable var) {
 Memory gnu_asm::emitStore(Store_Ast* nd) {
     auto lhs = nd->lhs->codegen_ptr(*this);
     auto rhs = nd->rhs->codegen(*this);
+    if (rhs.type.info.kind == Kind::Float) cast_float_size(rhs.asm_mem.reg, rhs.type.info.size, lhs.type.info.size);
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitStore [type: {}]", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset, lhs.type.info.name);
     if (DEBUG_NODES) output.appendf("    // emitStore\n");
     assert(lhs.asm_mem.type != AsmType::Reg);
-    if (lhs.type.info.size > 8) {
-        TODO("");
+    if (lhs.type.info.size > 16) {
         output.appendf("    cld\n");
+        assert(rhs.type.info.kind == Kind::Pointer);
         mov.append(rhs, mem_reg(Rsi));
         lea.append(lhs, mem_reg(Rdi));
         mov.append(lhs.type.info.size, Rcx);
         output.appendf("    rep movsb\n");
+    } else if (lhs.type.info.size > 8) {
+        assert(rhs.asm_mem.type == AsmType::TWO_Reg);
+        mov.append(rhs, lhs, lhs.type.info.size);
     } else {
-        mov.append(rhs, lhs);
+        if (xmm.contains(rhs.asm_mem.reg._64))
+            movs.append(rhs, lhs, lhs.type.info.size);
+        else
+            mov.append(rhs, lhs, lhs.type.info.size);
     }
     free_mem(rhs);
     return lhs;
@@ -264,6 +424,7 @@ void gnu_asm::emitJumpIfNot(JumpIfNot_Ast* nd) {
 }
 
 gnu_asm::gnu_asm(Program *prog) : BaseCodegen(prog) {
+    AsmInstruction::set_output(&output);
     if (m_program->platform == Platform::Windows) {
         arg_register = {
             Rcx, Rdx, R8, R9
@@ -423,52 +584,6 @@ void gnu_asm::compileFunction(Func& func) {
 //                mov_var(arg, Rax);
 //        } else {
 //            mov_var(arg, Rax);
-//        }
-//    } else if (ret_type.info.size <= 16) {
-//        if (Struct::get_from_name(arg.type.info.name, m_program->struct_storage).is_float_only) {
-//            size_t size = arg.size;
-//            arg.size = 8;
-//            mov_var(arg, Xmm0);
-//            arg.offset -= 8;
-//            arg.size = size - 8;
-//            if (arg.size == 4) arg.type = type_infos.at("float");
-//            mov_var(arg, Xmm1);
-//        } else {
-//            Register slots[2] = {Xmm0, Xmm1};
-//            bool first_xmm = true;
-//            size_t current_size = 0;
-//            size_t i = 0;
-//            for (auto elem : Struct::get_from_name(arg.type.info.name, m_program->struct_storage).var_storage) {
-//                current_size += elem.size;
-//                if (current_size <= 8) {
-//                    if (elem.type.info.kind == Kind::Float) {
-//                        slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
-//                    } else {
-//                        slots[0] = Rax;
-//                    }
-//                    if (slots[0]._64 != Xmm0._64) {
-//                        first_xmm = false;
-//                        slots[1] = Xmm0;
-//                    }
-//                } else {
-//                    if (elem.type.info.kind == Kind::Float) {
-//                        if (first_xmm)
-//                            slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
-//                        else
-//                            slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
-//                    } else {
-//                        if (first_xmm)
-//                            slots[1] = Rax;
-//                        else 
-//                            slots[1] = Rdx;
-//                    }
-//                }
-//            }
-//            arg.size = 8;
-//            mov_var(arg, slots[0]);
-//            arg.size = current_size - 8;
-//            arg.offset -= 8;
-//            mov_var(arg, slots[1]);
 //        }
 //    } else {
 //        if (is_member) {

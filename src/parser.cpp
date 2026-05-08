@@ -1430,7 +1430,7 @@ ExprNode Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_ad
 
     m_currentFuncStorage = &m_program.func_storage;
     current_module_prefix = "";
-    return Call_Ast::make_node(func, std::move(args), (*tkn)->loc);
+    return Call_Ast::make_node(func, std::move(args), return_address, (*tkn)->loc);
 }
 Func Parser::make_type_info_func(Struct s) {
     auto save = current_offset;

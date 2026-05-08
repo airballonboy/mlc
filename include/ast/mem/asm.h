@@ -4,6 +4,7 @@
 enum class AsmType {
     None,
     Reg,
+    TWO_Reg,
     OffReg,
     Global,
     ArrayIndex
