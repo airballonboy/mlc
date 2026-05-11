@@ -107,24 +107,28 @@ Memory gnu_asm::emitCall(Call_Ast* nd) {
             ret_in_mem = true;
         }
     }
-    for (size_t i = 0, f = 0, j = 0; j < nd->args.size(); j++) {
-        auto arg_mem = nd->args[j]->codegen(*this);
-        if (ret_in_mem && j == 0) ret_mem = arg_mem;
-        if (nd->func.c_variadic) {
-            if (arg_mem.type.info.kind == Kind::Float) {
-                cast_float_size(arg_mem.asm_mem.reg, arg_mem.type.info.size, 8);
+    if (m_program->platform == Platform::Windows) {
+        call_func_windows(nd->func, std::move(nd->args));
+    } else {
+        for (size_t i = 0, f = 0, j = 0; j < nd->args.size(); j++) {
+            auto arg_mem = nd->args[j]->codegen(*this);
+            if (ret_in_mem && j == 0) ret_mem = arg_mem;
+            if (nd->func.c_variadic) {
+                if (arg_mem.type.info.kind == Kind::Float) {
+                    cast_float_size(arg_mem.asm_mem.reg, arg_mem.type.info.size, 8);
+                }
             }
+            if (nd->args[j]->type.info.kind == Kind::Float) {
+                mov.append(arg_mem, mem_reg(arg_register_float[f]));
+                f++;
+            } else {
+                mov.append(arg_mem, mem_reg(arg_register[i]));
+                i++;
+            }
+            free_mem(arg_mem);
         }
-        if (nd->args[j]->type.info.kind == Kind::Float) {
-            mov.append(arg_mem, mem_reg(arg_register_float[f]));
-            f++;
-        } else {
-            mov.append(arg_mem, mem_reg(arg_register[i]));
-            i++;
-        }
-        free_mem(arg_mem);
+        output.appendf("    call {}\n", nd->func.name);
     }
-    output.appendf("    call {}\n", nd->func.name);
 
     if (ret_type.info.kind != Kind::Void) {
         if (m_program->platform == Platform::Windows) {
@@ -978,13 +982,16 @@ void gnu_asm::get_func_args_linux(Func& func) {
     }
 }
 
-void gnu_asm::call_func_windows(Func& func, VariableStorage args) {
+void gnu_asm::call_func_windows(Func& func, std::vector<Node> nodes) {
     size_t temp_float_size = 0;
     Register reg1{};
     Register reg2{};
     size_t current_stack_offset = 32;
-    for (size_t i = 0, j = 0; i < args.size(); i++, j++) {
-        if (args[i].type.info.kind == Kind::Float && func.c_variadic)
+    for (size_t i = 0, j = 0; i < nodes.size(); i++, j++) {
+        auto arg_mem  = nodes[i]->codegen(*this);
+        auto arg_type = nodes[i]->type;
+        auto arg_size = arg_type.info.size;
+        if (arg_type.info.kind == Kind::Float && func.c_variadic)
             temp_float_size = 8;
         else if (!func.c_variadic)
             temp_float_size = func.arguments[i].size;
@@ -1000,53 +1007,49 @@ void gnu_asm::call_func_windows(Func& func, VariableStorage args) {
             reg1 = arg_register[j];
             reg2 = arg_register_float[j];
         }
-        if (args[i].type.info.kind == Kind::Struct) {
-            auto strct = Struct::get_from_name(args[i].type.info.name, m_program->struct_storage);
-            if (args[i].deref_count > 0) {
-                if (get_ptr_count(args[i].type) == args[i].deref_count)
-                    args[i].size = strct.size;
-            }
-            if (args[i].size <= 8) {
-                mov_var(args[i], reg1);
+        if (arg_type.info.kind == Kind::Struct) {
+            auto strct = Struct::get_from_name(arg_type.info.name, m_program->struct_storage);
+            if (arg_size <= 8) {
+                mov.append(arg_mem, mem_reg(reg1));
             } else {
-                args[i].deref_count = -1;
-                mov_var(args[i], reg1);
+                TODO("passing structs with [size > 8] in windows");
+                mov.append(arg_mem, mem_reg(reg1));
             }
         } else {
-            if (args[i].type.info.kind == Kind::Float) {
+            if (arg_type.info.kind == Kind::Float) {
                 if (func.c_variadic) {
-                    if (args[i].size != temp_float_size) {
-                        mov_var(args[i], reg2);
-                        cast_float_size(reg2, args[i].size, temp_float_size);
+                    if (arg_size != temp_float_size) {
+                        mov.append(arg_mem, mem_reg(reg2));
+                        cast_float_size(reg2, arg_size, temp_float_size);
                         mov.append(reg2, reg1);
                     } else {
-                        mov_var(args[i], reg1);
+                        mov.append(arg_mem, mem_reg(reg1));
                     }
                 } else {
-                    mov_var(args[i], reg2);
-                    cast_float_size(reg2, args[i].size, temp_float_size);
+                    mov.append(arg_mem, mem_reg(reg2));
+                    cast_float_size(reg2, arg_size, temp_float_size);
                 }
             } else {
-                mov_var(args[i], reg1);
+                mov.append(arg_mem, mem_reg(reg1));
                 if (func.c_variadic) {
-                    if (args[i].size == 1)
+                    if (arg_size == 1)
                         output.appendf("    movsbl {}, {}\n", reg1._8, reg1._32);
-                    if (args[i].size == 2)
+                    if (arg_size == 2)
                         output.appendf("    movswl {}, {}\n", reg1._16, reg1._32);
                 }
             }
         }
         if (is_stack) {
-            if (args[i].type.info.kind == Kind::Float && !func.c_variadic) {
-                cast_float_size(reg2, args[i].size, temp_float_size);
+            if (arg_type.info.kind == Kind::Float && !func.c_variadic) {
+                cast_float_size(reg2, arg_size, temp_float_size);
                 mov.append(reg2, current_stack_offset, Rsp);
             } else {
                 mov.append(reg1, current_stack_offset, Rsp);
             }
-            current_stack_offset += std::max(8, (int)args[i].size);
+            current_stack_offset += std::max(8, (int)arg_size);
         }
         if (is_next_stack) {
-            if (args[i].size > 8) {
+            if (arg_size > 8) {
                 mov.append(reg2, current_stack_offset+8, Rsp);
                 current_stack_offset += 8;
             }
@@ -1228,8 +1231,9 @@ void gnu_asm::call_func_linux(Func& func, VariableStorage args) {
 }
 void gnu_asm::call_func(Func& func, VariableStorage args) {
     //if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
+    TODO("should be deleted");
     if (m_program->platform == Platform::Windows) {
-        call_func_windows(func, args);
+        //call_func_windows(func, args);
     } else if (m_program->platform == Platform::Linux) {
         call_func_linux(func, args);
     }
