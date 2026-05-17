@@ -23,6 +23,7 @@ public:
         fn->variadic = _func.variadic;
         fn->is_member = _func.is_member;
         fn->is_static = _func.is_static;
+        fn->arguments = _func.arguments;
         auto x = std::make_unique<Call_Ast>(*fn, std::move(_args));
         x->type = *_func.type.func_data->return_type;
         x->loc_start = loc;

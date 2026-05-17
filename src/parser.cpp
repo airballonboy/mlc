@@ -1403,7 +1403,6 @@ ExprNode Parser::parseFuncCall(Func& func, Variable this_ptr, Variable return_ad
     if (this_ptr.type.info.kind != Kind::Void) args.push_back(Ref_Ast::make_node(this_ptr, (*tkn)->loc));
     while (m_lexar->peek()->type != TokenType::CParen) {
         m_lexar->getNext();
-        //TODO("call func");
         args.push_back(std::get<0>(parseExpression()));
         if (m_lexar->peek()->type != TokenType::CParen) {
             m_lexar->getAndExpectNext(TokenType::Comma);

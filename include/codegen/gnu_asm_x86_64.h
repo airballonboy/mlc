@@ -13,7 +13,7 @@ public:
 
     void call_func(Func& func, VariableStorage args);
     void call_func_windows(Func& func, std::vector<Node> args);
-    void call_func_linux(Func& func, VariableStorage args);
+    void call_func_linux(Func& func, std::vector<Node> nodes);
     void compileProgram() override;
     void compileFunction(Func& func) override;
     void compileConstant(Variable var);

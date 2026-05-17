@@ -6,6 +6,7 @@ Type::Type(TypeInfo i, uint32_t q)
       qualifiers(q)
 {
     if (i.kind == Kind::Pointer) {
+        this->info.size = 8;
         ptr_data = std::make_unique<PtrData>();
         ptr_data->pointee = std::make_unique<Type>();
     } else if (i.kind == Kind::Func) {
@@ -20,6 +21,7 @@ Type::Type(Kind k, uint32_t q)
       qualifiers(q)
 {
     if (k == Kind::Pointer) {
+        this->info.size = 8;
         this->ptr_data = std::make_unique<PtrData>();
         this->ptr_data->pointee = std::make_unique<Type>();
     } else if (k == Kind::Func) {
