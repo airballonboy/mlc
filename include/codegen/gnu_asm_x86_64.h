@@ -11,9 +11,9 @@ class gnu_asm : public BaseCodegen {
 public:
     gnu_asm(Program* prog);
 
-    void call_func(Func& func, VariableStorage args);
-    void call_func_windows(Func& func, std::vector<Node> args);
-    void call_func_linux(Func& func, std::vector<Node> nodes);
+    void call_func(Func& func, std::vector<Node> args, Memory* ret_mem = nullptr);
+    void call_func_windows(Func& func, std::vector<Node> args, Memory* ret_mem = nullptr);
+    void call_func_linux(Func& func, std::vector<Node> args, Memory* ret_mem = nullptr);
     void compileProgram() override;
     void compileFunction(Func& func) override;
     void compileConstant(Variable var);

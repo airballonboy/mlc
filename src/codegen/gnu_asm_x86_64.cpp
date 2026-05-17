@@ -104,35 +104,12 @@ Memory gnu_asm::emitCall(Call_Ast* nd) {
             assert(ret_type.info.kind != Kind::Void);
             auto ret_ptr = Ref_Ast::make_node(nd->ret_addr);
             nd->args.emplace(nd->args.begin(), std::move(ret_ptr));
+            nd->func.arguments.emplace(nd->func.arguments.begin(), Variable{.type=ret_type, .name="ret_addr"});
             ret_in_mem = true;
         }
     }
 
-    if (m_program->platform == Platform::Windows) {
-        call_func_windows(nd->func, std::move(nd->args));
-    } else {
-        call_func_linux(nd->func, std::move(nd->args));
-        /*
-        for (size_t i = 0, f = 0, j = 0; j < nd->args.size(); j++) {
-            auto arg_mem = nd->args[j]->codegen(*this);
-            if (ret_in_mem && j == 0) ret_mem = arg_mem;
-            if (nd->func.c_variadic) {
-                if (arg_mem.type.info.kind == Kind::Float) {
-                    cast_float_size(arg_mem.asm_mem.reg, arg_mem.type.info.size, 8);
-                }
-            }
-            if (nd->args[j]->type.info.kind == Kind::Float) {
-                mov.append(arg_mem, mem_reg(arg_register_float[f]));
-                f++;
-            } else {
-                mov.append(arg_mem, mem_reg(arg_register[i]));
-                i++;
-            }
-            free_mem(arg_mem);
-        }
-        output.appendf("    call {}\n", nd->func.name);
-        */
-    }
+    call_func(nd->func, std::move(nd->args), &ret_mem);
 
     if (ret_type.info.kind != Kind::Void) {
         if (m_program->platform == Platform::Windows) {
@@ -986,7 +963,7 @@ void gnu_asm::get_func_args_linux(Func& func) {
     }
 }
 
-void gnu_asm::call_func_windows(Func& func, std::vector<Node> nodes) {
+void gnu_asm::call_func_windows(Func& func, std::vector<Node> nodes, Memory* ret_mem) {
     size_t temp_float_size = 0;
     Register reg1{};
     Register reg2{};
@@ -995,6 +972,9 @@ void gnu_asm::call_func_windows(Func& func, std::vector<Node> nodes) {
         auto arg_mem  = nodes[i]->codegen(*this);
         auto arg_type = nodes[i]->type;
         auto arg_size = arg_type.info.size;
+        if (i == 0 && func.type.func_data->return_type->info.size > 8 && ret_mem) {
+            *ret_mem = arg_mem;
+        }
         if (arg_type.info.kind == Kind::Float && func.c_variadic)
             temp_float_size = 8;
         else if (!func.c_variadic)
@@ -1064,7 +1044,7 @@ void gnu_asm::call_func_windows(Func& func, std::vector<Node> nodes) {
     }
     output.appendf("    call {}\n", func.name);
 }
-void gnu_asm::call_func_linux(Func& func, std::vector<Node> nodes) {
+void gnu_asm::call_func_linux(Func& func, std::vector<Node> nodes, Memory* ret_mem) {
     size_t f = 0;
     size_t temp_float_size = 0;
     Register reg1;
@@ -1077,6 +1057,9 @@ void gnu_asm::call_func_linux(Func& func, std::vector<Node> nodes) {
         auto arg_mem  = nodes[i]->codegen(*this);
         auto arg_type = nodes[i]->type;
         auto arg_size = arg_type.info.size;
+        if (i == 0 && func.type.func_data->return_type->info.size > 16 && ret_mem) {
+            *ret_mem = arg_mem;
+        }
         if (arg_type.info.kind == Kind::Float && func.c_variadic)
             temp_float_size = 8;
         else if (arg_type.info.kind == Kind::Float && !func.c_variadic)
@@ -1182,6 +1165,7 @@ void gnu_asm::call_func_linux(Func& func, std::vector<Node> nodes) {
                 }
                 */
             } else {
+                mlog::println("[name: {}, id: {}, size: {}]", arg_type.info.name, arg_type.info.id, arg_type.info.size);
                 TODO("???");
                 //nodes[i].deref_count = -1;
                 //if (arg_size < func.arguments[i].size) mov.append(0, reg1, 8);
@@ -1189,7 +1173,7 @@ void gnu_asm::call_func_linux(Func& func, std::vector<Node> nodes) {
             }
         } else {
             if (arg_type.info.kind == Kind::Float) {
-                mov.append(arg_mem, mem_reg(reg3), arg_size);
+                movs.append(arg_mem, mem_reg(reg3), arg_size);
                 cast_float_size(reg3, arg_size, temp_float_size);
                 j--;
             } else {
@@ -1239,13 +1223,12 @@ void gnu_asm::call_func_linux(Func& func, std::vector<Node> nodes) {
     }
     output.appendf("    call {}\n", func.name);
 }
-void gnu_asm::call_func(Func& func, VariableStorage args) {
+void gnu_asm::call_func(Func& func, std::vector<Node> args, Memory* ret_mem) {
     //if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
-    TODO("should be deleted");
     if (m_program->platform == Platform::Windows) {
-        //call_func_windows(func, args);
+        call_func_windows(func, std::move(args), ret_mem);
     } else if (m_program->platform == Platform::Linux) {
-        //call_func_linux(func, args);
+        call_func_linux(func, std::move(args), ret_mem);
     }
 }
 Memory gnu_asm::get_member_ptr(Variable var) {
