@@ -96,7 +96,7 @@ void AsmInstruction::append(Memory src, Memory dest, size_t size) {
         if (xmm.contains(src.asm_mem.reg2._64))
             movs.append(mem_reg(src.asm_mem.reg2), mem_off(dest.asm_mem.off+8, dest.asm_mem.off_reg), size - 8);
         else
-            mov.append(mem_reg(src.asm_mem.reg1), mem_off(dest.asm_mem.off+8, dest.asm_mem.off_reg), size - 8);
+            mov.append(mem_reg(src.asm_mem.reg2), mem_off(dest.asm_mem.off+8, dest.asm_mem.off_reg), size - 8);
 
     } else {
         TODO("invalid Memory type");

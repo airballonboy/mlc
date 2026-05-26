@@ -220,6 +220,12 @@ void gnu_asm::emitReturn(Return_Ast* nd) {
                 movs.append(mem_off(0, ret.asm_mem.reg), mem_reg(Xmm0), 8);
                 movs.append(mem_off(8, ret.asm_mem.reg), mem_reg(Xmm1), ret_type.info.size - 8);
             } else {
+                if (ret.asm_mem.reg._64 == Rax._64) {
+                    auto r = get_available_int_reg();
+                    assert(r._64 != Rax._64);
+                    mov.append(ret, mem_reg(r), 8);
+                    ret = mem_reg(r, ret.type);
+                }
                 Register slots[2] = {Xmm0, Xmm1};
                 AsmInstruction* mov_insts[2] = {&mov, &mov};
                 bool first_xmm = true;
@@ -255,7 +261,7 @@ void gnu_asm::emitReturn(Return_Ast* nd) {
                                 mov_insts[1] = &mov;
                             } else {
                                 slots[1] = Rdx;
-                                mov_insts[1] = &movs;
+                                mov_insts[1] = &mov;
                             }
                         }
                     }
@@ -302,7 +308,7 @@ Memory gnu_asm::emitStore(Store_Ast* nd) {
     if (rhs.type.info.kind == Kind::Float) cast_float_size(rhs.asm_mem.reg, rhs.type.info.size, lhs.type.info.size);
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitStore [type: {}]", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset, lhs.type.info.name);
     if (DEBUG_NODES) output.appendf("    // emitStore\n");
-    assert(lhs.asm_mem.type != AsmType::Reg);
+    assert(lhs.asm_mem.type == AsmType::OffReg);
     if (lhs.type.info.size > 16) {
         output.appendf("    cld\n");
         assert(rhs.type.info.kind == Kind::Pointer);
@@ -311,11 +317,20 @@ Memory gnu_asm::emitStore(Store_Ast* nd) {
         mov.append(lhs.type.info.size, Rcx);
         output.appendf("    rep movsb\n");
     } else if (lhs.type.info.size > 8) {
-        assert(rhs.asm_mem.type == AsmType::TWO_Reg);
-        mov.append(rhs, lhs, lhs.type.info.size);
+        if (rhs.asm_mem.type == AsmType::TWO_Reg) {
+            mov.append(rhs, lhs, lhs.type.info.size);
+        } else {
+            assert(rhs.type.info.kind == Kind::Pointer);
+            auto reg = get_available_int_reg();
+            mov.append(mem_off(0, rhs.asm_mem.reg), mem_reg(reg), 8);
+            mov.append(mem_reg(reg), lhs, 8);
+            mov.append(mem_off(8, rhs.asm_mem.reg), mem_reg(reg), lhs.type.info.size - 8);
+            mov.append(mem_reg(reg), mem_off(lhs.asm_mem.off + 8, lhs.asm_mem.off_reg), lhs.type.info.size - 8);
+            free_int_reg(reg);
+        }
     } else {
         if (xmm.contains(rhs.asm_mem.reg._64))
-            movs.append(rhs, lhs, lhs.type.info.size);
+            (lhs.type.info.size < 8 ? movs : mov).append(rhs, lhs, lhs.type.info.size);
         else
             mov.append(rhs, lhs, lhs.type.info.size);
     }
@@ -757,7 +772,7 @@ void gnu_asm::call_func_windows(Func& func, std::vector<Node> nodes, Memory* ret
             if (arg_size <= 8) {
                 mov.append(arg_mem, mem_reg(reg1));
             } else {
-                TODO("passing structs with [size > 8] on windows");
+                assert(arg_type.info.kind == Kind::Pointer);
                 mov.append(arg_mem, mem_reg(reg1));
             }
         } else {
@@ -862,75 +877,62 @@ void gnu_asm::call_func_linux(Func& func, std::vector<Node> nodes, Memory* ret_m
                     f--;
                 }
             } else if (arg_size <= 16) {
-                TODO("passing structs with [16 >= size > 8] on linux");
-                /*
                 if (strct.is_float_only) {
-                    size_t orig_size = arg_size;
-                    auto deref_count = nodes[i].deref_count;
-                    if (deref_count == 0) {
-                        if (arg_size < func.arguments[i].size) {
-                            mov.append(0, reg3, 8);
-                            mov.append(0, reg4, 8);
-                        }
-                        arg_size = 8;
-                        mov_var(nodes[i], reg3);
-                        arg_size = orig_size-8;
-                        nodes[i].offset -= 8;
-                        if (arg_size < 8) args[i].type = type_infos.at("float");
-                        mov_var(nodes[i], reg4);
-                    } else if (deref_count > 0) {
-                        if (arg_size < func.arguments[i].size) {
-                            mov.append(0, reg3, 8);
-                            mov.append(0, reg4, 8);
-                        }
-                        auto reg = get_available_int_reg();
-                        nodes[i].deref_count = 0;
-                        arg_size = 8;
-                        mov_var(nodes[i], reg);
-                        mov.append(0, reg, reg3, 8);
-                        if (orig_size-8 < 8)
-                            movs.append(8, reg, reg4, orig_size-8);
-                        else
-                            mov.append(8, reg, reg4, orig_size-8);
-                        free_int_reg(reg);
-                    }
-                    f++;
-                    j--;
+                    size_t size = arg_type.info.size;
+                    assert(arg_mem.asm_mem.type == AsmType::Reg);
+                    assert(arg_mem.type.info.kind == Kind::Pointer);
+                    movs.append(mem_off(0, arg_mem.asm_mem.reg), mem_reg(Xmm0), 8);
+                    movs.append(mem_off(8, arg_mem.asm_mem.reg), mem_reg(Xmm1), arg_size - 8);
                 } else {
-                    TODO("passing structs with [size > 8] on linux");
-                    size_t orig_size = arg_size;
-                    auto deref_count = nodes[i].deref_count;
-                    if (deref_count == 0) {
-                        if (arg_size < func.arguments[i].size) {
-                            mov.append(0, reg1, 8);
-                            mov.append(0, reg2, 8);
+                    Register slots[2] = {Xmm0, Xmm1};
+                    AsmInstruction* mov_insts[2] = {&mov, &mov};
+                    bool first_xmm = true;
+                    size_t current_size = 0;
+                    size_t i = 0;
+                    for (auto elem : strct.var_storage) {
+                        current_size += elem.size;
+                        if (current_size <= 8) {
+                            if (elem.type.info.kind == Kind::Float) {
+                                slots[0] = (slots[0]._64 == Xmm0._64) ? Xmm0 : Rax;
+                                mov_insts[0] = (slots[0]._64 == Xmm0._64) ? &movs : &mov;
+                            } else {
+                                slots[0] = Rax;
+                                mov_insts[0] = &mov;
+                            }
+                            if (slots[0]._64 != Xmm0._64) {
+                                first_xmm = false;
+                                slots[1] = Xmm0;
+                                mov_insts[1] = &movs;
+                            }
+                        } else {
+                            if (elem.type.info.kind == Kind::Float) {
+                                if (first_xmm) {
+                                    slots[1] = (slots[1]._64 == Xmm1._64) ? Xmm1 : Rax;
+                                    mov_insts[1] = (slots[1]._64 == Xmm1._64) ? &movs : &mov;
+                                } else {
+                                    slots[1] = (slots[1]._64 == Xmm0._64) ? Xmm0 : Rdx;
+                                    mov_insts[1] = (slots[1]._64 == Xmm0._64) ? &movs : &mov;
+                                }
+                            } else {
+                                if (first_xmm) {
+                                    slots[1] = Rax;
+                                    mov_insts[1] = &mov;
+                                } else {
+                                    slots[1] = Rdx;
+                                    mov_insts[1] = &movs;
+                                }
+                            }
                         }
-                        arg_size = 8;
-                        mov_var(nodes[i], reg1);
-                        arg_size = orig_size-8;
-                        nodes[i].offset -= 8;
-                        mov_var(nodes[i], reg2);
-                    } else if (deref_count > 0) {
-                        if (arg_size < func.arguments[i].size) {
-                            mov.append(0, reg1, 8);
-                            mov.append(0, reg2, 8);
-                        }
-                        auto reg = get_available_int_reg();
-                        nodes[i].deref_count = 0;
-                        mov_var(nodes[i], reg);
-                        mov.append(0, reg, reg1, 8);
-                        mov.append(8, reg, reg2, orig_size-8);
-                        free_int_reg(reg);
                     }
-                    f--;
+                    assert(arg_mem.asm_mem.type == AsmType::Reg);
+                    assert(arg_mem.type.info.kind == Kind::Pointer);
+                    mov_insts[0]->append(mem_off(0, arg_mem.asm_mem.reg), mem_reg(slots[0]), 8);
+                    mov_insts[1]->append(mem_off(8, arg_mem.asm_mem.reg), mem_reg(slots[1]), arg_size - 8);
                 }
-                */
             } else {
                 mlog::println("[name: {}, id: {}, size: {}]", arg_type.info.name, arg_type.info.id, arg_type.info.size);
-                TODO("???");
-                //nodes[i].deref_count = -1;
-                //if (arg_size < func.arguments[i].size) mov.append(0, reg1, 8);
-                //mov_var(nodes[i], reg1);
+                assert(arg_type.info.kind == Kind::Pointer);
+                mov.append(arg_mem, mem_reg(reg1));
             }
         } else {
             if (arg_type.info.kind == Kind::Float) {

@@ -23,7 +23,9 @@ vector<tuple<string, string>> tests_and_outputs = {
     {MTEST_PATH"binary_operations.mlang", "18\n6\n72\n2\n"},
     {MTEST_PATH"struct.mlang", "{12, 43, 54}\n422\n"},
     {MTEST_PATH"struct_return.mlang", "0xFF, 0x18, 0x18, 0xFF\n120.0, 120.0, 435.0\n505.0, 123.0, 533.0, 476.0\n"},
+    {MTEST_PATH"struct_arg.mlang", "[1717986918]\n[1717986918, 12]\n[1717986918, 12, 1]\n"},
 };
+
 std::string remove_substr(const string str, const string sub) {
     size_t pos = str.find(sub);
     if (pos != std::string::npos) {
