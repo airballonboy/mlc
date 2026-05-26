@@ -322,6 +322,11 @@ Memory gnu_asm::emitStore(Store_Ast* nd) {
         } else {
             assert(rhs.type.info.kind == Kind::Pointer);
             auto reg = get_available_int_reg();
+            if (reg._64 == rhs.asm_mem.reg._64) {
+                auto r = get_available_int_reg();
+                free_int_reg(reg);
+                reg = r;
+            }
             mov.append(mem_off(0, rhs.asm_mem.reg), mem_reg(reg), 8);
             mov.append(mem_reg(reg), lhs, 8);
             mov.append(mem_off(8, rhs.asm_mem.reg), mem_reg(reg), lhs.type.info.size - 8);
