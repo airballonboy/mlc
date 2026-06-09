@@ -2,7 +2,7 @@
 #include "ast/ast.h"
 #include "ast/body_ast.h"
 #include "ast/expression_ast.h"
-#include "ast/statment_ast.h"
+#include "ast/statement_ast.h"
 #include "lexar.h"
 #include "type_system/variable.h"
 #include "type_system/struct.h"

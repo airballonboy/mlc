@@ -777,7 +777,7 @@ StmtNode Parser::parseStatement() {
     switch ((*tkn)->type) {
         case TokenType::SemiColon: { }break;
         case TokenType::OCurly: {
-            parseBlock();
+            stmt = parseBlock();
         }break;//TokenType::OCurly
         case TokenType::Return: {
             Node return_value;
@@ -802,37 +802,21 @@ StmtNode Parser::parseStatement() {
 
         }break;//TokenType::Return
         case TokenType::If: {
-            TODO("if");
-            /*
-            m_currentLexar->getAndExpectNext(TokenType::OParen);
-            m_currentLexar->getNext();
-            auto expr = std::get<0>(parseExpression());
-            m_currentLexar->getAndExpectNext(TokenType::CParen);
-
+            m_lexar->getAndExpectNext(TokenType::OParen);
+            m_lexar->getNext();
+            auto cond = std::get<0>(parseExpression());
+            m_lexar->getAndExpectNext(TokenType::CParen);
             delete_temp_vars();
 
-            m_currentLexar->getNext();
-            size_t jmp_if_not = m_currentFunc->body->body.size();
-            m_currentFunc->body.push_back({Op::JUMP_IF_NOT, {"", expr}});
-            parseStatement();
-            if (m_currentLexar->peek()->type == TokenType::Else) {
-                size_t jmp_else = m_currentFunc->body.size();
-                m_currentFunc->body.push_back({Op::JUMP, {""}});
-                std::string label = mlog::format("{:06x}", statement_count++);
-                m_currentFunc->body.push_back({Op::LABEL, {label}});
-                m_currentFunc->body[jmp_if_not].args[0] = label;
-                m_currentLexar->getAndExpectNext(TokenType::Else);
-                m_currentLexar->getNext();
-                parseStatement();
-                label = mlog::format("{:06x}", statement_count++);
-                m_currentFunc->body.push_back({Op::LABEL, {label}});
-                m_currentFunc->body[jmp_else].args[0] = label;
-            } else {
-                std::string label = mlog::format("{:06x}", statement_count++);
-                m_currentFunc->body.push_back({Op::LABEL, {label}});
-                m_currentFunc->body[jmp_if_not].args[0] = label;
+            m_lexar->getNext();
+            auto then_node = parseStatement();
+            StmtNode else_node;
+            if (m_lexar->peek()->type == TokenType::Else) {
+                m_lexar->getAndExpectNext(TokenType::Else);
+                m_lexar->getNext();
+                else_node = parseStatement();
             }
-            */
+            stmt = If_Ast::make_node(std::move(cond), std::move(then_node), std::move(else_node));            
         }break;//TokenType::If
         case TokenType::While: {
             TODO("while");
@@ -970,6 +954,7 @@ StmtNode Parser::parseStatement() {
 BodyNode Parser::parseBlock() {
     size_t offset = current_offset;
     auto storage = m_func->local_variables;
+    Body_Ast* old_body = m_body;
     BodyNode body = std::make_unique<Body_Ast>();
     m_body = body.get();
     m_body->loc_start = (*tkn)->loc;
@@ -985,6 +970,7 @@ BodyNode Parser::parseBlock() {
 
     m_func->local_variables = storage;
     current_offset = offset;
+    m_body = old_body;
 
     return body;
 }

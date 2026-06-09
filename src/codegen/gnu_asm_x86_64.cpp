@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <vector>
 #include "ast/all.h"
+#include "ast/walk_node.h"
 #include "codegen/asm_instruction.h"
 #include "instruction.h"
 #include "context.h"
@@ -21,6 +22,7 @@
 int op = 0;
 #define MAX_STRING_SIZE 2048
 size_t current_string_count = 0;
+size_t label_count = 0;
 #define DEBUG_NODES false
 
 #define WARNING(...) mlog::println("\nWarning: {}\n", mlog::format(__VA_ARGS__))
@@ -408,9 +410,45 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
     return out_reg;
 }
 
+auto if_count = 0;
+void gnu_asm::emitIf(If_Ast* nd) {
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitIf", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitIf\n");
+    assert(nd->then_block);
+    int if_label_count = 0;
+    walk_nodes(nd->then_block.get(), [](AstNode* n, int& label_count_) {
+        if (auto if_ = dynamic_cast<If_Ast*>(n)) {
+            label_count_ += 1;
+            if (if_->else_block) label_count_ += 1;
+        }
+    }, if_label_count);
+    auto if_label = mlog::format("{}", label_count + if_label_count);
+    std::string else_label;
+    emitJumpIfNot(JumpIfNot_Ast::make_node(if_label, std::move(nd->cond)).get());
+    nd->then_block->codegen(*this);
+    if (nd->else_block) {
+        int else_label_count = 0;
+        walk_nodes(nd->else_block.get(), [](AstNode* n, int& label_count_) {
+            if (auto if_ = dynamic_cast<If_Ast*>(n)) {
+                label_count_ += 1;
+                if (if_->else_block) label_count_ += 1;
+            }
+        }, else_label_count);
+        else_label = mlog::format("{}", label_count + 1 + else_label_count);
+        output.appendf("    jmp .L{}\n", else_label);
+    }
+    output.appendf("  .L{}:\n", if_label);
+    label_count += 1;
+    if (nd->else_block) {
+        nd->else_block->codegen(*this);
+        output.appendf("  .L{}:\n", else_label);
+        label_count += 1;
+    }
+}
 void gnu_asm::emitLabel(Label_Ast* nd) {
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitLabel", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
     if (DEBUG_NODES) output.appendf("    // emitLabel\n");
+    label_count += 1;
     output.appendf("  .L{}:\n", nd->label);
 }
 void gnu_asm::emitJump(Jump_Ast* nd) {
@@ -427,7 +465,6 @@ void gnu_asm::emitJumpIfNot(JumpIfNot_Ast* nd) {
     output.appendf("    jz .L{}\n", nd->label);
     free_mem(cond);
 }
-
 gnu_asm::gnu_asm(Program *prog) : BaseCodegen(prog) {
     AsmInstruction::set_output(&output);
     if (m_program->platform == Platform::Windows) {

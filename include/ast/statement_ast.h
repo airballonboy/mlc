@@ -1,14 +1,14 @@
 #pragma once
 #include "ast/ast.h"
 
-class Statment_Ast : public AstNode { 
+class Statement_Ast : public AstNode { 
 public:
     //Memory codegen(BaseCodegen& cg) override { TODO("function wasn't made"); }
     Memory codegen_ptr(BaseCodegen& cg) override { TODO("function wasn't made"); }
 };
-typedef std::unique_ptr<Statment_Ast> StmtNode;
+typedef std::unique_ptr<Statement_Ast> StmtNode;
 
-class Empty_Ast : public Statment_Ast {
+class Empty_Ast : public Statement_Ast {
 public:
     Memory codegen(BaseCodegen& cg) override {
         return {};

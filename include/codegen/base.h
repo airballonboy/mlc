@@ -12,6 +12,7 @@ class Deref_Ast;
 class Call_Ast;
 class Store_Ast;
 class BinOp_Ast;
+class If_Ast;
 
 class BaseCodegen {
 public:
@@ -27,6 +28,7 @@ public:
     virtual void   emitJump     (Jump_Ast* nd) { TODO("unimplemented"); }
     virtual void   emitJumpIfNot(JumpIfNot_Ast* nd) { TODO("unimplemented"); }
     virtual void   emitLabel    (Label_Ast* nd) { TODO("unimplemented"); }
+    virtual void   emitIf       (If_Ast* nd) { TODO("unimplemented"); }
     virtual Memory emitLoad     (Load_Ast* nd) { TODO("unimplemented"); }
     virtual Memory emitRef      (Ref_Ast* nd) { TODO("unimplemented"); }
     virtual Memory emitDeref    (Deref_Ast* nd) { TODO("unimplemented"); }

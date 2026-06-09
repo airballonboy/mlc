@@ -1,7 +1,7 @@
 #pragma once
-#include "ast/statment_ast.h"
+#include "ast/statement_ast.h"
 
-class Body_Ast : public Statment_Ast {
+class Body_Ast : public Statement_Ast {
 public:
     Body_Ast(){}
 

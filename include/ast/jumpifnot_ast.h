@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-class JumpIfNot_Ast : public Statment_Ast {
+class JumpIfNot_Ast : public Statement_Ast {
 public:
     JumpIfNot_Ast(std::string _label, Node _cond) 
         : label(_label), condition(std::move(_cond)) {}

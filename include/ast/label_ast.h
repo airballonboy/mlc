@@ -2,7 +2,7 @@
 #include "codegen/base.h"
 #include "ast/ast.h"
 
-class Label_Ast : public Statment_Ast {
+class Label_Ast : public Statement_Ast {
 public:
     Label_Ast(std::string _label) 
         : label(_label) {}

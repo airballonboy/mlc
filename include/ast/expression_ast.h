@@ -1,7 +1,7 @@
 #pragma once
-#include "ast/statment_ast.h"
+#include "ast/statement_ast.h"
 
-class Expression_Ast : public Statment_Ast {
+class Expression_Ast : public Statement_Ast {
 public:
     bool is_lvalue = false;
 };

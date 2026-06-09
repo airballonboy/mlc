@@ -11,6 +11,7 @@ public:
     void   emitJump     (Jump_Ast*      nd) override;
     void   emitJumpIfNot(JumpIfNot_Ast* nd) override;
     void   emitLabel    (Label_Ast*     nd) override;
+    void   emitIf       (If_Ast*        nd) override;
     Memory emitLoad     (Load_Ast*      nd) override;
     Memory emitRef      (Ref_Ast*       nd) override;
     Memory emitDeref    (Deref_Ast*     nd) override;

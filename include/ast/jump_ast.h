@@ -1,8 +1,8 @@
 #pragma once
-#include "ast/ast.h"
+#include "ast/statement_ast.h"
 #include <string>
 
-class Jump_Ast : public Statment_Ast {
+class Jump_Ast : public Statement_Ast {
 public:
     Jump_Ast(std::string _label) 
         : label(_label) {}

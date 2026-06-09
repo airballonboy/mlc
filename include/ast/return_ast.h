@@ -1,8 +1,8 @@
 #pragma once
-#include "ast/statment_ast.h"
+#include "ast/statement_ast.h"
 #include "codegen/base.h"
 
-class Return_Ast : public Statment_Ast {
+class Return_Ast : public Statement_Ast {
 public:
     Return_Ast(Node _ret) 
         : ret(std::move(_ret)) {}

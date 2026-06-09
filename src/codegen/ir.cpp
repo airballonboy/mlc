@@ -13,6 +13,9 @@
 void ir::emitReturn(Return_Ast* nd) {
     TODO("emitReturn");
 }
+void ir::emitIf(If_Ast* nd) { 
+    TODO("emitIf");
+}
 void ir::emitJump(Jump_Ast* nd) { 
     TODO("emitJump");
 }
