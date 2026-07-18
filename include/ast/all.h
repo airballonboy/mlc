@@ -8,6 +8,7 @@
 #include "ast/binop_ast.h"
 #include "ast/load_ast.h"
 #include "ast/if_ast.h"
+#include "ast/loop_ast.h"
 #include "ast/jump_ast.h"
 #include "ast/jumpifnot_ast.h"
 #include "ast/body_ast.h"

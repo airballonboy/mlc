@@ -25,6 +25,7 @@ vector<tuple<string, string>> tests_and_outputs = {
     {MTEST_PATH"struct_return.mlang", "0xFF, 0x18, 0x18, 0xFF\n120.0, 120.0, 435.0\n505.0, 123.0, 533.0, 476.0\n"},
     {MTEST_PATH"struct_arg.mlang", "[1717986918]\n[1717986918, 12]\n[1717986918, 12, 1]\n"},
     {MTEST_PATH"if_else.mlang", "if (true)\nelse (true)\nelse if (true)\n"},
+    {MTEST_PATH"loops.mlang", "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n"},
 };
 
 

@@ -1,0 +1,9 @@
+#include <c_std.mlang>
+
+func main() {
+    int i = 0;
+    while (i < 10) {
+        c_std::printf("%d\n", i);
+        i = i + 1;
+    }
+}

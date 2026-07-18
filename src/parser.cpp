@@ -819,26 +819,15 @@ StmtNode Parser::parseStatement() {
             stmt = If_Ast::make_node(std::move(cond), std::move(then_node), std::move(else_node));            
         }break;//TokenType::If
         case TokenType::While: {
-            TODO("while");
-            /*
-            m_currentLexar->getAndExpectNext(TokenType::OParen);
-            m_currentLexar->getNext();
-            std::string pre_label = mlog::format("{:06x}", statement_count++);
-            m_currentFunc->body.push_back({Op::LABEL, {pre_label}});
-            auto expr = std::get<0>(parseExpression());
-            m_currentLexar->getAndExpectNext(TokenType::CParen);
-
+            m_lexar->getAndExpectNext(TokenType::OParen);
+            m_lexar->getNext();
+            auto cond = std::get<0>(parseExpression());
+            m_lexar->getAndExpectNext(TokenType::CParen);
             delete_temp_vars();
 
-            m_currentLexar->getNext();
-            size_t jmp_if_not = m_currentFunc->body.size();
-            m_currentFunc->body.push_back({Op::JUMP_IF_NOT, {"", expr}});
-            parseStatement();
-            m_currentFunc->body.push_back({Op::JUMP, {pre_label}});
-            std::string label = mlog::format("{:06x}", statement_count++);
-            m_currentFunc->body.push_back({Op::LABEL, {label}});
-            m_currentFunc->body[jmp_if_not].args[0] = label;
-            */
+            m_lexar->getNext();
+            auto do_node = parseStatement();
+            stmt = Loop_Ast::make_node(std::move(cond), std::move(do_node));            
         }break;//TokenType::While
         case TokenType::ID:
         case TokenType::TypeID: {

@@ -386,9 +386,7 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
         case BinOp::GT:
         case BinOp::GE: {
             bin_op.append(rhs, lhs, op_size);
-            // get_compare_binop(op, is_float_op).append(reg3, 1);
-            //output.appendf("    movzbq {}, {}\n", reg3._8, reg3._64);
-            //mov_var(reg3, result);
+            get_compare_binop(nd->binop, is_float_op).append(lhs, 1);
         }break;
         case BinOp::LAND: {
             //and_.append(reg2, reg1, 1);
@@ -409,19 +407,20 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
     free_mem(rhs);
     return out_reg;
 }
-
-auto if_count = 0;
+void count_labels(AstNode* n, int& label_count_) {
+    if (auto if_ = dynamic_cast<If_Ast*>(n)) {
+        label_count_ += 1;
+        if (if_->else_block) label_count_ += 1;
+    } else if (auto loop = dynamic_cast<Loop_Ast*>(n)) {
+        label_count_ += 1;
+    }
+}
 void gnu_asm::emitIf(If_Ast* nd) {
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitIf", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
     if (DEBUG_NODES) output.appendf("    // emitIf\n");
     assert(nd->then_block);
     int if_label_count = 0;
-    walk_nodes(nd->then_block.get(), [](AstNode* n, int& label_count_) {
-        if (auto if_ = dynamic_cast<If_Ast*>(n)) {
-            label_count_ += 1;
-            if (if_->else_block) label_count_ += 1;
-        }
-    }, if_label_count);
+    walk_nodes(nd->then_block.get(), count_labels, if_label_count);
     auto if_label = mlog::format("{}", label_count + if_label_count);
     std::string else_label;
     emitJumpIfNot(JumpIfNot_Ast::make_node(if_label, std::move(nd->cond)).get());
@@ -444,6 +443,23 @@ void gnu_asm::emitIf(If_Ast* nd) {
         output.appendf("  .L{}:\n", else_label);
         label_count += 1;
     }
+}
+void gnu_asm::emitLoop(Loop_Ast* nd) {
+    if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitLoop", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
+    if (DEBUG_NODES) output.appendf("    // emitLoop\n");
+    assert(nd->do_block);
+    auto pre_loop_label = mlog::format("{}", label_count);
+    label_count += 1;
+    output.appendf("  .L{}:\n", pre_loop_label);
+    int loop_label_count = 0;
+    walk_nodes(nd->do_block.get(), count_labels, loop_label_count);
+    auto loop_label = mlog::format("{}", label_count + loop_label_count);
+    std::string else_label;
+    emitJumpIfNot(JumpIfNot_Ast::make_node(loop_label, std::move(nd->cond)).get());
+    nd->do_block->codegen(*this);
+    emitJump(Jump_Ast::make_node(pre_loop_label).get());
+    output.appendf("  .L{}:\n", loop_label);
+    label_count += 1;
 }
 void gnu_asm::emitLabel(Label_Ast* nd) {
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitLabel", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
