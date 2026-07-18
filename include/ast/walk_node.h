@@ -8,6 +8,7 @@
 #include "ast/label_ast.h"
 #include "ast/jumpifnot_ast.h"
 #include "ast/load_ast.h"
+#include "ast/loop_ast.h"
 #include "ast/program_ast.h"
 #include "ast/return_ast.h"
 #include "ast/if_ast.h"
@@ -26,6 +27,9 @@ void walk_nodes(AstNode* node, Func_t&& func, Arg_t& data) {
         walk_nodes(nd->cond.get(), std::forward<Func_t>(func), data);
         walk_nodes(nd->then_block.get(), std::forward<Func_t>(func), data);
         if (nd->else_block) walk_nodes(nd->else_block.get(), std::forward<Func_t>(func), data);
+    } else if (auto nd = dynamic_cast<Loop_Ast*>(node)) {
+        walk_nodes(nd->cond.get(), std::forward<Func_t>(func), data);
+        walk_nodes(nd->do_block.get(), std::forward<Func_t>(func), data);
     } else if (auto nd = dynamic_cast<Body_Ast*>(node)) {
         for (auto& n : nd->body) {
             walk_nodes(n.get(), std::forward<Func_t>(func), data);
