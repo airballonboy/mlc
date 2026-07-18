@@ -6,15 +6,15 @@ public:
     //Memory codegen(BaseCodegen& cg) override { TODO("function wasn't made"); }
     Memory codegen_ptr(BaseCodegen& cg) override { TODO("function wasn't made"); }
 };
-typedef std::unique_ptr<Statement_Ast> StmtNode;
+typedef std::shared_ptr<Statement_Ast> StmtNode;
 
 class Empty_Ast : public Statement_Ast {
 public:
     Memory codegen(BaseCodegen& cg) override {
         return {};
     }
-    static std::unique_ptr<Empty_Ast> make_node(Loc loc = {}) {
-        return std::make_unique<Empty_Ast>();
+    static std::shared_ptr<Empty_Ast> make_node(Loc loc = {}) {
+        return std::make_shared<Empty_Ast>();
     }
     Memory codegen_ptr(BaseCodegen& cg) override {
         TODO("function wasn't made"); 

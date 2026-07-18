@@ -14,4 +14,4 @@ public:
         return {};
     }
 };
-typedef std::unique_ptr<Body_Ast> BodyNode;
+typedef std::shared_ptr<Body_Ast> BodyNode;

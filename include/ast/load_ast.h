@@ -17,8 +17,8 @@ public:
     Memory codegen_ptr(BaseCodegen& cg) override {
         return cg.getVarPtr(var);
     }
-    static std::unique_ptr<Load_Ast> make_node(Variable _var, Loc loc = {}) {
-        auto x = std::make_unique<Load_Ast>(_var);
+    static std::shared_ptr<Load_Ast> make_node(Variable _var, Loc loc = {}) {
+        auto x = std::make_shared<Load_Ast>(_var);
         x->type = _var.type;
         x->loc_start = loc;
         return x;

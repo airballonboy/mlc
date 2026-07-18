@@ -10,8 +10,8 @@ public:
     std::string label;
 public:
     Memory codegen(BaseCodegen& cg) override;
-    static std::unique_ptr<Label_Ast> make_node(std::string _label, Loc loc = {}) {
-        auto x = std::make_unique<Label_Ast>(_label);
+    static std::shared_ptr<Label_Ast> make_node(std::string _label, Loc loc = {}) {
+        auto x = std::make_shared<Label_Ast>(_label);
         x->loc_start = loc;
         return x;
     }

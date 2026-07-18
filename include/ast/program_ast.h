@@ -15,4 +15,4 @@ public:
         TODO("unimplemented");
     };
 };
-typedef std::unique_ptr<Program_Ast> ProgramNode;
+typedef std::shared_ptr<Program_Ast> ProgramNode;

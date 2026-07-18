@@ -5,7 +5,7 @@
 class Return_Ast : public Statement_Ast {
 public:
     Return_Ast(Node _ret) 
-        : ret(std::move(_ret)) {}
+        : ret(_ret) {}
 
     Node ret;
 public:
@@ -13,8 +13,8 @@ public:
         cg.emitReturn(this);
         return {};
     }
-    static std::unique_ptr<Return_Ast> make_node(Node _ret, Loc loc = {}) {
-        auto x = std::make_unique<Return_Ast>(std::move(_ret));
+    static std::shared_ptr<Return_Ast> make_node(Node _ret, Loc loc = {}) {
+        auto x = std::make_shared<Return_Ast>(_ret);
         x->loc_start = loc;
         return x;
     }

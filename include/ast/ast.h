@@ -5,7 +5,7 @@
 
 class BaseCodegen;
 class AstNode;
-typedef std::unique_ptr<AstNode> Node;
+typedef std::shared_ptr<AstNode> Node;
 
 class AstNode {
 public:

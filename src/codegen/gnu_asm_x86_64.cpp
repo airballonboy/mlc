@@ -105,13 +105,13 @@ Memory gnu_asm::emitCall(Call_Ast* nd) {
             assert(ret_type.info.id != TypeId::Void);
             assert(ret_type.info.kind != Kind::Void);
             auto ret_ptr = Ref_Ast::make_node(nd->ret_addr);
-            nd->args.emplace(nd->args.begin(), std::move(ret_ptr));
+            nd->args.emplace(nd->args.begin(), ret_ptr);
             nd->func.arguments.emplace(nd->func.arguments.begin(), Variable{.type=ret_type, .name="ret_addr"});
             ret_in_mem = true;
         }
     }
 
-    call_func(nd->func, std::move(nd->args), &ret_mem);
+    call_func(nd->func, nd->args, &ret_mem);
 
     if (ret_type.info.kind != Kind::Void) {
         if (m_program->platform == Platform::Windows) {
@@ -423,7 +423,7 @@ void gnu_asm::emitIf(If_Ast* nd) {
     walk_nodes(nd->then_block.get(), count_labels, if_label_count);
     auto if_label = mlog::format("{}", label_count + if_label_count);
     std::string else_label;
-    emitJumpIfNot(JumpIfNot_Ast::make_node(if_label, std::move(nd->cond)).get());
+    emitJumpIfNot(JumpIfNot_Ast::make_node(if_label, nd->cond).get());
     nd->then_block->codegen(*this);
     if (nd->else_block) {
         int else_label_count = 0;
@@ -455,7 +455,7 @@ void gnu_asm::emitLoop(Loop_Ast* nd) {
     walk_nodes(nd->do_block.get(), count_labels, loop_label_count);
     auto loop_label = mlog::format("{}", label_count + loop_label_count);
     std::string else_label;
-    emitJumpIfNot(JumpIfNot_Ast::make_node(loop_label, std::move(nd->cond)).get());
+    emitJumpIfNot(JumpIfNot_Ast::make_node(loop_label, nd->cond).get());
     nd->do_block->codegen(*this);
     emitJump(Jump_Ast::make_node(pre_loop_label).get());
     output.appendf("  .L{}:\n", loop_label);
@@ -1047,9 +1047,9 @@ void gnu_asm::call_func_linux(Func& func, std::vector<Node> nodes, Memory* ret_m
 void gnu_asm::call_func(Func& func, std::vector<Node> args, Memory* ret_mem) {
     //if (args.size() > std::size(arg_register)) TODO("ERROR: stack arguments not implemented");
     if (m_program->platform == Platform::Windows) {
-        call_func_windows(func, std::move(args), ret_mem);
+        call_func_windows(func, args, ret_mem);
     } else if (m_program->platform == Platform::Linux) {
-        call_func_linux(func, std::move(args), ret_mem);
+        call_func_linux(func, args, ret_mem);
     }
 }
 Memory gnu_asm::get_member_ptr(Variable var) {

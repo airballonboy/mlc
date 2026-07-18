@@ -12,8 +12,8 @@ public:
     Memory codegen(BaseCodegen& cg) override {
         return cg.emitRef(this);
     }
-    static std::unique_ptr<Ref_Ast> make_node(Variable _lhs, Loc loc = {}) {
-        auto x = std::make_unique<Ref_Ast>(_lhs);
+    static std::shared_ptr<Ref_Ast> make_node(Variable _lhs, Loc loc = {}) {
+        auto x = std::make_shared<Ref_Ast>(_lhs);
         x->type = make_ptr(_lhs.type);
         x->loc_start = loc;
         return x;

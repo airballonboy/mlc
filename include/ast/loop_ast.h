@@ -11,10 +11,10 @@ public:
     Node do_block = {};
 
 public:
-    static std::unique_ptr<Loop_Ast> make_node(ExprNode cond, Node do_block, Loc loc = {}) {
-        auto x = std::make_unique<Loop_Ast>();
-        x->cond     = std::move(cond);
-        x->do_block = std::move(do_block);
+    static std::shared_ptr<Loop_Ast> make_node(ExprNode cond, Node do_block, Loc loc = {}) {
+        auto x = std::make_shared<Loop_Ast>();
+        x->cond     = cond;
+        x->do_block = do_block;
         return x;
     }
     Memory codegen(BaseCodegen& cg) override {

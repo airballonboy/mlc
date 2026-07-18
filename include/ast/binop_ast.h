@@ -6,7 +6,7 @@
 class BinOp_Ast : public Expression_Ast {
 public:
     BinOp_Ast(Node _lhs, Node _rhs, BinOp _binop) 
-        : lhs(std::move(_lhs)), rhs(std::move(_rhs)), binop(_binop) {}
+        : lhs(_lhs), rhs(_rhs), binop(_binop) {}
 
     Node lhs;
     Node rhs;
@@ -15,9 +15,9 @@ public:
     Memory codegen(BaseCodegen& cg) override {
         return cg.emitBinOp(this);
     }
-    static std::unique_ptr<BinOp_Ast> make_node(Node _lhs, Node _rhs, BinOp _binop, Loc loc = {}) {
+    static std::shared_ptr<BinOp_Ast> make_node(Node _lhs, Node _rhs, BinOp _binop, Loc loc = {}) {
         auto t = _lhs->type;
-        auto x = std::make_unique<BinOp_Ast>(std::move(_lhs), std::move(_rhs), _binop);
+        auto x = std::make_shared<BinOp_Ast>(_lhs, _rhs, _binop);
         x->type = t;
         x->loc_start = loc;
         return x;

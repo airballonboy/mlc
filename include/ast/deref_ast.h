@@ -5,7 +5,7 @@
 class Deref_Ast : public Expression_Ast {
 public:
     Deref_Ast(Node _lhs)
-        : lhs(std::move(_lhs))
+        : lhs(_lhs)
     {
         is_lvalue = true;
     }
@@ -15,9 +15,9 @@ public:
     Memory codegen(BaseCodegen& cg) override {
         TODO("");
     }
-    static std::unique_ptr<Deref_Ast> make_node(Node _lhs, Loc loc = {}) {
+    static std::shared_ptr<Deref_Ast> make_node(Node _lhs, Loc loc = {}) {
         auto t = _lhs->type;
-        auto x = std::make_unique<Deref_Ast>(std::move(_lhs));
+        auto x = std::make_shared<Deref_Ast>(_lhs);
         x->type = t;
         x->loc_start = loc;
         return x;
