@@ -914,13 +914,13 @@ StmtNode Parser::parseStatement() {
                         stmt = Store_Ast::make_node(lhs, rhs, (*tkn)->loc);
                         break;
                     case TokenType::PlusEq:
-                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(lhs, rhs, BinOp::ADD), lhs, (*tkn)->loc);
+                        stmt = Store_Ast::make_node(lhs, BinOp_Ast::make_node(lhs, rhs, BinOp::ADD), (*tkn)->loc);
                         break;
                     case TokenType::MinusEq:
-                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(lhs, rhs, BinOp::SUB), lhs, (*tkn)->loc);
+                        stmt = Store_Ast::make_node(lhs, BinOp_Ast::make_node(lhs, rhs, BinOp::SUB), (*tkn)->loc);
                         break;
                     case TokenType::MulEq:
-                        stmt = Store_Ast::make_node(BinOp_Ast::make_node(lhs, rhs, BinOp::MUL), lhs, (*tkn)->loc);
+                        stmt = Store_Ast::make_node(lhs, BinOp_Ast::make_node(lhs, rhs, BinOp::MUL), (*tkn)->loc);
                         break;
                     default: TODO("unsupported Token found");
                     }
