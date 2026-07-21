@@ -16,9 +16,9 @@ public:
         return cg.emitBinOp(this);
     }
     static std::shared_ptr<BinOp_Ast> make_node(Node _lhs, Node _rhs, BinOp _binop, Loc loc = {}) {
-        auto t = _lhs->type;
         auto x = std::make_shared<BinOp_Ast>(_lhs, _rhs, _binop);
-        x->type = t;
+        bool is_bool = (_binop >= BinOp::LT && _binop <= BinOp::NE) ? true : false;
+        x->type =  is_bool ? type_infos.at("bool") : _lhs->type;
         x->loc_start = loc;
         return x;
     }

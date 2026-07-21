@@ -73,13 +73,14 @@ Memory gnu_asm::emitLoad(Load_Ast* nd) {
 Memory gnu_asm::emitRef(Ref_Ast* nd) {
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitRef", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
     if (DEBUG_NODES) output.appendf("    // emitRef\n");
+    auto reg = get_available_int_reg();
     if (nd->lhs.parent != nullptr) {
         nd->lhs.deref_count = -1;
-        mov_member(nd->lhs, Rax);
+        mov_member(nd->lhs, reg);
     } else {
-        lea.append(-nd->lhs.offset, Rbp, Rax);
+        lea.append(-nd->lhs.offset, Rbp, reg);
     }
-    return mem_reg(Rax, make_ptr(nd->lhs.type));
+    return mem_reg(reg, make_ptr(nd->lhs.type));
 }
 Memory gnu_asm::emitDeref(Deref_Ast* nd) {
     if (DEBUG_NODES) mlog::println(" {}:{}:{}: emitDeref", nd->loc_start.inputPath, nd->loc_start.line, nd->loc_start.offset);
@@ -125,13 +126,18 @@ Memory gnu_asm::emitCall(Call_Ast* nd) {
         } else {
             if (nd->func.type.func_data->return_type->info.size <= 8 || nd->func.type.info.kind == Kind::Pointer) {
                 if (ret_type.info.kind == Kind::Float) {
+                    reserve_mem(mem_reg(Xmm0));
                     return mem_reg(Xmm0, ret_type);
                 } else if (ret_type.info.kind == Kind::Struct) {
                     if (Struct::get_from_name(ret_type.info.name, m_program->struct_storage).is_float_only) {
+                        reserve_mem(mem_reg(Xmm0));
                         return mem_reg(Xmm0, ret_type);
-                    } else 
+                    } else {
+                        reserve_mem(mem_reg(Rax));
                         return mem_reg(Rax, ret_type);
+                    }
                 } else {
+                    reserve_mem(mem_reg(Rax));
                     return mem_reg(Rax, ret_type);
                 }
             } else if (nd->func.type.func_data->return_type->info.size <= 16) {
@@ -295,6 +301,8 @@ void gnu_asm::emitReturn(Return_Ast* nd) {
     free_mem(ret);
 }
 Memory gnu_asm::getVarPtr(Variable var) {
+    if (DEBUG_NODES) mlog::println(" getVarPtr [type: {}]", var.type.info.name);
+    if (DEBUG_NODES) output.appendf("    // getVarPtr\n");
     Memory mem;
     if (var.parent == nullptr) {
         mem = mem_off(-var.offset, Rbp);
@@ -326,7 +334,10 @@ Memory gnu_asm::emitStore(Store_Ast* nd) {
             auto reg = get_available_int_reg();
             if (reg._64 == rhs.asm_mem.reg._64) {
                 auto r = get_available_int_reg();
-                free_int_reg(reg);
+                reg = r;
+            }
+            if (reg._64 == lhs.asm_mem.reg._64) {
+                auto r = get_available_int_reg();
                 reg = r;
             }
             mov.append(mem_off(0, rhs.asm_mem.reg), mem_reg(reg), 8);
@@ -341,6 +352,7 @@ Memory gnu_asm::emitStore(Store_Ast* nd) {
         else
             mov.append(rhs, lhs, lhs.type.info.size);
     }
+    free_mem(lhs);
     free_mem(rhs);
     return lhs;
 }
@@ -353,7 +365,8 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
     auto op_size = std::max(lhs.type.info.size, rhs.type.info.size);
     if (op_size < 2) op_size = 2;
     auto bin_op = get_binop(nd->binop, is_float_op);
-    auto out_reg = is_float_op ? mem_reg(Xmm0, lhs.type) : mem_reg(Rax, lhs.type);
+    bool is_bool = (nd->binop >= BinOp::LT && nd->binop <= BinOp::NE) ? true : false;
+    auto out_reg = is_float_op && !is_bool ? mem_reg(Xmm0, lhs.type) : mem_reg(Rax, is_bool ? type_infos.at("bool") : lhs.type);
     auto& mov_inst = is_float_op ? movs : mov;
     
     switch (nd->binop) {
@@ -386,7 +399,7 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
         case BinOp::GT:
         case BinOp::GE: {
             bin_op.append(rhs, lhs, op_size);
-            get_compare_binop(nd->binop, is_float_op).append(lhs, 1);
+            get_compare_binop(nd->binop, is_float_op).append(out_reg, 1);
         }break;
         case BinOp::LAND: {
             //and_.append(reg2, reg1, 1);
@@ -1072,18 +1085,17 @@ Memory gnu_asm::get_member_ptr(Variable var) {
             mov_member(*parent, reg);
             parent->deref_count = get_ptr_count(parent->type) - 1;
             deref(reg, parent->deref_count);
-            free_int_reg(reg);
             return mem_off(off, reg);
         }
         current = *current.parent;
     }
-    free_int_reg(reg);
     if (var.deref_count > 0) {
         var.deref_count -= 1;
         mov.append(-off, Rbp, reg);
         deref(reg, var.deref_count);
         return mem_off(0, reg);
     } else {
+        free_int_reg(reg);
         return mem_off(-off, Rbp);
     }
 }

@@ -419,6 +419,7 @@ Variable Parser::parseConstant() {
     m_lexar->getAndExpectNext(TokenType::Eq);   
     m_lexar->getNext();   
     auto [rhs_expr, lvalue] = parseExpression();
+    TODO("cannot get value of a struct literal");
     if (auto val = dynamic_cast<Load_Ast*>(rhs_expr.get())) {
         auto rhs = val->var;
         assert(rhs.type.qualifiers & Qualifier::constant);

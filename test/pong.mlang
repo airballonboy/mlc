@@ -37,9 +37,9 @@ struct CTX {
         this.velocity = 3.0;
     }
     func update() {
-        //this.ball.print();
-        this.ball.x += this.ball_vel.x;
-        this.ball.y += this.ball_vel.y;
+        this.ball.print();
+        //this.ball.x += this.ball_vel.x;
+        //this.ball.y += this.ball_vel.y;
         if (rl::is_key_down(KEY_W) && this.p1.y > 0.0)
             this.p1.y -= this.velocity;
         if (rl::is_key_down(KEY_S) && (this.p1.y + this.p1.h) < 675.0)
@@ -85,8 +85,8 @@ func main() {
         ctx.update();
         if (rl::is_key_down(KEY_R))
             ctx.init();
-        rl::draw_rectangle_v(vec422(ctx.p1), rl::Vec2{ctx.p1.w, ctx.p1.h}, ctx.color);
-        rl::draw_rectangle_v(vec422(ctx.p2), rl::Vec2{ctx.p2.w, ctx.p2.h}, ctx.color);
+        //rl::draw_rectangle_v(vec422(ctx.p1), rl::Vec2{ctx.p1.w, ctx.p1.h}, ctx.color);
+        //rl::draw_rectangle_v(vec422(ctx.p2), rl::Vec2{ctx.p2.w, ctx.p2.h}, ctx.color);
         rl::draw_rectangle_v(ctx.ball, ctx.ball_size, ctx.color);
 
         rl::draw_fps(10, 10);

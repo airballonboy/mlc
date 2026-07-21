@@ -143,7 +143,7 @@ static std::vector<std::pair<Register, bool>> available_float_reg = {
 
 inline Register get_available_int_reg() {
     if (available_reg.size() < 1) TODO("no available Registers");
-    Register reg;
+    Register reg = {0};
     for (auto& [reg_, avail] : available_reg) {
         if (avail) {
             reg = reg_;
@@ -151,6 +151,8 @@ inline Register get_available_int_reg() {
             break;
         }
     }
+    if (reg._64 == nullptr)
+        TODO("ran out of registers");
     return reg;
 }
 inline Register get_available_float_reg() {
@@ -163,6 +165,8 @@ inline Register get_available_float_reg() {
             break;
         }
     }
+    if (reg._64 == nullptr)
+        TODO("ran out of registers");
     return reg;
 }
 
@@ -187,6 +191,65 @@ inline void free_float_reg(Register reg) {
         }
     } else 
         TODO("register doesn't exist");
+}
+inline void reserve_mem(Memory mem) {
+    switch (mem.asm_mem.type) {
+        case AsmType::Reg: {
+            if (is_float_reg(mem.asm_mem.reg)) {
+                for (auto& [reg_, avail] : available_float_reg) {
+                    if (reg_._64 == mem.asm_mem.reg._64) {
+                        avail = false;
+                        break;
+                    }
+                }
+            } else {
+                for (auto& [reg_, avail] : available_reg) {
+                    if (reg_._64 == mem.asm_mem.reg._64) {
+                        avail = false;
+                        break;
+                    }
+                }
+            }
+        } break;
+        case AsmType::TWO_Reg: {
+            if (is_float_reg(mem.asm_mem.reg1)) {
+                for (auto& [reg_, avail] : available_float_reg) {
+                    if (reg_._64 == mem.asm_mem.reg1._64) {
+                        avail = false;
+                        break;
+                    }
+                }
+            } else {
+                for (auto& [reg_, avail] : available_reg) {
+                    if (reg_._64 == mem.asm_mem.reg1._64) {
+                        avail = false;
+                        break;
+                    }
+                }
+            }
+            if (is_float_reg(mem.asm_mem.reg2)) {
+                for (auto& [reg_, avail] : available_float_reg) {
+                    if (reg_._64 == mem.asm_mem.reg2._64) {
+                        avail = false;
+                        break;
+                    }
+                }
+            } else {
+                for (auto& [reg_, avail] : available_reg) {
+                    if (reg_._64 == mem.asm_mem.reg2._64) {
+                        avail = false;
+                        break;
+                    }
+                }
+            }
+        } break;
+        case AsmType::None:
+            break;
+        case AsmType::OffReg: 
+        case AsmType::ArrayIndex: 
+        case AsmType::Global: 
+            TODO(mlog::format("{}", (int)mem.asm_mem.type));
+    }
 }
 inline void free_mem(Memory mem) {
     switch (mem.asm_mem.type) {
