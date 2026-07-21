@@ -33,13 +33,13 @@ struct CTX {
         this.ball = rl::Vec2{600.0, 335.0};
         this.ball_size = rl::Vec2{30.0, 30.0};
         this.ball_vel = rl::Vec2{4.0, 2.0};
-        this.color = WHITE;
+        this.color = rl::Color{0xff, 0xff, 0xff, 0xff};
         this.velocity = 3.0;
     }
     func update() {
-        this.ball.print();
-        //this.ball.x += this.ball_vel.x;
-        //this.ball.y += this.ball_vel.y;
+        //this.ball.print();
+        this.ball.x += this.ball_vel.x;
+        this.ball.y += this.ball_vel.y;
         if (rl::is_key_down(KEY_W) && this.p1.y > 0.0)
             this.p1.y -= this.velocity;
         if (rl::is_key_down(KEY_S) && (this.p1.y + this.p1.h) < 675.0)

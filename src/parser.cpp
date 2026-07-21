@@ -419,7 +419,6 @@ Variable Parser::parseConstant() {
     m_lexar->getAndExpectNext(TokenType::Eq);   
     m_lexar->getNext();   
     auto [rhs_expr, lvalue] = parseExpression();
-    TODO("cannot get value of a struct literal");
     if (auto val = dynamic_cast<Load_Ast*>(rhs_expr.get())) {
         auto rhs = val->var;
         assert(rhs.type.qualifiers & Qualifier::constant);
@@ -429,6 +428,7 @@ Variable Parser::parseConstant() {
         var.members = rhs.members;
         var.parent  = rhs.parent;
         var.type = set_ptr_count(var.type, get_ptr_count(rhs.type));
+        if (rhs.type.info.kind == Kind::Struct) TODO("cannot get value of a struct literal");
     } else {
         ERROR((*tkn)->loc, "running code is currently not supported while declaring constant");
     }
@@ -1181,7 +1181,7 @@ ExprResult Parser::parsePrimaryExpression(Variable this_ptr, Variable this_, std
             ret_lvalue = true;
             return {Load_Ast::make_node(var, (*tkn)->loc), ret_lvalue};
         } else {
-            ERROR((*tkn)->loc, mlog::format("variable `{}` at {}:{}:{} wasn't found", name));
+            ERROR((*tkn)->loc, mlog::format("variable `{}` wasn't found", name));
         }
     }
 

@@ -163,7 +163,7 @@ inline void format_recursive(std::ostringstream& oss, const std::string& fmt, si
     while (i < fmt.size()) {
         if (fmt[i] == '{' && i + 1 < fmt.size() && fmt[i + 1] == '}') {
             fputs("Too few arguments for format string\n", stderr);
-            exit(1);
+            abort();
         } else {
             oss << fmt[i++];
         }
