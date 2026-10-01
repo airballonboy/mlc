@@ -49,7 +49,11 @@ Memory gnu_asm::emitLoad(Load_Ast* nd) {
         mem = mem_reg(reg, nd->var.type);
     } else if (nd->var.parent != nullptr) {
         mov_member(nd->var, reg);
-        mem = mem_reg(reg, nd->var.type);
+        if (nd->var.size > 8) {
+            mem = mem_reg(reg, make_ptr(nd->var.type));
+        } else {
+            mem = mem_reg(reg, nd->var.type);
+        }
     } else {
         if (nd->var.size <= 8) {
             if (nd->var.type.info.kind == Kind::Float) {
@@ -402,6 +406,7 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
             get_compare_binop(nd->binop, is_float_op).append(out_reg, 1);
         }break;
         case BinOp::LAND: {
+            TODO("add logical and");
             //and_.append(reg2, reg1, 1);
             //cmp.append(0, reg1, 1);
             //setne.append(reg1, 1);
@@ -409,6 +414,7 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
             //mov_var(reg1, result);
         }break;
         case BinOp::LOR: {
+            TODO("add logical or");
             //or_.append(reg2, reg1, 1);
             //cmp.append(0, reg1, 1);
             //setne.append(reg1, 1);
@@ -950,10 +956,17 @@ void gnu_asm::call_func_linux(Func& func, std::vector<Node> nodes, Memory* ret_m
             } else if (arg_size <= 16) {
                 if (strct.is_float_only) {
                     size_t size = arg_type.info.size;
-                    assert(arg_mem.asm_mem.type == AsmType::Reg);
-                    assert(arg_mem.type.info.kind == Kind::Pointer);
-                    movs.append(mem_off(0, arg_mem.asm_mem.reg), mem_reg(Xmm0), 8);
-                    movs.append(mem_off(8, arg_mem.asm_mem.reg), mem_reg(Xmm1), arg_size - 8);
+                    if (arg_mem.asm_mem.type == AsmType::TWO_Reg) {
+                        movs.append(mem_reg(arg_mem.asm_mem.reg1), mem_reg(reg3), 8);
+                        movs.append(mem_reg(arg_mem.asm_mem.reg2), mem_reg(reg4), arg_size - 8);
+                    } else {
+                        //mlog::println("size {}, kind {}, type {}", arg_size, (int)arg_mem.type.info.kind, (int)arg_mem.asm_mem.type);
+                        //exit(1);
+                        assert(arg_mem.asm_mem.type == AsmType::Reg);
+                        assert(arg_mem.type.info.kind == Kind::Pointer);
+                        movs.append(mem_off(0, arg_mem.asm_mem.reg), mem_reg(reg3), 8);
+                        movs.append(mem_off(8, arg_mem.asm_mem.reg), mem_reg(reg4), arg_size - 8);
+                    }
                 } else {
                     Register slots[2] = {Xmm0, Xmm1};
                     AsmInstruction* mov_insts[2] = {&mov, &mov};
@@ -1144,7 +1157,11 @@ void gnu_asm::mov_member(Variable src, Register dest) {
                 deref(dest, src.deref_count);
             }
         } else {
-            mov.append(-off, Rbp, dest, src.size);
+            if (src.size > 8) {
+                lea.append(-off, Rbp, dest, 8);
+            } else {
+                mov.append(-off, Rbp, dest, src.size);
+            }
             if (src.deref_count > 0) {
                 deref(dest, src.deref_count);
             }
