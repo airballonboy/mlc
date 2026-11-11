@@ -125,7 +125,7 @@ Memory gnu_asm::emitCall(Call_Ast* nd) {
             } else if (nd->func.type.func_data->return_type->info.size <= 8 || nd->func.type.info.kind == Kind::Pointer) {
                 return mem_reg(Rax, ret_type);
             } else {
-                return ret_mem;
+                return mem_off(-nd->ret_addr.offset, Rbp, nd->ret_addr.type);
             }
         } else {
             if (nd->func.type.func_data->return_type->info.size <= 8 || nd->func.type.info.kind == Kind::Pointer) {
@@ -181,7 +181,7 @@ Memory gnu_asm::emitCall(Call_Ast* nd) {
                     return mem_2reg(slots[0], slots[1], ret_type);
                 }
             } else {
-                return ret_mem;
+                return mem_off(-nd->ret_addr.offset, Rbp, nd->ret_addr.type);
             }
         }
     }
@@ -325,8 +325,11 @@ Memory gnu_asm::emitStore(Store_Ast* nd) {
     assert(lhs.asm_mem.type == AsmType::OffReg);
     if (lhs.type.info.size > 16) {
         output.appendf("    cld\n");
-        assert(rhs.type.info.kind == Kind::Pointer);
-        mov.append(rhs, mem_reg(Rsi));
+        if (rhs.type.info.kind == Kind::Pointer) {
+            mov.append(rhs, mem_reg(Rsi));
+        } else {
+            lea.append(rhs, mem_reg(Rsi));
+        }
         lea.append(lhs, mem_reg(Rdi));
         mov.append(lhs.type.info.size, Rcx);
         output.appendf("    rep movsb\n");
@@ -370,7 +373,7 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
     if (op_size < 2) op_size = 2;
     auto bin_op = get_binop(nd->binop, is_float_op);
     bool is_bool = (nd->binop >= BinOp::LT && nd->binop <= BinOp::NE) ? true : false;
-    auto out_reg = is_float_op && !is_bool ? mem_reg(Xmm0, lhs.type) : mem_reg(Rax, is_bool ? type_infos.at("bool") : lhs.type);
+    auto out_reg = is_float_op && !is_bool ? mem_reg(get_available_float_reg(), lhs.type) : mem_reg(get_available_int_reg(), is_bool ? type_infos.at("bool") : lhs.type);
     auto& mov_inst = is_float_op ? movs : mov;
     
     switch (nd->binop) {

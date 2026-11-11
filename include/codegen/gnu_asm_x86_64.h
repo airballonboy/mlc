@@ -128,7 +128,7 @@ const static std::unordered_set<std::string_view> xmm = {
 inline bool is_float_reg(Register reg) {return xmm.contains(reg._64);}
 
 static std::vector<std::pair<Register, bool>> available_reg = {
-    {Rax, true},
+    //{Rax, true},
     {Rbx, true},
     {R13, true},
     {R14, true},
