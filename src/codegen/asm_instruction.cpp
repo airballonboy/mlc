@@ -43,6 +43,15 @@ void AsmInstruction::append(Memory src, Memory dest, size_t size) {
         switch (dest.asm_mem.type) {
         case AsmType::Reg:
             if (m_instName == "mov" && src.asm_mem.reg._64 == dest.asm_mem.reg._64) break;
+            if (m_instName == "movzb") {
+                m_output->appendf("    {} {}, {}\n",
+                                  INST_SIZE(m_instName, m_instSuffixs, size),
+                                  src.asm_mem.reg._8,
+                                  REG_SIZE(dest.asm_mem.reg, size)                          
+                );
+                break;
+            }
+
             append(src.asm_mem.reg, dest.asm_mem.reg, size);
             break;
         case AsmType::OffReg:

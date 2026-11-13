@@ -55,8 +55,10 @@ private:
 
 public:
     AsmInstruction movabs = AsmInstruction("movabs");                   ;
+    AsmInstruction movzb  = AsmInstruction("movzb");                   ;
     AsmInstruction lea    = AsmInstruction("lea" , {"q", "q", "q", "q"});
     AsmInstruction cmp    = AsmInstruction("cmp");
+    AsmInstruction test   = AsmInstruction("test");
     AsmInstruction mov    = AsmInstruction("mov");
     AsmInstruction add    = AsmInstruction("add");
     AsmInstruction sub    = AsmInstruction("sub");

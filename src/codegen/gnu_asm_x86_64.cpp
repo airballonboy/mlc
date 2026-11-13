@@ -372,7 +372,7 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
     auto op_size = std::max(lhs.type.info.size, rhs.type.info.size);
     if (op_size < 2) op_size = 2;
     auto bin_op = get_binop(nd->binop, is_float_op);
-    bool is_bool = (nd->binop >= BinOp::LT && nd->binop <= BinOp::NE) ? true : false;
+    bool is_bool = (nd->binop >= BinOp::LT && nd->binop <= BinOp::LOR) ? true : false;
     auto out_reg = is_float_op && !is_bool ? mem_reg(get_available_float_reg(), lhs.type) : mem_reg(get_available_int_reg(), is_bool ? type_infos.at("bool") : lhs.type);
     auto& mov_inst = is_float_op ? movs : mov;
     
@@ -408,21 +408,16 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
             bin_op.append(rhs, lhs, op_size);
             get_compare_binop(nd->binop, is_float_op).append(out_reg, 1);
         }break;
-        case BinOp::LAND: {
-            TODO("add logical and");
-            //and_.append(reg2, reg1, 1);
-            //cmp.append(0, reg1, 1);
-            //setne.append(reg1, 1);
-            //output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-            //mov_var(reg1, result);
-        }break;
+        case BinOp::LAND:
         case BinOp::LOR: {
-            TODO("add logical or");
-            //or_.append(reg2, reg1, 1);
-            //cmp.append(0, reg1, 1);
-            //setne.append(reg1, 1);
-            //output.appendf("    movzbq {}, {}\n", reg1._8, reg1._64);
-            //mov_var(reg1, result);
+             test.append(lhs, lhs, op_size);
+             setne.append(lhs, 1);
+
+             test.append(rhs, rhs, op_size);
+             setne.append(rhs, 1);
+
+             bin_op.append(rhs, lhs, 1);
+             movzb.append(lhs, out_reg, op_size);
         }break;
     }
     free_mem(lhs);
