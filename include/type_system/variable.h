@@ -21,7 +21,7 @@ public:
     double      Double_val;
     std::string String_val;
     int64_t     deref_count = 0;
-    size_t      offset = 0;
+    int64_t     offset = 0;
     size_t      size = 0;
     Variable* parent = nullptr;
     VariableStorage members{};

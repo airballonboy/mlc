@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "type_system/type_info.h"
+#include "ast/body_ast.h"
 #include "type_system/kind.h"
 #include "type_system/variable.h"
 #include "instruction.h"
@@ -14,8 +14,8 @@ typedef std::vector<Func> FunctionStorage;
 class Func {
 public:
     static bool  is_in_storage(std::string_view name, const FunctionStorage& storage);
-    static Func  get_from_program(std::string name, Program prog);
-    static Func  get_from_module(std::string name, Module mod);
+    static Func& get_from_program(std::string name, Program prog);
+    static Func& get_from_module(std::string name, Module mod);
     static Func& get_from_name(std::string_view name, FunctionStorage& storage);
     Func();
     Func(Type ret_type, std::vector<Type> args = {});
@@ -35,9 +35,10 @@ public:
     bool c_variadic = false;
     bool is_static  = false;
     bool is_used    = false;
+    bool is_member  = false;
     std::string link_name{};
     std::string lib{};
     std::string search_path{};
 
-    std::vector<Instruction> body;
+    BodyNode body;
 };

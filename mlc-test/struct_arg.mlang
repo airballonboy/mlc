@@ -1,0 +1,35 @@
+#include <c_std.mlang>
+
+struct PointerType {
+    int64 x;
+}
+func ret_8() -> PointerType {
+    PointerType p = PointerType{0x66666666};
+    return p;
+}
+struct PointerIDType {
+    int64 x;
+    int64 type;
+}
+func ret_16() -> PointerIDType {
+    PointerIDType p = PointerIDType{0x66666666, 12};
+    return p;
+}
+struct PointerIDTypeSign {
+    int64 x;
+    int64 type;
+    bool signed;
+}
+func ret_17() -> PointerIDTypeSign {
+    PointerIDTypeSign p = PointerIDTypeSign{0x66666666, 12, 1};
+    return p;
+}
+
+func main() {
+    PointerType p1 = ret_8();
+    c_std::printf("[%ld]\n", p1.x);
+    PointerIDType p2 = ret_16();
+    c_std::printf("[%ld, %ld]\n", p2.x, p2.type);
+    PointerIDTypeSign p3 = ret_17();
+    c_std::printf("[%ld, %ld, %u]\n", p3.x, p3.type, p3.signed);
+}

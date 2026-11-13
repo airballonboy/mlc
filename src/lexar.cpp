@@ -312,7 +312,6 @@ void Lexar::expectCurrent(TokenType tt) {
     auto l = currentToken->loc;
     mlog::error(mlog::format("{}:{}:{} ", l.inputPath, l.line, l.offset).c_str(),
                   mlog::format("Lexing error Expected {} but got {}", printableToken.at(tt), printableToken.at(currentToken->type)).c_str());
-
 }
 void Lexar::expectCurrent(std::vector<TokenType> tts) {
     std::string string_tts = "[ ";

@@ -1,0 +1,21 @@
+#include <c_std.mlang>
+
+func main() {
+   if (1) {
+       c_std::printf("if (true)\n");
+   } else {
+       c_std::printf("else (false)\n");
+   }
+   if (0) {
+       c_std::printf("if (false)\n");
+   } else {
+       c_std::printf("else (true)\n");
+   }
+   if (0) {
+       c_std::printf("if (false)\n");
+   } else if (1) {
+       c_std::printf("else if (true)\n");
+   } else {
+       c_std::printf("else (false)\n");
+   }
+}

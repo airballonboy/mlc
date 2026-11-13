@@ -5,30 +5,30 @@
 #import std::io from <std.mlang>
 
 /*
-	multi line comment
+    multi line comment
 */
 
 int width = 300;
 
 module game;
 func game::init() -> bool {
-	// function calls
-	rl::init_window(width, 1000, "window name");
-	return true;
+    // function calls
+    rl::init_window(width, 1000, "window name");
+    return true;
 }
 func game::close(){
-	rl::close_window();
-	return true;
+    rl::close_window();
+    return true;
 }
 
 // entry point
 func main() -> int {
     const bool pi = 3.1415;
-	// unused return
-	game::init();
+    // unused return
+    game::init();
 
-	if (!game::close()){
-		io::println("game couldn't close");
-	}
+    if (!game::close()){
+        io::println("game couldn't close");
+    }
     return 0;
 }

@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
 
     // Setting default included paths
     ctx.includePaths.push_back(".");
-      ctx.includePaths.push_back(MSTD_PATH);
+    ctx.includePaths.push_back(MSTD_PATH);
     ctx.includePaths.push_back(PROJECT_PATH"/test");
 
     // Make build directory and add .gitignore to it
@@ -161,7 +161,7 @@ int main(int argc, char* argv[])
 
     // First compilation step: tokenizing the input file
     auto builtin_lexar = add_builtin_file("internal/builtins.mlang");
-	auto lexar = Lexar(readFileToString(input_file_name), input_file_name);
+    auto lexar = Lexar(readFileToString(input_file_name), input_file_name);
     lexar.pushTokensAt(0, &builtin_lexar);
 
     // Second compilation step: parsing the already tokenized file

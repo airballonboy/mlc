@@ -11,12 +11,12 @@
 static std::string readFileToString(std::string filePath) {
     std::string fileContent;
     std::stringstream contents_stream;
-	std::fstream input(filePath, std::ios::in);
-	contents_stream << input.rdbuf();
-	fileContent = contents_stream.str();
-	input.flush();
-	input.close();
-	contents_stream.clear();
+    std::fstream input(filePath, std::ios::in);
+    contents_stream << input.rdbuf();
+    fileContent = contents_stream.str();
+    input.flush();
+    input.close();
+    contents_stream.clear();
     return fileContent;
 }
 static bool fileExists(const std::string& filePath) {

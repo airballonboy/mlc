@@ -1,10 +1,11 @@
 #pragma once 
 #include <string>
 #include <unordered_map>
-#include <type_system/func.h>
 #include <type_system/variable.h>
 
 
+class Func;
+typedef std::vector<Func> FunctionStorage;
 class Module {
 public:
     std::string name{};
