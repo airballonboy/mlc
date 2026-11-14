@@ -42,19 +42,19 @@ struct CTX {
     func update() {
         this.ball.x += this.ball_vel.x;
         this.ball.y += this.ball_vel.y;
-        if (rl::is_key_down(KEY_W)/* && this.p1.y > 0.0*/)
+        if (rl::is_key_down(KEY_W) && this.p1.y > 0.0)
             this.p1.y -= this.velocity;
-        if (rl::is_key_down(KEY_S)/* && (this.p1.y + this.p1.h) < 675.0*/)
+        if (rl::is_key_down(KEY_S) && (this.p1.y + this.p1.h) < 675.0)
             this.p1.y += this.velocity;
-        if (rl::is_key_down(KEY_UP)/*   && this.p2.y > 0.0*/)
+        if (rl::is_key_down(KEY_UP)   && this.p2.y > 0.0)
             this.p2.y -= this.velocity;
-        if (rl::is_key_down(KEY_DOWN)/* && (this.p2.y + this.p2.h) < 675.0*/)
+        if (rl::is_key_down(KEY_DOWN) && (this.p2.y + this.p2.h) < 675.0)
             this.p2.y += this.velocity;
         if  (
               this.p1.x < this.ball.x + this.ball_size.x &&
               this.p1.x + this.p1.w > this.ball.x &&
               this.p1.y < this.ball.y + this.ball_size.y &&
-              this.p1.y + this.p1.h > this.ball.y 
+              this.p1.y + this.p1.h > this.ball.y          
             ) 
         {
             this.ball_vel.x *= -1.0;
@@ -64,7 +64,7 @@ struct CTX {
               this.p2.x < this.ball.x + this.ball_size.x &&
               this.p2.x + this.p2.w > this.ball.x &&
               this.p2.y < this.ball.y + this.ball_size.y &&
-              this.p2.y + this.p2.h > this.ball.y 
+              this.p2.y + this.p2.h > this.ball.y
             ) 
         {
             this.ball_vel.x *= -1.0;

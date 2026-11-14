@@ -370,9 +370,9 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
     auto rhs = nd->rhs->codegen(*this);
     auto is_float_op = lhs.type.info.kind == Kind::Float || rhs.type.info.kind == Kind::Float;
     auto op_size = std::max(lhs.type.info.size, rhs.type.info.size);
-    if (op_size < 2) op_size = 2;
     auto bin_op = get_binop(nd->binop, is_float_op);
     bool is_bool = (nd->binop >= BinOp::LT && nd->binop <= BinOp::LOR) ? true : false;
+    if (op_size < 2 && !is_bool) op_size = 2;
     auto out_reg = is_float_op && !is_bool ? mem_reg(get_available_float_reg(), lhs.type) : mem_reg(get_available_int_reg(), is_bool ? type_infos.at("bool") : lhs.type);
     auto& mov_inst = is_float_op ? movs : mov;
     
@@ -417,7 +417,10 @@ Memory gnu_asm::emitBinOp(BinOp_Ast* nd) {
              setne.append(rhs, 1);
 
              bin_op.append(rhs, lhs, 1);
-             movzb.append(lhs, out_reg, op_size);
+             if (op_size != 1)
+                 movzb.append(lhs, out_reg, op_size);
+             else
+                 mov.append(lhs, out_reg, op_size);
         }break;
     }
     free_mem(lhs);
