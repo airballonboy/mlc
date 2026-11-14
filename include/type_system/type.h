@@ -25,16 +25,16 @@ public:
     Type& operator=(Type other);
     TypeInfo info;
     uint32_t qualifiers = 0;
-    std::shared_ptr<Struct> struct_data;
-    std::shared_ptr<PtrData> ptr_data;
-    std::shared_ptr<FuncData> func_data;
+    std::unique_ptr<Struct> struct_data;
+    std::unique_ptr<PtrData> ptr_data;
+    std::unique_ptr<FuncData> func_data;
 };
 struct PtrData {
-    std::shared_ptr<Type> pointee;
+    std::unique_ptr<Type> pointee;
 };
 struct FuncData {
-    std::shared_ptr<Type> return_type;
-    std::vector<std::shared_ptr<Type>> args;
+    std::unique_ptr<Type> return_type;
+    std::vector<std::unique_ptr<Type>> args;
 };
 Type get_base_type(Type t);
 Type set_ptr_count(Type base, size_t count);

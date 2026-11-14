@@ -6,14 +6,13 @@ Type::Type(TypeInfo i, uint32_t q)
       qualifiers(q)
 {
     if (i.kind == Kind::Pointer) {
-        this->info.size = 8;
-        ptr_data = std::make_shared<PtrData>();
-        ptr_data->pointee = std::make_shared<Type>();
+        ptr_data = std::make_unique<PtrData>();
+        ptr_data->pointee = std::make_unique<Type>();
     } else if (i.kind == Kind::Func) {
-        func_data = std::make_shared<FuncData>();
-        func_data->return_type = std::make_shared<Type>();
+        func_data = std::make_unique<FuncData>();
+        func_data->return_type = std::make_unique<Type>();
     } else if (i.kind == Kind::Struct) {
-        struct_data = std::make_shared<Struct>();
+        struct_data = std::make_unique<Struct>();
     }
 }
 Type::Type(Kind k, uint32_t q) 
@@ -21,14 +20,13 @@ Type::Type(Kind k, uint32_t q)
       qualifiers(q)
 {
     if (k == Kind::Pointer) {
-        this->info.size = 8;
-        this->ptr_data = std::make_shared<PtrData>();
-        this->ptr_data->pointee = std::make_shared<Type>();
+        this->ptr_data = std::make_unique<PtrData>();
+        this->ptr_data->pointee = std::make_unique<Type>();
     } else if (k == Kind::Func) {
-        this->func_data = std::make_shared<FuncData>();
-        this->func_data->return_type = std::make_shared<Type>();
+        this->func_data = std::make_unique<FuncData>();
+        this->func_data->return_type = std::make_unique<Type>();
     } else if (k == Kind::Struct) {
-        this->struct_data = std::make_shared<Struct>();
+        this->struct_data = std::make_unique<Struct>();
     }
 }
 Type::Type(const Type& other)
@@ -36,17 +34,17 @@ Type::Type(const Type& other)
       qualifiers(other.qualifiers)
 {
     if (info.kind == Kind::Pointer && other.ptr_data) {
-        ptr_data = std::make_shared<PtrData>();
-        ptr_data->pointee = std::make_shared<Type>(*other.ptr_data->pointee);
+        ptr_data = std::make_unique<PtrData>();
+        ptr_data->pointee = std::make_unique<Type>(*other.ptr_data->pointee);
     }
     else if (info.kind == Kind::Func && other.func_data) {
-        func_data = std::make_shared<FuncData>();
-        func_data->return_type = std::make_shared<Type>(*other.func_data->return_type);
+        func_data = std::make_unique<FuncData>();
+        func_data->return_type = std::make_unique<Type>(*other.func_data->return_type);
         for (const auto& t : other.func_data->args)
-            func_data->args.push_back(std::make_shared<Type>(*t));
+            func_data->args.push_back(std::make_unique<Type>(*t));
     }
     else if (info.kind == Kind::Struct && other.struct_data) {
-        struct_data = std::make_shared<Struct>(*other.struct_data);
+        struct_data = std::make_unique<Struct>(*other.struct_data);
     }
 }
 // swap helper

@@ -1,27 +1,23 @@
 #pragma once
 #include <string>
-#include "type_system/variable.h"
 
 struct Register {
-    const char* _64;
-    const char* _32;
-    const char* _16;
-    const char* _8;
+    std::string _64;
+    std::string _32;
+    std::string _16;
+    std::string _8;
 };
-inline std::string default_output;
-inline std::string* m_output;
 
-class Memory;
 class AsmInstruction {
 public:
-    AsmInstruction(const char* inst_name, Register suffixs = {"q", "l", "w", "b"})
+    AsmInstruction(std::string inst_name, std::string& output, Register suffixs = {"q", "l", "w", "b"})
         : m_instName(inst_name), 
+          m_output(output),
           m_instSuffixs(suffixs) {}
+    ~AsmInstruction() = default;
 
     // appends instruction
     void append();
-    void append(Memory src, size_t size = 8);
-    void append(Memory src, Memory dest, size_t size = 8);
     // appends instruction with `reg`
     void append(Register reg, size_t size = 8);
     // appends instruction with `src` into `dest` with the size of `size`
@@ -41,37 +37,8 @@ public:
     // appends instruction with `int_value` into `dest` of size `size`
     void append(int64_t  int_value, Register dest, size_t size = 8);
 
-    static void set_output(std::string* out) {
-        m_output = out;
-    }
 private:
+    std::string& m_output;
     std::string m_instName = "";
-    Register m_instSuffixs = {"q", "l", "w", "b"};
+    Register m_instSuffixs;
 };
-
-inline AsmInstruction movabs = AsmInstruction("movabs");                   ;
-inline AsmInstruction lea    = AsmInstruction("lea" , {"q", "q", "q", "q"});
-inline AsmInstruction cmp    = AsmInstruction("cmp");
-inline AsmInstruction mov    = AsmInstruction("mov");
-inline AsmInstruction add    = AsmInstruction("add");
-inline AsmInstruction sub    = AsmInstruction("sub");
-inline AsmInstruction imul   = AsmInstruction("imul");
-inline AsmInstruction idiv   = AsmInstruction("idiv");
-inline AsmInstruction adds   = AsmInstruction("adds" , {"d", "s", "s", "s"});
-inline AsmInstruction movs   = AsmInstruction("movs" , {"d", "s", "s", "s"});
-inline AsmInstruction subs   = AsmInstruction("subs" , {"d", "s", "s", "s"});
-inline AsmInstruction muls   = AsmInstruction("muls" , {"d", "s", "s", "s"});
-inline AsmInstruction divs   = AsmInstruction("divs" , {"d", "s", "s", "s"});
-inline AsmInstruction comis  = AsmInstruction("comis", {"d", "s", "s", "s"});
-inline AsmInstruction sete   = AsmInstruction("sete" , {"", "", "", ""});
-inline AsmInstruction setne  = AsmInstruction("setne", {"", "", "", ""});
-inline AsmInstruction setl   = AsmInstruction("setl" , {"", "", "", ""});
-inline AsmInstruction setle  = AsmInstruction("setle", {"", "", "", ""});
-inline AsmInstruction setg   = AsmInstruction("setg" , {"", "", "", ""});
-inline AsmInstruction setge  = AsmInstruction("setge", {"", "", "", ""});
-inline AsmInstruction setb   = AsmInstruction("setb" , {"", "", "", ""});
-inline AsmInstruction setbe  = AsmInstruction("setbe", {"", "", "", ""});
-inline AsmInstruction seta   = AsmInstruction("seta" , {"", "", "", ""});
-inline AsmInstruction setnb  = AsmInstruction("setnb", {"", "", "", ""});
-inline AsmInstruction and_   = AsmInstruction("and");
-inline AsmInstruction or_    = AsmInstruction("or");

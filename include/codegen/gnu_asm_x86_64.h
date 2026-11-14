@@ -7,82 +7,65 @@
 #include "type_system/func.h"
 #include "program.h"
 
-class gnu_asm : public BaseCodegen {
+class gnu_asm : public BaseCodegenerator {
 public:
     gnu_asm(Program* prog);
 
-    void call_func(Func& func, std::vector<Node> args, Memory* ret_mem = nullptr);
-    void call_func_windows(Func& func, std::vector<Node> args, Memory* ret_mem = nullptr);
-    void call_func_linux(Func& func, std::vector<Node> args, Memory* ret_mem = nullptr);
+    void call_func(Func func, VariableStorage args);
+    void call_func_windows(Func func, VariableStorage args);
+    void call_func_linux(Func func, VariableStorage args);
     void compileProgram() override;
-    void compileFunction(Func& func) override;
+    void compileFunction(Func func) override;
     void compileConstant(Variable var);
 
     void mov_var(Variable src   , Register dest);
     void mov_var(Register src   , Variable dest);
     void mov_var(Variable src   , Variable dest);
     void mov_member(Variable src, Register dest);
-    Memory get_member_ptr(Variable var);
+    void mov_member(Register src, Variable dest);
     void deref(Register, int64_t deref_count);
     void cast_float_size(Register reg, size_t orig_size, size_t new_size);
     void cast_int_size(Register reg, size_t orig_size, size_t new_size);
-
-public:
-    void   emitReturn   (Return_Ast*    nd) override;
-    void   emitJump     (Jump_Ast*      nd) override;
-    void   emitJumpIfNot(JumpIfNot_Ast* nd) override;
-    void   emitLabel    (Label_Ast*     nd) override;
-    void   emitIf       (If_Ast*        nd) override;
-    void   emitLoop     (Loop_Ast*      nd) override;
-    Memory emitLoad     (Load_Ast*      nd) override;
-    Memory emitRef      (Ref_Ast*       nd) override;
-    Memory emitDeref    (Deref_Ast*     nd) override;
-    Memory emitCall     (Call_Ast*      nd) override;
-    Memory emitStore    (Store_Ast*     nd) override;
-    Memory emitBinOp    (BinOp_Ast*     nd) override;
-    Memory getVarPtr    (Variable var)      override;
 
 public:
     std::vector<Register> arg_register;
     std::vector<Register> arg_register_float;
 private:
     void function_prologue();
-    void get_func_args_windows(Func& func);
-    void get_func_args_linux(Func& func);
+    void get_func_args_windows(Func func);
+    void get_func_args_linux(Func func);
     void function_epilogue();
     AsmInstruction& get_binop(BinOp bin_op, bool is_float);
     AsmInstruction& get_compare_binop(BinOp bin_op, bool is_float);
 
-public:
-    AsmInstruction movabs = AsmInstruction("movabs");                   ;
-    AsmInstruction movzb  = AsmInstruction("movzb");                   ;
-    AsmInstruction lea    = AsmInstruction("lea" , {"q", "q", "q", "q"});
-    AsmInstruction cmp    = AsmInstruction("cmp");
-    AsmInstruction test   = AsmInstruction("test");
-    AsmInstruction mov    = AsmInstruction("mov");
-    AsmInstruction add    = AsmInstruction("add");
-    AsmInstruction sub    = AsmInstruction("sub");
-    AsmInstruction imul   = AsmInstruction("imul");
-    AsmInstruction idiv   = AsmInstruction("idiv");
-    AsmInstruction adds   = AsmInstruction("adds" , {"d", "s", "s", "s"});
-    AsmInstruction movs   = AsmInstruction("movs" , {"d", "s", "s", "s"});
-    AsmInstruction subs   = AsmInstruction("subs" , {"d", "s", "s", "s"});
-    AsmInstruction muls   = AsmInstruction("muls" , {"d", "s", "s", "s"});
-    AsmInstruction divs   = AsmInstruction("divs" , {"d", "s", "s", "s"});
-    AsmInstruction comis  = AsmInstruction("comis", {"d", "s", "s", "s"});
-    AsmInstruction sete   = AsmInstruction("sete" , {"", "", "", ""});
-    AsmInstruction setne  = AsmInstruction("setne", {"", "", "", ""});
-    AsmInstruction setl   = AsmInstruction("setl" , {"", "", "", ""});
-    AsmInstruction setle  = AsmInstruction("setle", {"", "", "", ""});
-    AsmInstruction setg   = AsmInstruction("setg" , {"", "", "", ""});
-    AsmInstruction setge  = AsmInstruction("setge", {"", "", "", ""});
-    AsmInstruction setb   = AsmInstruction("setb" , {"", "", "", ""});
-    AsmInstruction setbe  = AsmInstruction("setbe", {"", "", "", ""});
-    AsmInstruction seta   = AsmInstruction("seta" , {"", "", "", ""});
-    AsmInstruction setnb  = AsmInstruction("setnb", {"", "", "", ""});
+private:
+    AsmInstruction movabs = AsmInstruction("movabs", output);
+    AsmInstruction lea    = AsmInstruction("lea"   , output);
+    AsmInstruction cmp    = AsmInstruction("cmp"   , output);
+    AsmInstruction mov    = AsmInstruction("mov"   , output);
+    AsmInstruction add    = AsmInstruction("add"   , output);
+    AsmInstruction sub    = AsmInstruction("sub"   , output);
+    AsmInstruction imul   = AsmInstruction("imul"  , output);
+    AsmInstruction idiv   = AsmInstruction("idiv"  , output);
+    AsmInstruction adds   = AsmInstruction("adds"  , output, {"d", "s", "s", "s"});
+    AsmInstruction movs   = AsmInstruction("movs"  , output, {"d", "s", "s", "s"});
+    AsmInstruction subs   = AsmInstruction("subs"  , output, {"d", "s", "s", "s"});
+    AsmInstruction muls   = AsmInstruction("muls"  , output, {"d", "s", "s", "s"});
+    AsmInstruction divs   = AsmInstruction("divs"  , output, {"d", "s", "s", "s"});
+    AsmInstruction comis  = AsmInstruction("comis", output, {"d", "s", "s", "s"});
+    AsmInstruction sete   = AsmInstruction("sete", output, {"", "", "", ""});
+    AsmInstruction setne  = AsmInstruction("setne", output, {"", "", "", ""});
+    AsmInstruction setl   = AsmInstruction("setl", output, {"", "", "", ""});
+    AsmInstruction setle  = AsmInstruction("setle", output, {"", "", "", ""});
+    AsmInstruction setg   = AsmInstruction("setg", output, {"", "", "", ""});
+    AsmInstruction setge  = AsmInstruction("setge", output, {"", "", "", ""});
+    AsmInstruction setb   = AsmInstruction("setb", output, {"", "", "", ""});
+    AsmInstruction setbe   = AsmInstruction("setbe", output, {"", "", "", ""});
+    AsmInstruction seta   = AsmInstruction("seta", output, {"", "", "", ""});
+    AsmInstruction setnb   = AsmInstruction("setnb", output, {"", "", "", ""});
 
-    AsmInstruction and_   = AsmInstruction("and");
-    AsmInstruction or_    = AsmInstruction("or");
+    AsmInstruction and_   = AsmInstruction("and", output);
+    AsmInstruction or_    = AsmInstruction("or", output);
 };
 
 const Register Rip   = {"%rip"  , "%rip"  , "%rip"  , "%rip"};
@@ -125,158 +108,3 @@ const static std::unordered_set<std::string_view> xmm = {
     Xmm0._64, Xmm1._64, Xmm2._64, Xmm3._64, Xmm4._64, Xmm5._64, Xmm6._64, Xmm7._64, Xmm8._64,
     Xmm9._64, Xmm10._64, Xmm11._64, Xmm12._64, Xmm13._64, Xmm14._64, Xmm15._64
 };
-
-
-inline bool is_float_reg(Register reg) {return xmm.contains(reg._64);}
-
-static std::vector<std::pair<Register, bool>> available_reg = {
-    //{Rax, true},
-    {Rbx, true},
-    {R13, true},
-    {R14, true},
-    {R15, true},
-};
-static std::vector<std::pair<Register, bool>> available_float_reg = {
-    {Xmm12, true},
-    {Xmm13, true},
-    {Xmm14, true},
-    {Xmm15, true},
-};
-
-inline Register get_available_int_reg() {
-    if (available_reg.size() < 1) TODO("no available Registers");
-    Register reg = {0};
-    for (auto& [reg_, avail] : available_reg) {
-        if (avail) {
-            reg = reg_;
-            avail = false;
-            break;
-        }
-    }
-    if (reg._64 == nullptr)
-        TODO("ran out of registers");
-    return reg;
-}
-inline Register get_available_float_reg() {
-    if (available_float_reg.size() < 1) TODO("no available Registers");
-    Register reg;
-    for (auto& [reg_, avail] : available_float_reg) {
-        if (avail) {
-            reg = reg_;
-            avail = false;
-            break;
-        }
-    }
-    if (reg._64 == nullptr)
-        TODO("ran out of registers");
-    return reg;
-}
-
-inline void free_int_reg(Register reg) {
-    if (r64.contains(reg._64)) {
-        for (auto& [reg_, avail] : available_reg) {
-            if (reg_._64 == reg._64) {
-                avail = true;
-                break;
-            }
-        }
-    } else 
-        TODO("register doesn't exist");
-}
-inline void free_float_reg(Register reg) {
-    if (xmm.contains(reg._64)) {
-        for (auto& [reg_, avail] : available_float_reg) {
-            if (reg_._64 == reg._64) {
-                avail = true;
-                break;
-            }
-        }
-    } else 
-        TODO("register doesn't exist");
-}
-inline void reserve_mem(Memory mem) {
-    switch (mem.asm_mem.type) {
-        case AsmType::Reg: {
-            if (is_float_reg(mem.asm_mem.reg)) {
-                for (auto& [reg_, avail] : available_float_reg) {
-                    if (reg_._64 == mem.asm_mem.reg._64) {
-                        avail = false;
-                        break;
-                    }
-                }
-            } else {
-                for (auto& [reg_, avail] : available_reg) {
-                    if (reg_._64 == mem.asm_mem.reg._64) {
-                        avail = false;
-                        break;
-                    }
-                }
-            }
-        } break;
-        case AsmType::TWO_Reg: {
-            if (is_float_reg(mem.asm_mem.reg1)) {
-                for (auto& [reg_, avail] : available_float_reg) {
-                    if (reg_._64 == mem.asm_mem.reg1._64) {
-                        avail = false;
-                        break;
-                    }
-                }
-            } else {
-                for (auto& [reg_, avail] : available_reg) {
-                    if (reg_._64 == mem.asm_mem.reg1._64) {
-                        avail = false;
-                        break;
-                    }
-                }
-            }
-            if (is_float_reg(mem.asm_mem.reg2)) {
-                for (auto& [reg_, avail] : available_float_reg) {
-                    if (reg_._64 == mem.asm_mem.reg2._64) {
-                        avail = false;
-                        break;
-                    }
-                }
-            } else {
-                for (auto& [reg_, avail] : available_reg) {
-                    if (reg_._64 == mem.asm_mem.reg2._64) {
-                        avail = false;
-                        break;
-                    }
-                }
-            }
-        } break;
-        case AsmType::None:
-            break;
-        case AsmType::OffReg: 
-        case AsmType::ArrayIndex: 
-        case AsmType::Global: 
-            TODO(mlog::format("{}", (int)mem.asm_mem.type));
-    }
-}
-inline void free_mem(Memory mem) {
-    switch (mem.asm_mem.type) {
-        case AsmType::Reg: {
-            if (is_float_reg(mem.asm_mem.reg))
-                free_float_reg(mem.asm_mem.reg);
-            else
-                free_int_reg(mem.asm_mem.reg);
-        } break;
-        case AsmType::OffReg: {
-            if (is_float_reg(mem.asm_mem.off_reg))
-                free_float_reg(mem.asm_mem.off_reg);
-            else
-                free_int_reg(mem.asm_mem.off_reg);
-        } break;
-        case AsmType::TWO_Reg: {
-            if (is_float_reg(mem.asm_mem.reg1)) free_float_reg(mem.asm_mem.reg1);
-            else                               free_int_reg(mem.asm_mem.reg1);
-            if (is_float_reg(mem.asm_mem.reg2)) free_float_reg(mem.asm_mem.reg2);
-            else                               free_int_reg(mem.asm_mem.reg2);
-        } break;
-
-        case AsmType::ArrayIndex: 
-        case AsmType::Global: 
-        case AsmType::None:
-            TODO("");
-    }
-}
